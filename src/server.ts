@@ -1,14 +1,18 @@
 import { env } from "./config/env";
 import { startUdpListener } from "./network/udpListener";
 import { startWsBroadcaster } from "./network/wsBroadcaster";
+import { startHttpServer } from "./http/httpServer";
 import { dispatchPacket } from "./telemetry/dispatcher";
 import { packetName } from "./telemetry/packetIds";
 import { buildWsMessage } from "./ws/messageFormat";
 import { PacketMotionData } from "./telemetry/motion/types";
 import { PacketLapData } from "./telemetry/lapData/types";
 import { PacketCarTelemetryData } from "./telemetry/carTelemetry/types";
+import { persistTelemetry } from "./persistence/persistTelemetry";
+import { closeDb } from "./persistence/db";
 
 const { broadcast } = startWsBroadcaster(env.wsPort);
+startHttpServer(env.httpPort);
 
 startUdpListener(env.udpPort, (buffer) => {
   const result = dispatchPacket(buffer);
@@ -24,6 +28,7 @@ startUdpListener(env.udpPort, (buffer) => {
         `pos=(${player.worldPosition.x.toFixed(1)}, ${player.worldPosition.y.toFixed(1)}, ${player.worldPosition.z.toFixed(1)}) ` +
         `gForce lat=${player.gForceLateral.toFixed(2)} lon=${player.gForceLongitudinal.toFixed(2)} vert=${player.gForceVertical.toFixed(2)}`
     );
+    persistTelemetry(header, packetId, motion);
     broadcast(buildWsMessage(header, packetId, motion.carMotionData));
   }
 
@@ -35,6 +40,7 @@ startUdpListener(env.udpPort, (buffer) => {
         `lap=${player.currentLapNum} sector=${player.sector} pos=${player.carPosition} ` +
         `currentLapTimeMS=${player.currentLapTimeInMS} lastLapTimeMS=${player.lastLapTimeInMS}`
     );
+    persistTelemetry(header, packetId, lapData);
     broadcast(buildWsMessage(header, packetId, lapData.lapData));
   }
 
@@ -47,6 +53,15 @@ startUdpListener(env.udpPort, (buffer) => {
         `gear=${player.gear} rpm=${player.engineRPM} ` +
         `tyresPressure RL=${player.tyresPressure.rearLeft.toFixed(1)} FR=${player.tyresPressure.frontRight.toFixed(1)}`
     );
+    persistTelemetry(header, packetId, carTelemetry);
     broadcast(buildWsMessage(header, packetId, carTelemetry.carTelemetryData));
   }
 });
+
+function shutdown(): void {
+  closeDb();
+  process.exit(0);
+}
+
+process.on("SIGINT", shutdown);
+process.on("SIGTERM", shutdown);
