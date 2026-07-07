@@ -43,7 +43,19 @@ CREATE TABLE IF NOT EXISTS car_telemetry_samples (
   steer        REAL NOT NULL,
   gear         INTEGER NOT NULL,
   engine_rpm   INTEGER NOT NULL,
-  drs          INTEGER NOT NULL CHECK (drs IN (0,1))
+  drs          INTEGER NOT NULL CHECK (drs IN (0,1)),
+  tyre_pressure_rl      REAL NOT NULL,
+  tyre_pressure_rr      REAL NOT NULL,
+  tyre_pressure_fl      REAL NOT NULL,
+  tyre_pressure_fr      REAL NOT NULL,
+  tyre_surface_temp_rl  INTEGER NOT NULL,
+  tyre_surface_temp_rr  INTEGER NOT NULL,
+  tyre_surface_temp_fl  INTEGER NOT NULL,
+  tyre_surface_temp_fr  INTEGER NOT NULL,
+  tyre_inner_temp_rl    INTEGER NOT NULL,
+  tyre_inner_temp_rr    INTEGER NOT NULL,
+  tyre_inner_temp_fl    INTEGER NOT NULL,
+  tyre_inner_temp_fr    INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_car_samples_lap
   ON car_telemetry_samples(session_id, lap_number, lap_distance);
