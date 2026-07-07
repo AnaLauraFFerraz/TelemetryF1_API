@@ -1,4 +1,5 @@
 import "dotenv/config";
+import path from "node:path";
 
 function readPort(name: string): number {
   const raw = process.env[name];
@@ -17,4 +18,6 @@ function readPort(name: string): number {
 export const env = {
   wsPort: readPort("WS_PORT"),
   udpPort: readPort("UDP_PORT"),
+  httpPort: readPort("HTTP_PORT"),
+  dbPath: path.resolve(__dirname, "..", "..", "data", "telemetry.db"),
 };
