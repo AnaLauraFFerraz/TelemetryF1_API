@@ -2,7 +2,7 @@ import { PacketHeader } from "../telemetry/header/types";
 import { LapData } from "../telemetry/lapData/types";
 import { CarMotionData } from "../telemetry/motion/types";
 import { CarTelemetryData } from "../telemetry/carTelemetry/types";
-import { getOrCreateSession } from "./sessionRepository";
+import { getOrCreateSession, touchSession } from "./sessionRepository";
 import { upsertCompletedLap } from "./lapRepository";
 import { insertCarTelemetrySample } from "./carTelemetrySampleRepository";
 import { insertMotionSample } from "./motionSampleRepository";
@@ -13,6 +13,7 @@ import { LapProgressSnapshot } from "./types";
 interface ActiveSession {
   sessionId: number;
   lapDetector: LapCompletionDetector;
+  lastTouchedAt: number;
   lapProgress?: LapProgressSnapshot;
   carTelemetryDecimation?: DecimationState;
   carTelemetryDecimationLap?: number;
@@ -24,6 +25,12 @@ interface ActiveSession {
 // no restart do processo - ver limitação conhecida no plano.
 const activeSessions = new Map<string, ActiveSession>();
 
+// getOrCreateSession já faz um UPDATE last_seen_at, mas só roda uma vez (na
+// criação da sessão em memória) - sem isso, last_seen_at fica travado no
+// valor de started_at pelo resto da sessão. Refresca no máximo a cada
+// TOUCH_INTERVAL_MS para não gerar um UPDATE por pacote (até 60/s).
+const TOUCH_INTERVAL_MS = 15_000;
+
 function getActiveSession(header: PacketHeader): ActiveSession {
   const sessionUid = header.sessionUID.toString();
 
@@ -32,9 +39,18 @@ function getActiveSession(header: PacketHeader): ActiveSession {
     active = {
       sessionId: getOrCreateSession(header),
       lapDetector: createLapCompletionDetector(),
+      lastTouchedAt: Date.now(),
     };
     activeSessions.set(sessionUid, active);
+    return active;
   }
+
+  const now = Date.now();
+  if (now - active.lastTouchedAt >= TOUCH_INTERVAL_MS) {
+    touchSession(active.sessionId);
+    active.lastTouchedAt = now;
+  }
+
   return active;
 }
 

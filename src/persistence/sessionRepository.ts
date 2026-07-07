@@ -40,6 +40,10 @@ export function getOrCreateSession(header: PacketHeader): number {
   return Number(result.lastInsertRowid);
 }
 
+export function touchSession(id: number): void {
+  touchSessionStmt.run({ id });
+}
+
 export interface SessionSummary {
   id: number;
   sessionUid: string;
