@@ -1,0 +1,27 @@
+import { PacketHeader } from "../telemetry/header/types";
+import { PacketMotionData } from "../telemetry/motion/types";
+import { PacketLapData } from "../telemetry/lapData/types";
+import { PacketCarTelemetryData } from "../telemetry/carTelemetry/types";
+import { handleLapDataPacket, handleMotionPacket, handleCarTelemetryPacket } from "./sessionContext";
+
+// Entry point único chamado por server.ts a cada pacote dispatchado. Sem SQL
+// nem regra de negócio própria - só roteia por packetId para sessionContext.
+export function persistTelemetry(header: PacketHeader, packetId: number, data: unknown): void {
+  if (packetId === 2) {
+    const lapData = data as PacketLapData;
+    handleLapDataPacket(header, lapData.lapData[header.playerCarIndex]);
+    return;
+  }
+
+  if (packetId === 0) {
+    const motion = data as PacketMotionData;
+    handleMotionPacket(header, motion.carMotionData[header.playerCarIndex]);
+    return;
+  }
+
+  if (packetId === 6) {
+    const carTelemetry = data as PacketCarTelemetryData;
+    handleCarTelemetryPacket(header, carTelemetry.carTelemetryData[header.playerCarIndex]);
+    return;
+  }
+}
