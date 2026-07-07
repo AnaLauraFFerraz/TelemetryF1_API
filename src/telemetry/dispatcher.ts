@@ -21,10 +21,19 @@ export interface DispatchedPacket {
   data: unknown;
 }
 
+const SUPPORTED_PACKET_FORMAT = 2024;
+
 export function dispatchPacket(buffer: Buffer): DispatchedPacket | null {
   // o packetId só é conhecido depois de ler o header, então ele é sempre
   // parseado primeiro, independente do tipo de pacote.
   const header = parseHeader(buffer);
+
+  if (header.packetFormat !== SUPPORTED_PACKET_FORMAT) {
+    throw new Error(
+      `Formato de pacote não suportado: ${header.packetFormat}. Esperado ${SUPPORTED_PACKET_FORMAT} - ` +
+        `confira se o jogo está com "UDP Format" = 2024 no menu de telemetria.`
+    );
+  }
 
   const parser = PARSERS[header.packetId];
   if (!parser) {

@@ -3,6 +3,10 @@ import { HEADER_SIZE, assertBytesRead } from "../shared/constants";
 import { PacketHeader } from "./types";
 
 export function parseHeader(buffer: Buffer): PacketHeader {
+  if (buffer.length < HEADER_SIZE) {
+    throw new Error(`Pacote UDP menor que o header (${buffer.length} bytes, esperava pelo menos ${HEADER_SIZE}).`);
+  }
+
   const cursor = new BufferCursor(buffer);
 
   const header: PacketHeader = {

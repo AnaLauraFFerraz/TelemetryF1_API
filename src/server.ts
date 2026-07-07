@@ -14,7 +14,7 @@ import { closeDb } from "./persistence/db";
 const { broadcast } = startWsBroadcaster(env.wsPort);
 startHttpServer(env.httpPort);
 
-startUdpListener(env.udpPort, (buffer) => {
+function handlePacket(buffer: Buffer): void {
   const result = dispatchPacket(buffer);
   if (!result) return; // tipo de pacote ainda não suportado (ver telemetry/dispatcher.ts)
 
@@ -55,6 +55,17 @@ startUdpListener(env.udpPort, (buffer) => {
     );
     persistTelemetry(header, packetId, carTelemetry);
     broadcast(buildWsMessage(header, packetId, carTelemetry.carTelemetryData));
+  }
+}
+
+startUdpListener(env.udpPort, (buffer) => {
+  // Um pacote malformado (formato errado, truncado, de outra aplicação
+  // mandando pro mesmo IP/porta) não pode derrubar o processo inteiro -
+  // descarta e segue escutando os próximos.
+  try {
+    handlePacket(buffer);
+  } catch (err) {
+    console.error("[server] pacote UDP descartado:", err instanceof Error ? err.message : err);
   }
 });
 
