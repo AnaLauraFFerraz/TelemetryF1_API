@@ -1,16 +1,18 @@
 import { parseHeader } from "./header/parseHeader";
 import { PacketHeader } from "./header/types";
 import { parseMotionPacket } from "./motion/parseMotion";
+import { parseSessionPacket } from "./session/parseSession";
 import { parseLapDataPacket } from "./lapData/parseLapData";
 import { parseCarTelemetryPacket } from "./carTelemetry/parseCarTelemetry";
 
 type PacketParser = (buffer: Buffer, header: PacketHeader) => unknown;
 
 // Cada tipo de pacote implementado é registrado aqui. Os packetIds ainda não
-// suportados (1,3,4,5,7-14 - ver telemetry/packetIds.ts) simplesmente não
+// suportados (3,4,5,7-14 - ver telemetry/packetIds.ts) simplesmente não
 // aparecem nesta tabela e são ignorados pelo dispatchPacket.
 const PARSERS: Partial<Record<number, PacketParser>> = {
   0: parseMotionPacket,
+  1: parseSessionPacket,
   2: parseLapDataPacket,
   6: parseCarTelemetryPacket,
 };
