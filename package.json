@@ -7,7 +7,8 @@
     "dev": "ts-node-dev src/server.ts",
     "record": "ts-node-dev tools/recorder.ts",
     "replay": "ts-node-dev tools/replayer.ts",
-    "test": "node -r ts-node/register --test src/persistence/lapCompletionDetector.test.ts src/persistence/decimation.test.ts"
+    "analyze": "ts-node-dev tools/analyze.ts",
+    "test": "node -r ts-node/register --test src/persistence/*.test.ts src/analysis/*.test.ts"
   },
   "keywords": [],
   "author": "",
