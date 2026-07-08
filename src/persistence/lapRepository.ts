@@ -78,3 +78,53 @@ export function listLapsForSession(sessionId: number): LapRow[] {
     recordedAt: row.recorded_at,
   }));
 }
+
+export interface TrackBenchmark {
+  bestLapTimeMs: number | null;
+  bestLapSessionId: number | null;
+  bestLapNumber: number | null;
+  // soma dos melhores setores válidos já registrados na pista, mesmo que
+  // venham de voltas/sessões diferentes - representa o "potencial" do
+  // piloto ali, não uma volta que ele de fato completou.
+  theoreticalBestMs: number | null;
+}
+
+// Considera TODAS as sessões já gravadas nessa pista, não só a atual -
+// histórico de benchmark persiste entre sessões (é o ponto da Fase 2).
+const bestLapForTrackStmt = db.prepare<{ trackId: number }>(`
+  SELECT l.session_id AS session_id, l.lap_number AS lap_number, l.lap_time_ms AS lap_time_ms
+  FROM laps l
+  JOIN sessions s ON s.id = l.session_id
+  WHERE s.track_id = @trackId AND l.is_valid = 1
+  ORDER BY l.lap_time_ms ASC
+  LIMIT 1
+`);
+
+const bestSectorsForTrackStmt = db.prepare<{ trackId: number }>(`
+  SELECT MIN(l.sector1_ms) AS best_sector1_ms, MIN(l.sector2_ms) AS best_sector2_ms, MIN(l.sector3_ms) AS best_sector3_ms
+  FROM laps l
+  JOIN sessions s ON s.id = l.session_id
+  WHERE s.track_id = @trackId AND l.is_valid = 1
+`);
+
+export function getTrackBenchmark(trackId: number): TrackBenchmark {
+  const bestLap = bestLapForTrackStmt.get({ trackId }) as
+    | { session_id: number; lap_number: number; lap_time_ms: number }
+    | undefined;
+
+  const sectors = bestSectorsForTrackStmt.get({ trackId }) as
+    | { best_sector1_ms: number | null; best_sector2_ms: number | null; best_sector3_ms: number | null }
+    | undefined;
+
+  const theoreticalBestMs =
+    sectors && sectors.best_sector1_ms !== null && sectors.best_sector2_ms !== null && sectors.best_sector3_ms !== null
+      ? sectors.best_sector1_ms + sectors.best_sector2_ms + sectors.best_sector3_ms
+      : null;
+
+  return {
+    bestLapTimeMs: bestLap?.lap_time_ms ?? null,
+    bestLapSessionId: bestLap?.session_id ?? null,
+    bestLapNumber: bestLap?.lap_number ?? null,
+    theoreticalBestMs,
+  };
+}
