@@ -2,7 +2,8 @@ import { PacketHeader } from "../telemetry/header/types";
 import { LapData } from "../telemetry/lapData/types";
 import { CarMotionData } from "../telemetry/motion/types";
 import { CarTelemetryData } from "../telemetry/carTelemetry/types";
-import { getOrCreateSession, touchSession } from "./sessionRepository";
+import { PacketSessionData } from "../telemetry/session/types";
+import { getOrCreateSession, touchSession, setSessionTrackId } from "./sessionRepository";
 import { upsertCompletedLap } from "./lapRepository";
 import { insertCarTelemetrySample } from "./carTelemetrySampleRepository";
 import { insertMotionSample } from "./motionSampleRepository";
@@ -19,6 +20,7 @@ interface ActiveSession {
   carTelemetryDecimationLap?: number;
   motionDecimation?: DecimationState;
   motionDecimationLap?: number;
+  trackId?: number;
 }
 
 // Estado em memória por sessão ativa (chave: sessionUID como string). Perdido
@@ -52,6 +54,19 @@ function getActiveSession(header: PacketHeader): ActiveSession {
   }
 
   return active;
+}
+
+export function handleSessionPacket(header: PacketHeader, session: PacketSessionData): void {
+  // trackId=-1 é "desconhecido" na spec do jogo - não grava lixo em cima de
+  // um valor já conhecido. trackId cacheado em memória evita um UPDATE a
+  // cada pacote de sessão (~2/s) depois de gravado uma vez.
+  if (session.trackId < 0) return;
+
+  const active = getActiveSession(header);
+  if (active.trackId === session.trackId) return;
+
+  setSessionTrackId(active.sessionId, session.trackId);
+  active.trackId = session.trackId;
 }
 
 export function handleLapDataPacket(header: PacketHeader, player: LapData): void {

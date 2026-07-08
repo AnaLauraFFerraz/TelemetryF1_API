@@ -44,9 +44,19 @@ export function touchSession(id: number): void {
   touchSessionStmt.run({ id });
 }
 
+const setTrackIdStmt = db.prepare<{ id: number; trackId: number }>(`UPDATE sessions SET track_id = @trackId WHERE id = @id`);
+
+// trackId é fixo pra sessão inteira (vem do PacketSession, id 1) - chamado
+// no máximo uma vez por sessão pelo sessionContext, que já cacheia o valor
+// em memória pra não gerar um UPDATE a cada pacote de sessão recebido (~2/s).
+export function setSessionTrackId(id: number, trackId: number): void {
+  setTrackIdStmt.run({ id, trackId });
+}
+
 export interface SessionSummary {
   id: number;
   sessionUid: string;
+  trackId: number | null;
   startedAt: string;
   lastSeenAt: string;
   lapCount: number;
@@ -54,7 +64,7 @@ export interface SessionSummary {
 }
 
 const listSessionsStmt = db.prepare(`
-  SELECT s.id, s.session_uid, s.started_at, s.last_seen_at,
+  SELECT s.id, s.session_uid, s.track_id, s.started_at, s.last_seen_at,
          COUNT(l.id) AS lap_count,
          MIN(CASE WHEN l.is_valid = 1 THEN l.lap_time_ms END) AS best_lap_time_ms
   FROM sessions s
@@ -67,6 +77,7 @@ export function listSessions(): SessionSummary[] {
   const rows = listSessionsStmt.all() as Array<{
     id: number;
     session_uid: string;
+    track_id: number | null;
     started_at: string;
     last_seen_at: string;
     lap_count: number;
@@ -76,6 +87,7 @@ export function listSessions(): SessionSummary[] {
   return rows.map((row) => ({
     id: row.id,
     sessionUid: row.session_uid,
+    trackId: row.track_id,
     startedAt: row.started_at,
     lastSeenAt: row.last_seen_at,
     lapCount: row.lap_count,
@@ -86,23 +98,25 @@ export function listSessions(): SessionSummary[] {
 export interface SessionDetail {
   id: number;
   sessionUid: string;
+  trackId: number | null;
   startedAt: string;
   lastSeenAt: string;
 }
 
 const getSessionByIdStmt = db.prepare<{ id: number }>(
-  `SELECT id, session_uid, started_at, last_seen_at FROM sessions WHERE id = @id`
+  `SELECT id, session_uid, track_id, started_at, last_seen_at FROM sessions WHERE id = @id`
 );
 
 export function getSessionById(id: number): SessionDetail | undefined {
   const row = getSessionByIdStmt.get({ id }) as
-    | { id: number; session_uid: string; started_at: string; last_seen_at: string }
+    | { id: number; session_uid: string; track_id: number | null; started_at: string; last_seen_at: string }
     | undefined;
   if (!row) return undefined;
 
   return {
     id: row.id,
     sessionUid: row.session_uid,
+    trackId: row.track_id,
     startedAt: row.started_at,
     lastSeenAt: row.last_seen_at,
   };

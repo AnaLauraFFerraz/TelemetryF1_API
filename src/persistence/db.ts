@@ -18,6 +18,18 @@ db.pragma("foreign_keys = ON");
 
 db.exec(SCHEMA_SQL);
 
+// Migração defensiva: bancos locais criados antes da Fase 2 (Coach IA) não
+// têm a coluna track_id. SQLite não suporta "ADD COLUMN IF NOT EXISTS" -
+// tenta e ignora o erro esperado se a coluna já existir (instalações novas
+// já nascem com ela via SCHEMA_SQL acima, e caem no catch aqui).
+try {
+  db.exec(`ALTER TABLE sessions ADD COLUMN track_id INTEGER`);
+} catch (err) {
+  if (!(err instanceof Error) || !err.message.includes("duplicate column name")) {
+    throw err;
+  }
+}
+
 export function closeDb(): void {
   db.close();
 }
