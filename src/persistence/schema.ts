@@ -76,4 +76,19 @@ CREATE TABLE IF NOT EXISTS motion_samples (
 );
 CREATE INDEX IF NOT EXISTS idx_motion_samples_lap
   ON motion_samples(session_id, lap_number, lap_distance);
+
+-- Cache da análise de coaching por par de voltas: os insights (Fase 1) de
+-- um par (session_id, lap_a, lap_b) são determinísticos e imutáveis, então
+-- a resposta do Claude nunca precisa ser gerada duas vezes pro mesmo par.
+CREATE TABLE IF NOT EXISTS lap_analyses (
+  id             INTEGER PRIMARY KEY AUTOINCREMENT,
+  session_id     INTEGER NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+  lap_a          INTEGER NOT NULL,
+  lap_b          INTEGER NOT NULL,
+  insights_json  TEXT NOT NULL,
+  analysis_text  TEXT NOT NULL,
+  model          TEXT NOT NULL,
+  created_at     TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  UNIQUE (session_id, lap_a, lap_b)
+);
 `;
