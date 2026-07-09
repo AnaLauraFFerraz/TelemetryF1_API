@@ -8,12 +8,13 @@
     "record": "ts-node-dev tools/recorder.ts",
     "replay": "ts-node-dev tools/replayer.ts",
     "analyze": "ts-node-dev tools/analyze.ts",
-    "test": "node -r ts-node/register --test src/persistence/*.test.ts src/analysis/*.test.ts"
+    "test": "node -r ts-node/register --test src/persistence/*.test.ts src/analysis/*.test.ts src/coaching/*.test.ts"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.110.0",
     "better-sqlite3": "^12.11.1",
     "cors": "^2.8.6",
     "dotenv": "^16.4.5",

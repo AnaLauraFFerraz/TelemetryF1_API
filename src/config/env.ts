@@ -20,4 +20,6 @@ export const env = {
   udpPort: readPort("UDP_PORT"),
   httpPort: readPort("HTTP_PORT"),
   dbPath: path.resolve(__dirname, "..", "..", "data", "telemetry.db"),
+
+  anthropicApiKey: process.env.ANTHROPIC_API_KEY || undefined,
 };
