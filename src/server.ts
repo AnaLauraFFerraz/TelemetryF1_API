@@ -52,6 +52,13 @@ function handlePacket(buffer: Buffer): void {
     broadcast(buildWsMessage(header, packetId, motion.carMotionData));
   }
 
+  if (packetId === 1) {
+    // Pacote de sessão só alimenta a persistência (trackId) - não é
+    // transmitido via WS: o frontend não consome dados de sessão ao vivo
+    // (ws.ts só tipa motion/lapData/carTelemetry).
+    persistTelemetry(header, packetId, data);
+  }
+
   if (packetId === 2) {
     const lapData = data as PacketLapData;
     const player = lapData.lapData[header.playerCarIndex];
