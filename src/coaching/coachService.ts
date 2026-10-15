@@ -75,6 +75,12 @@ export async function generateCoaching(
     throw err;
   }
 
+  const { usage } = response;
+  console.log(
+    `[coachService] usage model=${MODEL} input=${usage.input_tokens} output=${usage.output_tokens} ` +
+      `cache_write=${usage.cache_creation_input_tokens ?? 0} cache_read=${usage.cache_read_input_tokens ?? 0}`
+  );
+
   const textBlock = response.content.find((block) => block.type === "text");
   if (!textBlock || textBlock.type !== "text") {
     throw new CoachingApiError("Resposta do Claude não trouxe um bloco de texto.");
