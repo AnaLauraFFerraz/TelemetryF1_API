@@ -4,7 +4,7 @@ import path from "node:path";
 function readPort(name: string): number {
   const raw = process.env[name];
   if (!raw) {
-    throw new Error(`Variável de ambiente ${name} não definida. Confira seu arquivo .env (veja .env.exemple).`);
+    throw new Error(`Variável de ambiente ${name} não definida. Confira seu arquivo .env (veja .env.example).`);
   }
 
   const port = Number(raw);
