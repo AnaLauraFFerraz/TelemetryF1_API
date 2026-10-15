@@ -2,7 +2,9 @@
   "name": "telemetryf1-server",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "engines": {
+    "node": ">=22.6"
+  },
   "scripts": {
     "dev": "ts-node-dev src/server.ts",
     "record": "ts-node-dev tools/recorder.ts",
