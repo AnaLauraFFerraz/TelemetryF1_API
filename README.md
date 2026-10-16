@@ -81,7 +81,12 @@ npm run dev                                     # in another terminal
 npm run replay -- recordings/session-<timestamp>.jsonl
 ```
 
-The replayer currently re-sends packets **as fast as possible**, ignoring the recorded timing, so the live dashboard only flashes. Decimation and lap detection use the game's own session time rather than wall-clock time, but replay has not yet been validated end to end against a real recording. Real-time replay, and that validation, is the next planned feature.
+The replayer currently re-sends packets **as fast as possible**, ignoring the recorded timing. Validated against a real recording (7.3 minutes of Time Trial at Interlagos, 20 Hz send rate, 64,412 packets):
+
+- **Confirmed:** the session, track, every completed lap, its time, sectors and validity are reproduced exactly as in the recording.
+- **Not reliable:** most per-distance samples are lost. Sending tens of thousands of datagrams in a few seconds overflows the UDP receive buffer, and only 21–33% of the samples expected after decimation reached the database. Lap times survive because a single lap-data packet at the line crossing is enough. Charts and analysis from a fast replay are therefore degraded, the live dashboard only flashes, and the session's start and last-seen times reflect the replay's wall clock.
+
+Real-time replay is the next planned feature.
 
 To inspect the analysis for two laps without calling the AI:
 
@@ -114,7 +119,8 @@ The tests cover pure logic: decimation, lap completion detection, every analysis
 
 ## Known limitations
 
-- **Flashbacks and lap restarts** merge several passes under one lap number. Lap times and sectors stay correct, but per-distance analysis on those laps is wrong.
+- **Laps with more than one pass over the same distance** produce wrong per-distance analysis. This happens with a flashback, and in Time Trial, where the out-lap shares its lap number with the first flying lap. Lap times and sectors stay correct.
+- **Fast replay loses most samples** (see above).
 - **Replaying the same recording twice** appends duplicate samples (sample tables have no unique constraint).
 - **The analysis cache** is keyed only by session and lap pair. It ignores the model, the prompt version and later benchmark changes.
 - **Error responses** are plain strings in mixed languages, and the frontend matches some of them literally.
@@ -125,7 +131,7 @@ The tests cover pure logic: decimation, lap completion detection, every analysis
 Planned with Spec Driven Development (spec, plan and tasks are committed before the code):
 
 1. **Real-time replay**: honour each packet's recorded timestamp, with speed options (1x, 2x, as fast as possible).
-2. **Flashback and lap-restart handling**: detect the rewind and discard the aborted pass.
+2. **Multiple passes per lap**: detect flashbacks (event `FLBK`, session time going back, `frameIdentifier` diverging from `overallFrameIdentifier`) and the Time Trial out-lap sharing a lap number, and keep only the valid pass.
 3. **Parser tests with real packets** extracted from a recording.
 4. **Stable error codes**, e.g. `{ code: "SESSION_NOT_FOUND", message }`, with the frontend deciding by code, and a single language for messages.
 5. **Single source for tyre temperature windows**: the API exposes the windows and the frontend consumes them, replacing the two diverging hard-coded ranges. Open question to settle in the spec: whether the ideal window in F1 24 depends on the tyre compound.

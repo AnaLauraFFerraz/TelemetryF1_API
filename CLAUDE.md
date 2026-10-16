@@ -72,7 +72,9 @@ These are also listed under "Known limitations" in the README. When a limitation
 - `npm run record` and `npm run dev` both bind the UDP port; stop the server before recording.
 - Replaying the same recording twice appends duplicate samples (no unique constraint on sample tables).
 - The `lap_analyses` cache is keyed only by `(session_id, lap_a, lap_b)`; it ignores the model, the prompt version and later benchmark changes.
-- A flashback or lap restart in the game merges several passes under one `lap_number`; analysis on such laps is wrong. Lap times and sectors are still correct (they come from `lastLapTimeInMS`).
+- A lap with more than one pass over the same distance gets wrong per-distance analysis: a flashback (event `FLBK`, `sessionTime` going back, `frameIdentifier` diverging from `overallFrameIdentifier`), or the Time Trial out-lap, which shares its `lap_number` with the first flying lap. Lap times and sectors are still correct (they come from `lastLapTimeInMS`).
+- Fast replay (`npm run replay`) overflows the UDP receive buffer: laps, times and sectors arrive intact, but only a fraction of the samples does (21–33% in a 64k-packet test).
+- `sessionType` 18 is Time Trial in F1 24 (the numbering differs from F1 23).
 - `.env` is read only at startup; `ts-node-dev` does not restart on `.env` changes.
 - Without `ANTHROPIC_API_KEY`, `POST /sessions/:id/analysis` returns 503 (cached analyses are still served).
 - The coach's system prompt is expected to be below the model's minimum cacheable length, in which case `cache_control` has no effect; not measured yet. Each call logs its token `usage` (`[coachService] usage ...`) to confirm it.
