@@ -128,4 +128,5 @@ Planned with Spec Driven Development (spec, plan and tasks are committed before 
 2. **Flashback and lap-restart handling**: detect the rewind and discard the aborted pass.
 3. **Parser tests with real packets** extracted from a recording.
 4. **Stable error codes**, e.g. `{ code: "SESSION_NOT_FOUND", message }`, with the frontend deciding by code, and a single language for messages.
-5. **Public demo** running from a recorded session, and **CI** (lint, tests, build) on GitHub Actions.
+5. **Single source for tyre temperature windows**: the API exposes the windows and the frontend consumes them, replacing the two diverging hard-coded ranges. Open question to settle in the spec: whether the ideal window in F1 24 depends on the tyre compound.
+6. **Public demo** running from a recorded session, and **CI** (lint, tests, build) on GitHub Actions.
