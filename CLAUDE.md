@@ -71,6 +71,7 @@ These are also listed under "Known limitations" in the README. When a limitation
 
 - `npm run record` and `npm run dev` both bind the UDP port; stop the server before recording.
 - Replaying the same recording twice appends duplicate samples (no unique constraint on sample tables).
+- The `lap_analyses` cache is keyed only by `(session_id, lap_a, lap_b)`; it ignores the model, the prompt version and later benchmark changes.
 - A flashback or lap restart in the game merges several passes under one `lap_number`; analysis on such laps is wrong. Lap times and sectors are still correct (they come from `lastLapTimeInMS`).
 - `.env` is read only at startup; `ts-node-dev` does not restart on `.env` changes.
 - Without `ANTHROPIC_API_KEY`, `POST /sessions/:id/analysis` returns 503 (cached analyses are still served).
