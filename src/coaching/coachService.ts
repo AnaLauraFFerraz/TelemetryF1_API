@@ -30,10 +30,11 @@ export function isCoachingConfigured(): boolean {
 
 /**
  * Gera a análise de coaching a partir do JSON de insights (Fase 1) - nunca
- * recebe amostras brutas de telemetria, só os fatos já extraídos. System
- * prompt é estático e marcado com cache_control pra aproveitar prompt
- * caching da Anthropic entre chamadas (o conteúdo variável vai todo na
- * mensagem do usuário).
+ * recebe amostras brutas de telemetria, só os fatos já extraídos. O system
+ * prompt é estático e marcado com cache_control, mas hoje fica abaixo do
+ * tamanho mínimo cacheável do modelo, então a API não o cacheia - o log de
+ * usage abaixo mostra cache_write/cache_read. O que evita custo repetido é
+ * o cache em lap_analyses.
  */
 export async function generateCoaching(
   insights: LapInsights,
