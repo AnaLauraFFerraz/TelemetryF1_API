@@ -65,6 +65,15 @@ The REST and WebSocket payloads are a contract consumed by the frontend, which m
 - Never rewrite published git history.
 - New features follow Spec Driven Development: spec, plan and tasks are committed before the implementation.
 
+## Spec Driven Development
+
+Spec Kit 1.2.0 (Claude Code integration, PowerShell scripts). The constitution is `.specify/memory/constitution.md`; read it before planning.
+
+- Flow: `/speckit-specify` → `/speckit-clarify` → `/speckit-plan` → `/speckit-tasks` → (`/speckit-analyze`) → `/speckit-implement` → `/speckit-converge`.
+- Each feature lives in `specs/NNN-short-name/` (`spec.md`, `plan.md`, `tasks.md`, ...). Commit those artifacts (`docs:`) before any implementation commit.
+- This repo owns the API contract. A feature that changes it is specified here; the frontend's spec references this one.
+- The project existed before SDD was adopted; only features from `specs/001` onward were built this way.
+
 ## Known pitfalls
 
 These are also listed under "Known limitations" in the README. When a limitation is fixed, remove it from both this file and the README in the same PR.
