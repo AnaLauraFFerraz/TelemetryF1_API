@@ -75,7 +75,7 @@ These are also listed under "Known limitations" in the README. When a limitation
 - A flashback or lap restart in the game merges several passes under one `lap_number`; analysis on such laps is wrong. Lap times and sectors are still correct (they come from `lastLapTimeInMS`).
 - `.env` is read only at startup; `ts-node-dev` does not restart on `.env` changes.
 - Without `ANTHROPIC_API_KEY`, `POST /sessions/:id/analysis` returns 503 (cached analyses are still served).
-- The coach's system prompt is below the model's minimum cacheable length, so `cache_control` currently has no effect. Each call logs its token `usage` (`[coachService] usage ...`).
+- The coach's system prompt is expected to be below the model's minimum cacheable length, in which case `cache_control` has no effect; not measured yet. Each call logs its token `usage` (`[coachService] usage ...`) to confirm it.
 
 ## How to work in this repo
 
