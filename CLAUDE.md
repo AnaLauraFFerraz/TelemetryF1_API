@@ -77,7 +77,7 @@ These are also listed under "Known limitations" in the README. When a limitation
 - `sessionType` 18 is Time Trial in F1 24 (the numbering differs from F1 23).
 - `.env` is read only at startup; `ts-node-dev` does not restart on `.env` changes.
 - Without `ANTHROPIC_API_KEY`, `POST /sessions/:id/analysis` returns 503 (cached analyses are still served).
-- The coach's system prompt is expected to be below the model's minimum cacheable length, in which case `cache_control` has no effect; not measured yet. Each call logs its token `usage` (`[coachService] usage ...`) to confirm it.
+- The coach's system prompt (1,378 tokens for `claude-opus-4-8`, measured with the token-counting endpoint) is below the model's minimum cacheable length, so `cache_control` has no effect. Each call logs its token `usage` (`[coachService] usage ...`). Re-measure if the prompt changes.
 
 ## How to work in this repo
 

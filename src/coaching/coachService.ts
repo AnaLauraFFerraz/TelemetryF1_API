@@ -31,10 +31,10 @@ export function isCoachingConfigured(): boolean {
 /**
  * Gera a análise de coaching a partir do JSON de insights (Fase 1) - nunca
  * recebe amostras brutas de telemetria, só os fatos já extraídos. O system
- * prompt é estático e marcado com cache_control, mas provavelmente fica
- * abaixo do tamanho mínimo cacheável do modelo - o log de usage abaixo
- * mostra se houve cache_write/cache_read. O que evita custo repetido é o
- * cache em lap_analyses.
+ * prompt é estático e marcado com cache_control, mas fica abaixo do
+ * tamanho mínimo cacheável do modelo - o log de usage abaixo mostra
+ * cache_write/cache_read. O que evita custo repetido é o cache em
+ * lap_analyses.
  */
 export async function generateCoaching(
   insights: LapInsights,
