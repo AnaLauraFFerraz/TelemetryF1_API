@@ -67,6 +67,8 @@ The REST and WebSocket payloads are a contract consumed by the frontend, which m
 
 ## Known pitfalls
 
+These are also listed under "Known limitations" in the README. When a limitation is fixed, remove it from both this file and the README in the same PR.
+
 - `npm run record` and `npm run dev` both bind the UDP port; stop the server before recording.
 - Replaying the same recording twice appends duplicate samples (no unique constraint on sample tables).
 - A flashback or lap restart in the game merges several passes under one `lap_number`; analysis on such laps is wrong. Lap times and sectors are still correct (they come from `lastLapTimeInMS`).
