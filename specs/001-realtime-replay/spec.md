@@ -103,7 +103,7 @@ For the public demo there is nobody driving. A recording is replayed in a loop s
 
 ### Measurable Outcomes
 
-- **SC-001**: A replay at original speed delivers at least 99% of the recording's packets to the ingestion side, up from the 21–33% of samples that survive today.
+- **SC-001**: A replay at original speed delivers at least 99% of the recording's packets to the ingestion side, up from the baseline measured against the published Interlagos recording before this feature's code changed anything (see the plan's baseline-measurement task; not an inherited figure from an untraceable earlier test).
 - **SC-002**: The number of per-distance samples stored after an original-speed replay of the Interlagos example recording is within 2% of the number the decimation rule predicts for that recording. Running the same recording a second time, in a separate replay, adds zero new sample rows.
 - **SC-003**: An original-speed replay of the Interlagos example recording (3 min 43 s) finishes within 2% of that duration; the 2x replay finishes within 2% of 1 min 52 s.
 - **SC-004**: A dashboard connected during a paced replay receives updates continuously for the whole replay, with no gap longer than one second where the recording itself has none.
