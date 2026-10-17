@@ -72,19 +72,38 @@ Without `ANTHROPIC_API_KEY` everything works except new coach analyses, which re
 
 ### Running without the game
 
-You need a recording. No recording is committed to this repository yet (a sample session is planned for the public demo), so capture one once:
+A sample recording is published as a release asset (not committed to git): [sample-recording-v1](https://github.com/AnaLauraFFerraz/TelemetryF1_API/releases/tag/sample-recording-v1).
+
+| | |
+|---|---|
+| File | `demo-interlagos-tt-20hz-laps6-8.jsonl` (25.2 MB, 13,960 packets, 222.8 s) |
+| Session | Time Trial at Interlagos, Red Bull, 20 Hz send rate |
+| Assists | Automatic gearbox, ABS, medium traction control |
+| Laps | 6 (1:14.306, invalid), 7 (1:14.144), 8 (1:13.372, best valid lap) |
+| Packets | Motion, session, lap data, event and car telemetry, plus the latest participants, car setups and time trial packets at the start; cut from a longer session, no flashback |
+| SHA-256 | `c41bdfaf7ff0feb40702875b15031654742de5fdb10ea3a05c0a21f1ac70b033` |
+
+```bash
+mkdir -p recordings
+curl -L -o recordings/demo-interlagos-tt-20hz-laps6-8.jsonl \
+  https://github.com/AnaLauraFFerraz/TelemetryF1_API/releases/download/sample-recording-v1/demo-interlagos-tt-20hz-laps6-8.jsonl
+npm run dev                                     # in another terminal
+npm run replay -- recordings/demo-interlagos-tt-20hz-laps6-8.jsonl
+```
+
+In the frontend's session analysis, lap 8 opens as the primary lap because it is the most recent. No comparison lap is pre-selected, since lap 8 is also the best valid lap: select lap 7, the second-best valid lap, as the comparison.
+
+To capture your own session:
 
 ```bash
 npm run record                                  # stop `npm run dev` first: both bind the UDP port
 # drive in the game, then Ctrl+C
-npm run dev                                     # in another terminal
-npm run replay -- recordings/session-<timestamp>.jsonl
 ```
 
-The replayer currently re-sends packets **as fast as possible**, ignoring the recorded timing. Validated against a real recording (7.3 minutes of Time Trial at Interlagos, 20 Hz send rate, 64,412 packets):
+The replayer currently re-sends packets **as fast as possible**, ignoring the recorded timing. As a result:
 
 - **Confirmed:** the session, track, every completed lap, its time, sectors and validity are reproduced exactly as in the recording.
-- **Not reliable:** most per-distance samples are lost. Sending tens of thousands of datagrams in a few seconds overflows the UDP receive buffer, and only 21–33% of the samples expected after decimation reached the database. Lap times survive because a single lap-data packet at the line crossing is enough. Charts and analysis from a fast replay are therefore degraded, the live dashboard only flashes, and the session's start and last-seen times reflect the replay's wall clock.
+- **Not reliable:** a large share of the per-distance samples is lost. Sending thousands of datagrams in a few seconds overflows the UDP receive buffer, so many samples expected after decimation never reach the database. Lap times survive because a single lap-data packet at the line crossing is enough. Charts and analysis from a fast replay are therefore degraded, the live dashboard only flashes, and the session's start and last-seen times reflect the replay's wall clock.
 
 Real-time replay is the next planned feature.
 
