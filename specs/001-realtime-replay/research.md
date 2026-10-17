@@ -70,16 +70,42 @@ Each section resolves one open design point from the spec and from the user's pl
 
 **Decision** — concrete edits for the implementation phase (not made in this plan):
 
-`README.md`:
-- "Fast replay loses most samples" → restated, not removed: it only applies to the `max` speed, which stays intentionally lossy by design (it exists precisely for the case where fidelity doesn't matter and raw speed does); `1x` and `2x` do not lose samples.
-- "Replaying the same recording twice appends duplicate samples" → removed outright; this is genuinely fixed by the `overallFrameIdentifier` dedup.
-- The "Usage" section's replay paragraph (currently: "re-sends packets as fast as possible, ignoring timing... only 21–33% of samples reached the database") is rewritten to describe `--speed`/`--loop`, the `1x` default, and the ≥99% delivery figure once re-validated against the same recording.
-- "Next steps" item 1 ("Real-time replay...") is removed from Next steps (shipped) and folded into the "Recorder and replayer" bullet under Features.
+> **Updated 2026-10-17**, after rebasing onto `origin/main` at `52b3b21` ("docs: link the published sample recording and describe how to replay it"). That commit published the Interlagos recording as a GitHub Release asset and **removed the specific loss numbers this plan originally referenced** ("21–33%", "64,412 packets", "7.3 minutes") — those numbers belonged to a different, untraceable test recording, not the one now actually published (`demo-interlagos-tt-20hz-laps6-8.jsonl`, 13,960 packets, 222.8 s). The edits below are written against the current text; point 6 below defines how this plan gets its own honest numbers for this exact file, so the replacement text isn't exposed to the same problem.
+
+`README.md` (current text quoted as of `52b3b21`):
+- Known limitations bullet "**Fast replay loses most samples** (see above)" → restated, not removed, and the "(see above)" prose it points to (in "Running without the game") is rewritten: the loss is `max`-speed-specific, which stays intentionally lossy by design; `1x` and `2x` do not lose samples. The rewritten prose states the actual measured baseline-vs-fixed percentages from point 6, not the `≥99%` *target* from SC-001 — a target isn't a measurement.
+- Known limitations bullet "**Replaying the same recording twice** appends duplicate samples" → removed outright; genuinely fixed by the `overallFrameIdentifier` dedup.
+- The "Running without the game" section's current prose ("The replayer currently re-sends packets **as fast as possible**, ignoring the recorded timing... a large share of the per-distance samples is lost... Real-time replay is the next planned feature.") is rewritten to describe `--speed`/`--loop`, the `1x` default, and point 6's measured delivery figure for this file.
+- "Next steps" item 1 ("Real-time replay: honour each packet's recorded timestamp...") is removed from Next steps (shipped) and folded into the "Recorder and replayer" bullet under Features.
+- The recording metadata table (laps 6/7/8, SHA-256, Release link) is factual about the file itself and unaffected by this feature (FR-014: recording format unchanged) — left as-is.
 - **New bullet added** to "Known limitations": a looped replay of a recording whose own `overallFrameIdentifier` span is at or below the pass-restart threshold (100 frames) does not restart its in-memory lap/decimation state correctly — see point 2 above. Not expected to matter for any realistic recording (the Interlagos example spans ~45× the threshold), but stated plainly rather than left undocumented.
 
-`CLAUDE.md`:
-- The matching "Known pitfalls" bullets get the same restate/remove treatment as above, **plus the same new short-recording-loop bullet**.
-- The Commands table's replay line gains the flags: `npm run replay -- recordings/<file>.jsonl [--speed=1x|2x|max] [--loop]`.
+`CLAUDE.md` (current text quoted as of `52b3b21`):
+- The pitfall bullet "Fast replay (`npm run replay`) overflows the UDP receive buffer: laps, times and sectors arrive intact, but a large share of the per-distance samples is lost." → same restate treatment as the README, same sourced numbers from point 6.
+- The pitfall bullet "Replaying the same recording twice appends duplicate samples (no unique constraint on sample tables)." → removed outright, same as the README.
+- **Same new short-recording-loop bullet** added as in the README.
+- The Commands table's replay line (`npm run replay -- recordings/<file>.jsonl     # re-sends a recording to 127.0.0.1:UDP_PORT`) gains the flags: `npm run replay -- recordings/<file>.jsonl [--speed=1x|2x|max] [--loop]`.
 - One line added under the `src/persistence/` row of the Architecture table noting sample deduplication by frame identifier, and one Conventions bullet stating the dedup key, so the *why* (`session_uid` is TEXT, dedup key is `overallFrameIdentifier`, not time/distance) stays discoverable the way existing non-obvious decisions already are.
 
-These edits are listed here so `/speckit-tasks` turns them into explicit tasks; per the project's own rule, a fixed known limitation is removed from both files in the same change that fixes it.
+These edits are listed here so `/speckit-tasks` turns them into explicit tasks; per the project's own rule, a fixed known limitation is removed from both files in the same change that fixes it. The task that writes the final prose runs **after** point 6's post-fix measurement, not before, so the numbers it states are the ones actually measured.
+
+## 6. Baseline measurement: real sample loss on the published recording (new, requested before `/speckit-tasks`)
+
+**Why**: the numbers this plan would otherwise have quoted in README.md/CLAUDE.md (point 5) were exactly the kind of untraceable figure that got removed from `main` — measured once, on a different recording, never re-verified against the file actually published. This plan does not repeat that mistake: it measures the real loss on `demo-interlagos-tt-20hz-laps6-8.jsonl` twice — once **before** any implementation code changes (the baseline, today's unpaced-only behaviour), once **after** (with `--speed=1x`) — and only those two measured numbers go into the docs.
+
+**Decision — how "samples that should exist" is computed**: not by eye, and not by running the lossy UDP path twice. The recording's packets are fed, in-process, through the **real, unmodified** `src/telemetry/dispatcher` + `persistTelemetry` + `sessionContext` — i.e., calling the actual parsing and decimation code directly as function calls, with no `dgram` socket involved at all — against a disposable database (the `DB_PATH` override from point 4, reused here for exactly the purpose it was built for). Since there is no network layer in this path, nothing can be dropped for lack of receive capacity; the resulting sample count is the ground truth for "how many samples this recording should produce," independent of anything this feature changes.
+
+**Decision — how "samples actually delivered today" is measured (the baseline)**:
+1. **Back up** `data/telemetry.db` and its WAL/SHM sidecars if they exist (`data/telemetry.db-wal`, `data/telemetry.db-shm`) — e.g. copy each to a `.baseline-backup` suffix. If `data/telemetry.db` doesn't exist yet, record that fact (so "restore" means "delete the file this measurement created," not "overwrite with a backup that was never taken").
+2. Run `npm run dev` and, in the **current, unmodified** `tools/replayer.ts` (before any of this feature's code lands), `npm run replay -- recordings/demo-interlagos-tt-20hz-laps6-8.jsonl` — today's only mode, unpaced, over the real UDP socket.
+3. After the replayer reports it has sent every packet, wait briefly for the server to finish processing its receive buffer, then count `car_telemetry_samples`/`motion_samples` rows for that session.
+4. **Restore**: stop `npm run dev`, delete the database the measurement just created, and move the backed-up files back (or confirm no file existed before, per step 1).
+5. Baseline percentage = (rows counted in step 3) ÷ (ground-truth count from the in-process run above).
+
+**Decision — the same measurement, repeated after the fix**: identical procedure, except step 2 uses the finished `--speed=1x` replay instead of today's unpaced one, and SC-001's "at least 99%" is checked against this second percentage, not assumed.
+
+**Where this lives**: as explicit, ordered tasks in `tasks.md` — the baseline (steps 1–5 above) scheduled **before** any implementation task touches `src/`, the backup/restore wrapping it so a crash mid-measurement can't leave `data/telemetry.db` corrupted or swapped, and the post-fix repeat scheduled **after** the replay/schema/sessionContext work, immediately before the README/CLAUDE.md docs task from point 5. This plan does not run the measurement itself — `/speckit-tasks` turns it into tasks the implementation phase executes in that order.
+
+**Alternatives considered**:
+- Trusting the spec's own illustrative "21–33%"/"67–79%" figures (inherited from the user's original framing, itself referencing the old README's now-removed numbers) — rejected for the docs: they describe the *old, different* test recording the previous numbers came from, which is exactly the provenance problem `52b3b21` just fixed. They remain fine as spec-level motivating context (`spec.md` is unchanged by this plan revision), but nothing republished to README/CLAUDE.md repeats them as if they were measured against this file.
+- Measuring "ground truth" by running the fixed `--speed=max` mode over real UDP instead of in-process — rejected: `max` is the same unpaced path being measured as lossy; it cannot serve as its own denominator.
