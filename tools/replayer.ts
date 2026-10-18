@@ -1,16 +1,17 @@
 import fs from "node:fs";
 import readline from "node:readline";
 import dgram from "node:dgram";
+import { setTimeout as delay } from "node:timers/promises";
 import { env } from "../src/config/env";
+import { runReplay } from "../src/replay/runner";
+import { RecordedPacket, ReplayOptions } from "../src/replay/types";
 
 /**
  * Lê um arquivo .jsonl gravado por tools/recorder.ts e reenvia cada pacote
- * via UDP para a própria API (127.0.0.1:UDP_PORT), como se fosse o jogo
- * transmitindo. Permite desenvolver/testar os parsers sem depender do
- * simulador ligado.
- *
- * Primeira versão: reenvia o mais rápido possível, sem respeitar o
- * timestampMs original de cada pacote (replay "rápido", não em tempo real).
+ * via UDP para a própria API (127.0.0.1:UDP_PORT), respeitando o
+ * timestampMs original de cada um - como se fosse o jogo transmitindo em
+ * tempo real. Lê o arquivo inteiro antes de mandar qualquer pacote, pra
+ * poder validar e reportar a duração/contagem de antemão (FR-006/FR-007).
  */
 
 const filePath = process.argv[2];
@@ -24,25 +25,66 @@ if (!fs.existsSync(filePath)) {
   process.exit(1);
 }
 
-const socket = dgram.createSocket("udp4");
-const rl = readline.createInterface({ input: fs.createReadStream(filePath) });
+function readRecordingSync(path: string): RecordedPacket[] {
+  const packets: RecordedPacket[] = [];
+  const lines = fs.readFileSync(path, "utf8").split("\n");
 
-let sentCount = 0;
+  for (const [index, line] of lines.entries()) {
+    if (!line.trim()) continue;
+    try {
+      const { timestampMs, data } = JSON.parse(line) as { timestampMs: number; data: string };
+      packets.push({ timestampMs, data: Buffer.from(data, "base64") });
+    } catch (err) {
+      console.error(
+        `[replayer] linha ${index + 1} ignorada (não foi possível interpretar): ${err instanceof Error ? err.message : err}`
+      );
+    }
+  }
 
-rl.on("line", (line) => {
-  if (!line.trim()) return;
+  return packets;
+}
 
-  const { data } = JSON.parse(line) as { data: string };
-  const buffer = Buffer.from(data, "base64");
+async function main(): Promise<void> {
+  const packets = readRecordingSync(filePath);
 
-  socket.send(buffer, env.udpPort, "127.0.0.1", (err) => {
-    if (err) console.error("[replayer] erro ao reenviar pacote:", err);
+  if (packets.length === 0) {
+    console.error(`[replayer] gravação vazia (nenhuma linha válida encontrada em ${filePath})`);
+    process.exit(1);
+  }
+
+  const options: ReplayOptions = { speed: "1x", loop: false };
+
+  const timestamps = packets.map((p) => p.timestampMs);
+  const durationMs = Math.max(...timestamps) - Math.min(...timestamps);
+
+  console.log(
+    `[replayer] ${filePath} - velocidade=${options.speed} loop=${options.loop} ` +
+      `${packets.length} pacotes, duração original ${durationMs}ms`
+  );
+
+  const socket = dgram.createSocket("udp4");
+  const controller = new AbortController();
+
+  function shutdown(): void {
+    controller.abort();
+  }
+  process.on("SIGINT", shutdown);
+  process.on("SIGTERM", shutdown);
+
+  const result = await runReplay(packets, options, {
+    send: (buffer) => {
+      socket.send(buffer, env.udpPort, "127.0.0.1", (err) => {
+        if (err) console.error("[replayer] erro ao reenviar pacote:", err);
+      });
+    },
+    wait: (ms) => delay(ms, undefined, { signal: controller.signal }),
   });
 
-  sentCount += 1;
-});
+  console.log(`[replayer] ${result.packetsSent} pacotes reenviados, ${result.passes} passada(s)`);
 
-rl.on("close", () => {
-  console.log(`[replayer] ${sentCount} pacotes reenviados de ${filePath}`);
+  process.off("SIGINT", shutdown);
+  process.off("SIGTERM", shutdown);
   socket.close();
-});
+}
+
+main();
