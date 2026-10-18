@@ -110,6 +110,9 @@ async function main(): Promise<void> {
     onPass: (passNumber) => {
       if (passNumber > 1) console.log(`[replayer] passada ${passNumber} iniciada (loop)`);
     },
+    onWaiting: (delayMs) => {
+      console.log(`[replayer] aguardando ${delayMs}ms até o próximo pacote...`);
+    },
   });
 
   console.log(`[replayer] ${result.packetsSent} pacotes reenviados, ${result.passes} passada(s)`);

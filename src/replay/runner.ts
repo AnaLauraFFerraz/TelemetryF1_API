@@ -7,7 +7,15 @@ export interface ReplayIo {
   now?(): number;
   wait?(ms: number): Promise<void>;
   onPass?(passNumber: number): void;
+  onWaiting?(delayMs: number): void;
 }
+
+// Acima deste limiar, um gap entre dois pacotes pode parecer uma passada
+// travada (carro parado na garagem, gravação pausada) - dispara
+// io.onWaiting uma vez, antes da espera, em vez de deixar o operador sem
+// nenhum sinal. Não altera quantas vezes io.wait é chamado por pacote, só
+// anuncia antes de uma delas quando ela vai ser bem mais longa que o normal.
+export const LONG_WAIT_THRESHOLD_MS = 5_000;
 
 export interface ReplayResult {
   packetsSent: number;
@@ -52,6 +60,9 @@ export async function runReplay(packets: RecordedPacket[], options: ReplayOption
       const delayMs = computeDelayMs(packet.timestampMs, elapsed, options.speed);
 
       if (delayMs > 0) {
+        if (delayMs > LONG_WAIT_THRESHOLD_MS) {
+          io.onWaiting?.(delayMs);
+        }
         try {
           await wait(delayMs);
         } catch {
