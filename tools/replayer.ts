@@ -4,7 +4,7 @@ import dgram from "node:dgram";
 import { setTimeout as delay } from "node:timers/promises";
 import { env } from "../src/config/env";
 import { runReplay } from "../src/replay/runner";
-import { RecordedPacket, ReplayOptions } from "../src/replay/types";
+import { RecordedPacket, ReplayOptions, ReplaySpeed } from "../src/replay/types";
 
 /**
  * Lê um arquivo .jsonl gravado por tools/recorder.ts e reenvia cada pacote
@@ -16,13 +16,32 @@ import { RecordedPacket, ReplayOptions } from "../src/replay/types";
 
 const filePath = process.argv[2];
 if (!filePath) {
-  console.error("Uso: npm run replay -- <caminho-do-arquivo.jsonl>");
+  console.error("Uso: npm run replay -- <caminho-do-arquivo.jsonl> [--speed=1x|2x|max]");
   process.exit(1);
 }
 
 if (!fs.existsSync(filePath)) {
   console.error(`[replayer] arquivo não encontrado: ${filePath}`);
   process.exit(1);
+}
+
+const ACCEPTED_SPEEDS: ReplaySpeed[] = ["1x", "2x", "max"];
+
+function parseSpeedArg(args: string[]): ReplaySpeed {
+  const arg = args.find((a) => a.startsWith("--speed="));
+  if (!arg) return "1x";
+
+  const value = arg.slice("--speed=".length);
+  if (!ACCEPTED_SPEEDS.includes(value as ReplaySpeed)) {
+    console.error(`[replayer] velocidade inválida: "${value}". Valores aceitos: ${ACCEPTED_SPEEDS.join(", ")}.`);
+    process.exit(1);
+  }
+  return value as ReplaySpeed;
+}
+
+const speed = parseSpeedArg(process.argv.slice(3));
+if (speed === "max") {
+  console.warn("[replayer] velocidade max: sem pacing, a maioria das amostras será perdida por design.");
 }
 
 function readRecordingSync(path: string): RecordedPacket[] {
@@ -52,7 +71,7 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  const options: ReplayOptions = { speed: "1x", loop: false };
+  const options: ReplayOptions = { speed, loop: false };
 
   const timestamps = packets.map((p) => p.timestampMs);
   const durationMs = Math.max(...timestamps) - Math.min(...timestamps);
