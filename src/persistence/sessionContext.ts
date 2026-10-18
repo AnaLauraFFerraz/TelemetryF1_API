@@ -103,6 +103,7 @@ export function handleMotionPacket(header: PacketHeader, player: CarMotionData):
     active.lapProgress.lapNumber,
     active.lapProgress.lapDistance,
     header.sessionTime,
+    header.overallFrameIdentifier,
     player
   );
   active.motionDecimation = { lastDistance: active.lapProgress.lapDistance, lastTimeMs: currentTimeMs };
@@ -127,6 +128,7 @@ export function handleCarTelemetryPacket(header: PacketHeader, player: CarTeleme
     active.lapProgress.lapNumber,
     active.lapProgress.lapDistance,
     header.sessionTime,
+    header.overallFrameIdentifier,
     player
   );
   active.carTelemetryDecimation = { lastDistance: active.lapProgress.lapDistance, lastTimeMs: currentTimeMs };
