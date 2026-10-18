@@ -49,7 +49,14 @@ if (speed === "max") {
 
 function readRecordingSync(path: string): RecordedPacket[] {
   const packets: RecordedPacket[] = [];
-  const lines = fs.readFileSync(path, "utf8").split("\n");
+  let fileContents: string;
+  try {
+    fileContents = fs.readFileSync(path, "utf8");
+  } catch (err) {
+    console.error(`[replayer] não foi possível ler o arquivo: ${path} (${err instanceof Error ? err.message : err})`);
+    process.exit(1);
+  }
+  const lines = fileContents.split("\n");
 
   for (const [index, line] of lines.entries()) {
     if (!line.trim()) continue;
@@ -112,4 +119,7 @@ async function main(): Promise<void> {
   socket.close();
 }
 
-main();
+main().catch((err) => {
+  console.error(`[replayer] erro inesperado: ${err instanceof Error ? err.message : err}`);
+  process.exit(1);
+});
