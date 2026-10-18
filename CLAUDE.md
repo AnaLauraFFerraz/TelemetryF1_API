@@ -64,6 +64,7 @@ The REST and WebSocket payloads are a contract consumed by the frontend, which m
 - Documentation must describe only what exists in the code. Partial features are described as partial; no invented metrics or results.
 - Never rewrite published git history.
 - New features follow Spec Driven Development: spec, plan and tasks are committed before the implementation.
+- Manual tests and smoke tests point `DB_PATH` at a temporary database or a copy, never at `data/telemetry.db` directly — this applies to ad-hoc CLI verification just as much as to automated tests. Before any operation on the real database (a migration check, a one-off query, anything that writes), back it up first and keep that backup until the feature merges.
 
 ## Spec Driven Development
 
