@@ -77,8 +77,8 @@ Also fixed in an earlier pass (before this one): T015 (then T014) no longer carr
 
 **Independent Test**: replay the same recording three times, once per speed, and compare each run's elapsed time against the recording's own duration (spec.md's own Independent Test).
 
-- [ ] T020 [US2] Extend `tools/replayer.ts`: parse `--speed` (accepted values `1x`, `2x`, `max`; default `1x` when absent); reject any other value before sending any packet, with a message listing the three accepted values (FR-007's speed-validation case); pass the parsed speed through to `runReplay`; log a one-line warning when `max` is selected, naming it as lossy by design. (depends on T018)
-- [ ] T021 [P] [US2] Extend `src/replay/runner.test.ts` with `"2x"` (half the `"1x"` delay) and `"max"` (zero delay for every packet) cases. (depends on T017)
+- [X] T020 [US2] Extend `tools/replayer.ts`: parse `--speed` (accepted values `1x`, `2x`, `max`; default `1x` when absent); reject any other value before sending any packet, with a message listing the three accepted values (FR-007's speed-validation case); pass the parsed speed through to `runReplay`; log a one-line warning when `max` is selected, naming it as lossy by design. (depends on T018)
+- [X] T021 [P] [US2] Extend `src/replay/runner.test.ts` with `"2x"` (half the `"1x"` delay) and `"max"` (zero delay for every packet) cases. (depends on T017) — **already done as part of T017**: writing comprehensive speed coverage made more sense at the time than artificially restricting it to `"1x"` only. No new test added here.
 
 **Checkpoint**: US1 and US2 both independently functional.
 
