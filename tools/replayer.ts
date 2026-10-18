@@ -16,7 +16,7 @@ import { RecordedPacket, ReplayOptions, ReplaySpeed } from "../src/replay/types"
 
 const filePath = process.argv[2];
 if (!filePath) {
-  console.error("Uso: npm run replay -- <caminho-do-arquivo.jsonl> [--speed=1x|2x|max]");
+  console.error("Uso: npm run replay -- <caminho-do-arquivo.jsonl> [--speed=1x|2x|max] [--loop]");
   process.exit(1);
 }
 
@@ -39,7 +39,10 @@ function parseSpeedArg(args: string[]): ReplaySpeed {
   return value as ReplaySpeed;
 }
 
-const speed = parseSpeedArg(process.argv.slice(3));
+const extraArgs = process.argv.slice(3);
+const speed = parseSpeedArg(extraArgs);
+const loop = extraArgs.includes("--loop");
+
 if (speed === "max") {
   console.warn("[replayer] velocidade max: sem pacing, a maioria das amostras será perdida por design.");
 }
@@ -71,7 +74,7 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  const options: ReplayOptions = { speed, loop: false };
+  const options: ReplayOptions = { speed, loop };
 
   const timestamps = packets.map((p) => p.timestampMs);
   const durationMs = Math.max(...timestamps) - Math.min(...timestamps);
@@ -97,6 +100,9 @@ async function main(): Promise<void> {
       });
     },
     wait: (ms) => delay(ms, undefined, { signal: controller.signal }),
+    onPass: (passNumber) => {
+      if (passNumber > 1) console.log(`[replayer] passada ${passNumber} iniciada (loop)`);
+    },
   });
 
   console.log(`[replayer] ${result.packetsSent} pacotes reenviados, ${result.passes} passada(s)`);
