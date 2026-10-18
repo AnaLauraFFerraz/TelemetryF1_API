@@ -21,6 +21,7 @@ interface ActiveSession {
   motionDecimation?: DecimationState;
   motionDecimationLap?: number;
   trackId?: number;
+  maxOverallFrameId: number;
 }
 
 // Estado em memória por sessão ativa (chave: sessionUID como string). Perdido
@@ -33,6 +34,24 @@ const activeSessions = new Map<string, ActiveSession>();
 // TOUCH_INTERVAL_MS para não gerar um UPDATE por pacote (até 60/s).
 const TOUCH_INTERVAL_MS = 15_000;
 
+// overallFrameIdentifier nunca regride dentro de uma sessão de verdade, nem
+// num flashback (só frameIdentifier/sessionTime regridem nesse caso - ver
+// src/telemetry/header/types.ts). Uma queda bem maior que isso só acontece
+// quando um replay em loop reinicia do começo da gravação: medido contra a
+// gravação de Interlagos, o maior recuo visto dentro de uma passada (entre
+// os packetIds que chegam aqui) é 0, e a queda real na virada do loop é de
+// ~4476 - 100 fica com folga longe dos dois extremos (specs/001-realtime-replay/research.md, ponto 2).
+export const PASS_RESTART_THRESHOLD_FRAMES = 100;
+
+function resetForNewPass(active: ActiveSession): void {
+  active.lapDetector = createLapCompletionDetector();
+  active.lapProgress = undefined;
+  active.carTelemetryDecimation = undefined;
+  active.carTelemetryDecimationLap = undefined;
+  active.motionDecimation = undefined;
+  active.motionDecimationLap = undefined;
+}
+
 function getActiveSession(header: PacketHeader): ActiveSession {
   const sessionUid = header.sessionUID.toString();
 
@@ -42,9 +61,25 @@ function getActiveSession(header: PacketHeader): ActiveSession {
       sessionId: getOrCreateSession(header),
       lapDetector: createLapCompletionDetector(),
       lastTouchedAt: Date.now(),
+      maxOverallFrameId: header.overallFrameIdentifier,
     };
     activeSessions.set(sessionUid, active);
     return active;
+  }
+
+  if (header.overallFrameIdentifier < active.maxOverallFrameId - PASS_RESTART_THRESHOLD_FRAMES) {
+    console.log(
+      `[sessionContext] reinício de passada detectado na sessão ${active.sessionId} ` +
+        `(overallFrameIdentifier caiu de ${active.maxOverallFrameId} para ${header.overallFrameIdentifier}) - reiniciando estado em memória`
+    );
+    resetForNewPass(active);
+    // reancora no início da nova passada - um Math.max aqui manteria o
+    // patamar antigo "preso" até a passada nova crescer o bastante pra
+    // superá-lo de novo, o que atrasaria (ou, numa passada mais curta que
+    // a anterior, impediria) detectar um próximo reinício de verdade.
+    active.maxOverallFrameId = header.overallFrameIdentifier;
+  } else {
+    active.maxOverallFrameId = Math.max(active.maxOverallFrameId, header.overallFrameIdentifier);
   }
 
   const now = Date.now();
