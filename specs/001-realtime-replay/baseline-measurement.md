@@ -67,3 +67,21 @@ Laps, times, sectors and validity matched the recording exactly, same as before 
 | `motion_samples` | 2,411 | 2,411 | **100%** |
 
 **After the fix: 100% of samples survive a `1x` replay of this recording** — every sample the decimation rule predicts actually arrives, not merely "within 2%" (SC-002's own tolerance). Combined with the baseline above: **14.60% → 100%**, the number that goes into the README.md/CLAUDE.md edits (research.md point 5, T028/T029) and confirms SC-001 ("at least 99%, up from the measured baseline") and SC-002 with room to spare.
+
+## `2x` — measured 2026-10-18
+
+README.md and CLAUDE.md state that `2x` does not lose samples, same as `1x` — stated without having actually measured it, since only `1x` had been. Measured now, same method, same temporary `DB_PATH`, same real `data/telemetry.db` left untouched (confirmed unchanged before and after):
+
+```bash
+DB_PATH="<temp path>/telemetry.db" npm run dev &
+npm run replay -- recordings/demo-interlagos-tt-20hz-laps6-8.jsonl --speed=2x   # finished in 115s, vs. the 111.4s target (222,839 ms / 2) — within the 2% bound (SC-003)
+```
+
+Laps, times, sectors and validity matched the recording exactly, same as `1x`.
+
+| | Actual (`2x`) | Ground truth | % |
+|---|---|---|---|
+| `car_telemetry_samples` | 2,411 | 2,411 | **100%** |
+| `motion_samples` | 2,411 | 2,411 | **100%** |
+
+**`2x` also delivers 100% of samples for this recording** — the README/CLAUDE.md claim was correct, now backed by a measurement instead of an assumption. No text change needed.

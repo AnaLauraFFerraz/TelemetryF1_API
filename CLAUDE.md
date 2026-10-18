@@ -84,6 +84,7 @@ These are also listed under "Known limitations" in the README. When a limitation
 - The `lap_analyses` cache is keyed only by `(session_id, lap_a, lap_b)`; it ignores the model, the prompt version and later benchmark changes.
 - A lap with more than one pass over the same distance gets wrong per-distance analysis: a flashback (event `FLBK`, `sessionTime` going back, `frameIdentifier` diverging from `overallFrameIdentifier`), or the Time Trial out-lap, which shares its `lap_number` with the first flying lap. Lap times and sectors are still correct (they come from `lastLapTimeInMS`).
 - The `max` replay speed overflows the UDP receive buffer by design: laps, times and sectors arrive intact, but a large share of the per-distance samples is lost. `1x` and `2x` do not lose samples.
+- `--speed=max` combined with `--loop` delivers practically no samples (measured: effectively zero) — the flood never lets up between passes. Use `1x` or `2x` for a continuous demo.
 - A looped replay of a recording whose own `overallFrameIdentifier` span is at or below `PASS_RESTART_THRESHOLD_FRAMES` (100, in `sessionContext.ts`) does not reset the in-memory lap/decimation state at the loop boundary — the next pass carries over stale state instead of starting fresh. Not expected to matter for any realistic recording (the published Interlagos example spans about 4,500 frames).
 - `sessionType` 18 is Time Trial in F1 24 (the numbering differs from F1 23).
 - `.env` is read only at startup; `ts-node-dev` does not restart on `.env` changes.
