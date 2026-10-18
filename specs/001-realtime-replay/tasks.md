@@ -173,3 +173,10 @@ Task: "Dedup unit test in src/persistence/motionSampleRepository.test.ts"
 - Tests are included per the constitution's rule for new pure logic and FR-013's explicit requirement; write them alongside (not strictly before) the implementation task they exercise, consistent with the project's existing flat `test()`/synthetic-fixture style.
 - Commit after each task or small logical group, `npm test`/`tsc --noEmit` clean, per the project's pre-commit rule — do not batch uncommitted work across phases.
 - T001 and T027 are the two points in this plan that touch `data/telemetry.db` destructively (backup/restore around them) — treat them with the same care as any other action that could discard real data. T005's helper exists precisely so no *other* task has to.
+
+## Phase 7: Convergence
+
+Found by `/speckit-converge` after T001–T031 were all implemented and marked done. Both gaps were verified against the running code before being recorded here, not inferred from reading alone.
+
+- [ ] T032 Wrap `fs.readFileSync` in `readRecordingSync` (`tools/replayer.ts`) in a try/catch; on failure, print a `[replayer] ...` message naming the problem and exit non-zero, before any packet is sent — instead of letting the exception propagate as an unhandled, raw Node stack trace. Reproduced empirically (replaying a directory path raises `EISDIR` uncaught). The other three FR-007 cases (missing file, unsupported speed, empty recording) are already handled correctly; only "unreadable file" is missing. per FR-007 (partial)
+- [ ] T033 Add a periodic progress log during a long inter-packet wait in `runReplay` (`src/replay/runner.ts`) or its caller, so an operator watching the CLI during a real gap (car in the garage, a paused recording) sees that the replay is still running rather than apparently frozen. No such log exists today — confirmed by reading `runner.ts` and `tools/replayer.ts` in full. per spec.md Edge Cases: "A recording with a very large gap between two packets... The replay reports that it is waiting." (missing)
