@@ -30,11 +30,12 @@ flowchart LR
 |---|---|
 | `src/network/` | UDP socket; WebSocket server with a ping/pong heartbeat every 15 s |
 | `src/telemetry/` | Binary parsers for packet ids 0 (motion), 1 (session, partial), 2 (lap data) and 6 (car telemetry), over a little-endian `BufferCursor`; each full parser asserts the exact byte count |
-| `src/persistence/` | SQLite schema, per-session in-memory state, decimation, lap completion detection, one repository per table |
+| `src/persistence/` | SQLite schema, per-session in-memory state, decimation, lap completion detection, one repository per table; samples are deduplicated by `(session_id, overall_frame_identifier)`, since a packet's frame identifier survives a flashback and a looped or repeated replay unscathed, unlike session time or lap distance |
 | `src/analysis/` | Pure, deterministic lap analysis producing a compact `LapInsights` JSON |
 | `src/coaching/` | Static system prompt, user-message builder, Anthropic call with typed errors |
 | `src/http/` | Express REST API |
-| `tools/` | Recorder, replayer and an offline `analyze` CLI |
+| `src/replay/` | Pure replay pacing (`computeDelayMs`) and the orchestration loop (`runReplay`): speed, loop, absolute-deadline scheduling so error does not accumulate over a long recording |
+| `tools/` | Recorder, an offline `analyze` CLI, and a thin replayer CLI over `src/replay/` |
 
 ## Features
 
@@ -54,7 +55,7 @@ flowchart LR
 
 - **Lap analysis engine** (`npm run analyze`, also used by the coach): corner detection from the speed trace, braking point and trail braking, throttle pick-up, coasting and throttle oscillation, per-corner time loss, lateral line deviation between laps, and tyre surface temperature excursions.
 - **AI coach**: turns the insights of two laps into pit-engineer style advice in Portuguese, with results cached per lap pair.
-- **Recorder and replayer** to capture a real session once and work without the game afterwards.
+- **Recorder and replayer** to capture a real session once and work without the game afterwards, replaying at the original pace by default, with `1x`/`2x`/`max` speed options and an optional loop for a continuous demo.
 
 ## Getting started
 
@@ -100,12 +101,14 @@ npm run record                                  # stop `npm run dev` first: both
 # drive in the game, then Ctrl+C
 ```
 
-The replayer currently re-sends packets **as fast as possible**, ignoring the recorded timing. As a result:
+The replayer honours each packet's original timing by default (`--speed=1x`). `--speed=2x` halves the wait between packets; `--speed=max` re-sends everything as fast as possible (today's old, only behaviour) for when fidelity does not matter and raw speed does. `--loop` restarts the recording from the beginning on reaching its end, for a continuous public demo:
 
-- **Confirmed:** the session, track, every completed lap, its time, sectors and validity are reproduced exactly as in the recording.
-- **Not reliable:** a large share of the per-distance samples is lost. Sending thousands of datagrams in a few seconds overflows the UDP receive buffer, so many samples expected after decimation never reach the database. Lap times survive because a single lap-data packet at the line crossing is enough. Charts and analysis from a fast replay are therefore degraded, the live dashboard only flashes, and the session's start and last-seen times reflect the replay's wall clock.
+```bash
+npm run replay -- recordings/demo-interlagos-tt-20hz-laps6-8.jsonl --speed=2x
+npm run replay -- recordings/demo-interlagos-tt-20hz-laps6-8.jsonl --loop
+```
 
-Real-time replay is the next planned feature.
+Validated against the published Interlagos recording: the session, track, every completed lap, its time, sectors and validity are reproduced exactly, same as before. At `1x`, all 2,411 per-distance samples the decimation rule predicts for this recording arrive — up from the 14.6% an unpaced replay of the same file delivers. The live dashboard stays updated throughout a paced replay instead of only flashing at the end, and the session's start and last-seen times still reflect the replay's wall clock, not the original capture time.
 
 To inspect the analysis for two laps without calling the AI:
 
@@ -116,11 +119,11 @@ npm run analyze -- <sessionId> <lapA> <lapB>
 ## Tests
 
 ```bash
-npm test          # 60 tests, node:test via ts-node
+npm test          # 85 tests, node:test via ts-node
 npx tsc --noEmit  # type-check (src/ only)
 ```
 
-The tests cover pure logic: decimation, lap completion detection, every analysis module, and the coach's user-message builder. They use synthetic data. Parsers, repositories, HTTP routes and the WebSocket server are not covered yet.
+The tests cover pure logic (decimation, lap completion detection, every analysis module, the coach's user-message builder, replay pacing) with synthetic data, plus the sample repositories' deduplication and one end-to-end test of the replay path against a real UDP socket and an isolated, disposable database. HTTP routes and the WebSocket server are not covered yet.
 
 ## Technical decisions and trade-offs
 
@@ -141,8 +144,8 @@ The game's send rate sets the other limit. The recording used for validation was
 ## Known limitations
 
 - **Laps with more than one pass over the same distance** produce wrong per-distance analysis. This happens with a flashback, and in Time Trial, where the out-lap shares its lap number with the first flying lap. Lap times and sectors stay correct.
-- **Fast replay loses most samples** (see above).
-- **Replaying the same recording twice** appends duplicate samples (sample tables have no unique constraint).
+- **The `max` replay speed loses most samples by design** — it exists to reach the end of a long recording quickly when fidelity does not matter. `1x` and `2x` do not lose samples.
+- **A looped replay of a very short recording** does not reset its in-memory lap/decimation state at the loop boundary: if a recording's own `overallFrameIdentifier` span is 100 frames or less (roughly 5 seconds), the next pass carries over stale state instead of starting fresh. Recordings of a lap or more are unaffected — the published Interlagos recording spans about 4,500 frames.
 - **The analysis cache** is keyed only by session and lap pair. It ignores the model, the prompt version and later benchmark changes.
 - **Error responses** are plain strings in mixed languages, and the frontend matches some of them literally.
 - No build, lint or CI pipeline yet.
@@ -151,9 +154,8 @@ The game's send rate sets the other limit. The recording used for validation was
 
 Planned with Spec Driven Development (spec, plan and tasks are committed before the code):
 
-1. **Real-time replay**: honour each packet's recorded timestamp, with speed options (1x, 2x, as fast as possible).
-2. **Multiple passes per lap**: detect flashbacks (event `FLBK`, session time going back, `frameIdentifier` diverging from `overallFrameIdentifier`) and the Time Trial out-lap sharing a lap number, and keep only the valid pass.
-3. **Parser tests with real packets** extracted from a recording.
-4. **Stable error codes**, e.g. `{ code: "SESSION_NOT_FOUND", message }`, with the frontend deciding by code, and a single language for messages.
-5. **Single source for tyre temperature windows**: the API exposes the windows and the frontend consumes them, replacing the two diverging hard-coded ranges. Open question to settle in the spec: whether the ideal window in F1 24 depends on the tyre compound.
-6. **Public demo** running from a recorded session, and **CI** (lint, tests, build) on GitHub Actions.
+1. **Multiple passes per lap**: detect flashbacks (event `FLBK`, session time going back, `frameIdentifier` diverging from `overallFrameIdentifier`) and the Time Trial out-lap sharing a lap number, and keep only the valid pass.
+2. **Parser tests with real packets** extracted from a recording.
+3. **Stable error codes**, e.g. `{ code: "SESSION_NOT_FOUND", message }`, with the frontend deciding by code, and a single language for messages.
+4. **Single source for tyre temperature windows**: the API exposes the windows and the frontend consumes them, replacing the two diverging hard-coded ranges. Open question to settle in the spec: whether the ideal window in F1 24 depends on the tyre compound.
+5. **Public demo** running from a recorded session (the real-time loop this repo now supports), and **CI** (lint, tests, build) on GitHub Actions.
