@@ -74,10 +74,12 @@ README.md and CLAUDE.md state that `2x` does not lose samples, same as `1x` — 
 
 ```bash
 DB_PATH="<temp path>/telemetry.db" npm run dev &
-npm run replay -- recordings/demo-interlagos-tt-20hz-laps6-8.jsonl --speed=2x   # finished in 115s, vs. the 111.4s target (222,839 ms / 2) — within the 2% bound (SC-003)
+npm run replay -- recordings/demo-interlagos-tt-20hz-laps6-8.jsonl --speed=2x   # finished in 115s (shell-level date +%s, ±1s resolution), vs. the 111.42s target (222,839 ms / 2)
 ```
 
 Laps, times, sectors and validity matched the recording exactly, same as `1x`.
+
+The measured wall-clock time (115s) is actually 3.2% over the 111.42s target — outside the nominal 2% bound (SC-003), not within it as an earlier version of this note claimed. This single whole-process measurement (`date +%s`, ±1s resolution) includes `ts-node`'s own startup/compile time before the replay's pacing loop even begins, which is not what SC-003/FR-004 are about — that per-packet pacing accuracy is verified precisely and separately in `src/replay/runner.test.ts`'s fake-clock "1x: deadline absoluto não acumula erro" test, which showed zero accumulated drift over 100 simulated packets. This CLI-level number is reported honestly as what it is — a rough end-to-end timing, inflated by process startup — not re-claimed as proof of the 2% pacing bound.
 
 | | Actual (`2x`) | Ground truth | % |
 |---|---|---|---|
