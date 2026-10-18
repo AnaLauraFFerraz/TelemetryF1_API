@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { runReplay } from "./runner";
+import { runReplay, LONG_WAIT_THRESHOLD_MS } from "./runner";
 import { RecordedPacket } from "./types";
 
 function packet(timestampMs: number, tag: string): RecordedPacket {
@@ -153,4 +153,48 @@ test("wait rejeitado (sinal abortado pelo chamador) para a passada e devolve a c
   assert.deepEqual(sent, ["a"]);
   assert.equal(result.packetsSent, 1);
   assert.equal(result.passes, 1);
+});
+
+test("onWaiting é chamado uma vez, com o delay exato, para um gap acima do limiar", async () => {
+  const bigGap = LONG_WAIT_THRESHOLD_MS + 1000;
+  const packets = [packet(0, "a"), packet(bigGap, "b")];
+  const waitingCalls: number[] = [];
+
+  await runReplay(packets, { speed: "1x", loop: false }, {
+    send: () => {},
+    now: () => 0,
+    wait: async () => {},
+    onWaiting: (delayMs) => waitingCalls.push(delayMs),
+  });
+
+  assert.deepEqual(waitingCalls, [bigGap]);
+});
+
+test("onWaiting não é chamado para um gap no limiar ou abaixo dele", async () => {
+  const packets = [packet(0, "a"), packet(LONG_WAIT_THRESHOLD_MS, "b"), packet(LONG_WAIT_THRESHOLD_MS + 1000, "c")];
+  const waitingCalls: number[] = [];
+
+  await runReplay(packets, { speed: "1x", loop: false }, {
+    send: () => {},
+    now: () => 0,
+    wait: async () => {},
+    onWaiting: (delayMs) => waitingCalls.push(delayMs),
+  });
+
+  // "b" está exatamente no limiar (comparação é estrita, não dispara);
+  // só "c" (1000ms acima do limiar) deveria ter disparado onWaiting.
+  assert.deepEqual(waitingCalls, [LONG_WAIT_THRESHOLD_MS + 1000]);
+});
+
+test("onWaiting ausente não quebra nada (callback opcional)", async () => {
+  const packets = [packet(0, "a"), packet(LONG_WAIT_THRESHOLD_MS + 1000, "b")];
+
+  const result = await runReplay(packets, { speed: "1x", loop: false }, {
+    send: () => {},
+    now: () => 0,
+    wait: async () => {},
+    // sem onWaiting
+  });
+
+  assert.equal(result.packetsSent, 2);
 });
