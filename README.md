@@ -119,7 +119,7 @@ npm run analyze -- <sessionId> <lapA> <lapB>
 ## Tests
 
 ```bash
-npm test          # 85 tests, node:test via ts-node
+npm test          # node:test via ts-node
 npx tsc --noEmit  # type-check (src/ only)
 ```
 
