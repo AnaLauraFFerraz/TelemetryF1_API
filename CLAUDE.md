@@ -63,7 +63,7 @@ The REST and WebSocket payloads are a contract consumed by the frontend, which m
 - Run `npm test` and `npx tsc --noEmit` before every commit; report any failure instead of committing around it.
 - Do not change packet layouts, field order or sizes in `src/telemetry/` without checking the official spec, *Data Output from F1 24* (v27.2x).
 - Documentation must describe only what exists in the code. Partial features are described as partial; no invented metrics or results.
-- Never rewrite published git history.
+- Never rewrite published git history. Exception made once, on 2026-10-18: `main` was rewritten with `git filter-repo` to remove a `Co-Authored-By` trailer from one already-published commit (AI usage on this project is disclosed elsewhere; this repo's own commits don't carry the trailer by choice). The rule otherwise still stands — this is not a precedent for routine history rewrites.
 - New features follow Spec Driven Development: spec, plan and tasks are committed before the implementation.
 - Manual tests and smoke tests point `DB_PATH` at a temporary database or a copy, never at `data/telemetry.db` directly — this applies to ad-hoc CLI verification just as much as to automated tests. Before any operation on the real database (a migration check, a one-off query, anything that writes), back it up first and keep that backup until the feature merges.
 
