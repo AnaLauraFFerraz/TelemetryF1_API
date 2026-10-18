@@ -47,4 +47,23 @@ Laps, times, sectors and validity matched the recording's own published metadata
 
 This number is *not* the spec's inherited "21–33%" figure (SC-001 no longer quotes that number for exactly this reason — see spec.md and research.md point 6) and is not expected to match it: that figure came from an untraceable, different test recording (the old README mentioned "64,412 packets" / "7.3 minutes," which doesn't correspond to this 13,960-packet / 222.8 s file). This measurement is specific to `demo-interlagos-tt-20hz-laps6-8.jsonl`, reproducible by anyone who runs the commands above against that exact file, and is what SC-001's "up from the baseline measured..." now points to.
 
-T026 repeats this same procedure once `--speed=1x` exists, for the after-the-fix comparison that goes into the README/CLAUDE.md edits (research.md point 5, T027/T028).
+T027 (tasks.md was renumbered after this was first written — T026 became T027) repeats this same procedure once `--speed=1x` exists, for the after-the-fix comparison that goes into the README/CLAUDE.md edits (research.md point 5, T028/T029). See below.
+
+## After the fix (T027) — measured 2026-10-18
+
+Same recording, same ground truth (2,411 — decimation is unchanged by this feature, only delivery is), same method, with two differences: the "actual" run uses the **finished** `1x`-paced replayer (`npm run replay -- recordings/demo-interlagos-tt-20hz-laps6-8.jsonl`, no flag needed since `1x` is the default), and — having learned from this exact mistake during T018's manual testing — `DB_PATH` pointed at a temporary database for the entire measurement, never `data/telemetry.db`. Confirmed via the server's own startup log (`[db] usando banco em ...`) and by checking the real database's row counts were unchanged before and after.
+
+```bash
+DB_PATH="<temp path>/telemetry.db" npm run dev &
+npm run replay -- recordings/demo-interlagos-tt-20hz-laps6-8.jsonl   # 1x is the default; full 222,839 ms run
+# (stopped the server, counted rows in the temp db, deleted it)
+```
+
+Laps, times, sectors and validity matched the recording exactly, same as before the fix.
+
+| | Actual (`1x`, after the fix) | Ground truth | % |
+|---|---|---|---|
+| `car_telemetry_samples` | 2,411 | 2,411 | **100%** |
+| `motion_samples` | 2,411 | 2,411 | **100%** |
+
+**After the fix: 100% of samples survive a `1x` replay of this recording** — every sample the decimation rule predicts actually arrives, not merely "within 2%" (SC-002's own tolerance). Combined with the baseline above: **14.60% → 100%**, the number that goes into the README.md/CLAUDE.md edits (research.md point 5, T028/T029) and confirms SC-001 ("at least 99%, up from the measured baseline") and SC-002 with room to spare.
