@@ -38,6 +38,12 @@ CREATE TABLE IF NOT EXISTS car_telemetry_samples (
   lap_number   INTEGER NOT NULL,
   lap_distance REAL NOT NULL,
   session_time REAL NOT NULL,
+  -- identidade do pacote (header.overallFrameIdentifier), nunca se repete
+  -- nem regride dentro de uma sessão, nem num flashback - usado pra
+  -- deduplicar reexecuções do replayer (ver specs/001-realtime-replay).
+  -- NULL em linhas gravadas antes dessa coluna existir, nunca preenchido
+  -- depois (não inventa valor pra dado que não existia).
+  overall_frame_identifier INTEGER,
   speed        REAL NOT NULL,
   throttle     REAL NOT NULL,
   brake        REAL NOT NULL,
@@ -67,6 +73,8 @@ CREATE TABLE IF NOT EXISTS motion_samples (
   lap_number    INTEGER NOT NULL,
   lap_distance  REAL NOT NULL,
   session_time  REAL NOT NULL,
+  -- mesmo papel que em car_telemetry_samples: dedup key, ver comentário lá.
+  overall_frame_identifier INTEGER,
   world_pos_x   REAL NOT NULL,
   world_pos_y   REAL NOT NULL,
   world_pos_z   REAL NOT NULL,
