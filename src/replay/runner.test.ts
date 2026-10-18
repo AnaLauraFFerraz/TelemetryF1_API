@@ -87,6 +87,57 @@ test("2x: offset dividido por 2 chega à metade do tempo total", async () => {
   assert.equal(clock, 500);
 });
 
+test("loop: reinicia do primeiro pacote ao chegar no fim, contando passadas", async () => {
+  const packets = [packet(0, "a"), packet(10, "b")];
+  const sent: string[] = [];
+  const passesSeen: number[] = [];
+
+  // 1x: todo pacote com offset > 0 passa por wait() - usa isso pra parar o
+  // teste de forma determinística depois de 3 passadas completas, em vez
+  // de depender de um loop "infinito" de verdade com uma rede de segurança.
+  const result = await runReplay(packets, { speed: "1x", loop: true }, {
+    send: (buf) => sent.push(buf.toString()),
+    now: () => 0,
+    onPass: (n) => passesSeen.push(n),
+    wait: async () => {
+      if (passesSeen.length >= 3) throw new Error("para o teste depois de 3 passadas");
+    },
+  });
+
+  assert.deepEqual(passesSeen, [1, 2, 3]);
+  assert.deepEqual(sent, ["a", "b", "a", "b", "a"]);
+  assert.equal(result.packetsSent, 5);
+  assert.equal(result.passes, 3);
+});
+
+test("loop: abortado no meio de uma passada (não a primeira) devolve a contagem parcial, sem lançar", async () => {
+  const packets = [packet(0, "a"), packet(10, "b"), packet(20, "c")];
+  const sent: string[] = [];
+  let pass = 0;
+
+  const result = await runReplay(packets, { speed: "1x", loop: true }, {
+    send: (buf) => sent.push(buf.toString()),
+    now: () => 0, // todo pacote após o primeiro de cada passada precisa de wait()
+    onPass: (n) => {
+      pass = n;
+    },
+    wait: async () => {
+      // deixa a 1ª passada completa, aborta no meio da 2ª (depois de "a")
+      if (pass === 2 && sent[sent.length - 1] === "a") throw new Error("abortado");
+    },
+  });
+
+  assert.deepEqual(sent, ["a", "b", "c", "a"]);
+  assert.equal(result.packetsSent, 4);
+  assert.equal(result.passes, 2);
+});
+
+test("sem loop (padrão): uma única passada, mesmo que options.loop esteja ausente", async () => {
+  const packets = [packet(0, "a")];
+  const result = await runReplay(packets, { speed: "max", loop: false }, { send: () => {} });
+  assert.equal(result.passes, 1);
+});
+
 test("wait rejeitado (sinal abortado pelo chamador) para a passada e devolve a contagem parcial, sem lançar", async () => {
   const packets = [packet(0, "a"), packet(10, "b"), packet(20, "c")];
   const sent: string[] = [];
