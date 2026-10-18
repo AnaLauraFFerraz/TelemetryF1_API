@@ -6,6 +6,7 @@ const insertSampleStmt = db.prepare<{
   lapNumber: number;
   lapDistance: number;
   sessionTime: number;
+  overallFrameIdentifier: number;
   worldPosX: number;
   worldPosY: number;
   worldPosZ: number;
@@ -13,17 +14,20 @@ const insertSampleStmt = db.prepare<{
   gForceLon: number;
   gForceVert: number;
 }>(`
-  INSERT INTO motion_samples
-    (session_id, lap_number, lap_distance, session_time, world_pos_x, world_pos_y, world_pos_z, g_force_lat, g_force_lon, g_force_vert)
+  INSERT OR IGNORE INTO motion_samples
+    (session_id, lap_number, lap_distance, session_time, overall_frame_identifier, world_pos_x, world_pos_y, world_pos_z, g_force_lat, g_force_lon, g_force_vert)
   VALUES
-    (@sessionId, @lapNumber, @lapDistance, @sessionTime, @worldPosX, @worldPosY, @worldPosZ, @gForceLat, @gForceLon, @gForceVert)
+    (@sessionId, @lapNumber, @lapDistance, @sessionTime, @overallFrameIdentifier, @worldPosX, @worldPosY, @worldPosZ, @gForceLat, @gForceLon, @gForceVert)
 `);
 
+// mesmo papel que em carTelemetrySampleRepository.ts: dedup key, ver
+// comentário lá.
 export function insertMotionSample(
   sessionId: number,
   lapNumber: number,
   lapDistance: number,
   sessionTime: number,
+  overallFrameIdentifier: number,
   data: CarMotionData
 ): void {
   insertSampleStmt.run({
@@ -31,6 +35,7 @@ export function insertMotionSample(
     lapNumber,
     lapDistance,
     sessionTime,
+    overallFrameIdentifier,
     worldPosX: data.worldPosition.x,
     worldPosY: data.worldPosition.y,
     worldPosZ: data.worldPosition.z,

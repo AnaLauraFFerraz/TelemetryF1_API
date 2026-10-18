@@ -6,6 +6,7 @@ const insertSampleStmt = db.prepare<{
   lapNumber: number;
   lapDistance: number;
   sessionTime: number;
+  overallFrameIdentifier: number;
   speed: number;
   throttle: number;
   brake: number;
@@ -26,23 +27,28 @@ const insertSampleStmt = db.prepare<{
   tyreInnerTempFl: number;
   tyreInnerTempFr: number;
 }>(`
-  INSERT INTO car_telemetry_samples
-    (session_id, lap_number, lap_distance, session_time, speed, throttle, brake, steer, gear, engine_rpm, drs,
+  INSERT OR IGNORE INTO car_telemetry_samples
+    (session_id, lap_number, lap_distance, session_time, overall_frame_identifier, speed, throttle, brake, steer, gear, engine_rpm, drs,
      tyre_pressure_rl, tyre_pressure_rr, tyre_pressure_fl, tyre_pressure_fr,
      tyre_surface_temp_rl, tyre_surface_temp_rr, tyre_surface_temp_fl, tyre_surface_temp_fr,
      tyre_inner_temp_rl, tyre_inner_temp_rr, tyre_inner_temp_fl, tyre_inner_temp_fr)
   VALUES
-    (@sessionId, @lapNumber, @lapDistance, @sessionTime, @speed, @throttle, @brake, @steer, @gear, @engineRpm, @drs,
+    (@sessionId, @lapNumber, @lapDistance, @sessionTime, @overallFrameIdentifier, @speed, @throttle, @brake, @steer, @gear, @engineRpm, @drs,
      @tyrePressureRl, @tyrePressureRr, @tyrePressureFl, @tyrePressureFr,
      @tyreSurfaceTempRl, @tyreSurfaceTempRr, @tyreSurfaceTempFl, @tyreSurfaceTempFr,
      @tyreInnerTempRl, @tyreInnerTempRr, @tyreInnerTempFl, @tyreInnerTempFr)
 `);
 
+// overall_frame_identifier identifica o pacote de origem (ver schema.ts) -
+// INSERT OR IGNORE faz reexecutar a mesma gravação (ou repetir uma passada
+// em loop) não duplicar amostras: a segunda tentativa de inserir a mesma
+// (session_id, overall_frame_identifier) é descartada em silêncio.
 export function insertCarTelemetrySample(
   sessionId: number,
   lapNumber: number,
   lapDistance: number,
   sessionTime: number,
+  overallFrameIdentifier: number,
   data: CarTelemetryData
 ): void {
   insertSampleStmt.run({
@@ -50,6 +56,7 @@ export function insertCarTelemetrySample(
     lapNumber,
     lapDistance,
     sessionTime,
+    overallFrameIdentifier,
     speed: data.speed,
     throttle: data.throttle,
     brake: data.brake,
