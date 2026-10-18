@@ -54,7 +54,6 @@ class WriteCursor {
   }
 }
 
-const SESSION_UID = 42n;
 const PLAYER_CAR_INDEX = 0;
 
 interface HeaderFields {
@@ -62,6 +61,7 @@ interface HeaderFields {
   sessionTime: number;
   frameIdentifier: number;
   overallFrameIdentifier: number;
+  sessionUID: bigint;
 }
 
 function writeHeader(cursor: WriteCursor, fields: HeaderFields): void {
@@ -71,7 +71,7 @@ function writeHeader(cursor: WriteCursor, fields: HeaderFields): void {
   cursor.writeUInt8(0); // gameMinorVersion
   cursor.writeUInt8(1); // packetVersion
   cursor.writeUInt8(fields.packetId);
-  cursor.writeBigUInt64LE(SESSION_UID);
+  cursor.writeBigUInt64LE(fields.sessionUID);
   cursor.writeFloatLE(fields.sessionTime);
   cursor.writeUInt32LE(fields.frameIdentifier);
   cursor.writeUInt32LE(fields.overallFrameIdentifier);
@@ -223,22 +223,22 @@ export interface SyntheticRecording {
     isValid: boolean;
   };
   expectedSampleCount: number;
+  overallFrameIdSpan: number;
+  sessionUID: bigint;
 }
 
-/**
- * Gravação sintética mínima, mas feita de pacotes binários reais (passam
- * pelos parsers de verdade, não são mocks) - 5 ticks da volta 1, espaçados
- * em exatamente MIN_DISTANCE_DELTA_M (4m) pra decimação manter todos, mais
- * 1 tick final que fecha a volta 1 ao reportar a volta 2. overallFrameId
- * e timestampMs sobem 1 por tick, cada um com margem de sobra abaixo de
- * qualquer limiar usado em src/persistence/sessionContext.ts.
- */
-export function buildSyntheticRecording(): SyntheticRecording {
+// buildRecording's frameIdStart/frameIdStep são o que distingue as duas
+// fixtures abaixo - tudo o resto (contagem de ticks, distância, setores) é
+// idêntico. sessionUID é diferente em cada uma de propósito: evita que dois
+// testes que usam fixtures diferentes, mas rodam no mesmo arquivo/processo
+// (e portanto no mesmo banco isolado), acabem compartilhando a mesma sessão
+// e um contaminando a contagem de amostras do outro.
+function buildRecording(sessionUID: bigint, frameIdStart: number, frameIdStep: number): SyntheticRecording {
   const packets: RecordedPacket[] = [];
   const ticks = 5;
 
   for (let i = 0; i < ticks; i += 1) {
-    const overallFrameIdentifier = i + 1;
+    const overallFrameIdentifier = frameIdStart + i * frameIdStep;
     const timestampMs = i * 10;
     const lapDistance = i * 4; // 0, 4, 8, 12, 16 - cada passo bate o threshold de decimação
     const header: HeaderFields = {
@@ -246,6 +246,7 @@ export function buildSyntheticRecording(): SyntheticRecording {
       sessionTime: i,
       frameIdentifier: overallFrameIdentifier,
       overallFrameIdentifier,
+      sessionUID,
     };
 
     packets.push({
@@ -271,12 +272,13 @@ export function buildSyntheticRecording(): SyntheticRecording {
   // Tick final: só LapData, reportando a volta 2 - fecha a volta 1 usando
   // os setores/validade do último snapshot da volta 1 (tick 5 acima) e o
   // lastLapTimeInMS deste próprio pacote (ver lapCompletionDetector.ts).
-  const closingOverallFrameId = ticks + 1;
+  const closingOverallFrameId = frameIdStart + ticks * frameIdStep;
   const closingHeader: HeaderFields = {
     packetId: 2,
     sessionTime: ticks,
     frameIdentifier: closingOverallFrameId,
     overallFrameIdentifier: closingOverallFrameId,
+    sessionUID,
   };
   const sector1Ms = 20000;
   const sector2Ms = 25000;
@@ -309,5 +311,34 @@ export function buildSyntheticRecording(): SyntheticRecording {
       isValid: true,
     },
     expectedSampleCount: ticks, // uma amostra de motion e uma de carTelemetry por tick da volta 1
+    overallFrameIdSpan: closingOverallFrameId - frameIdStart,
+    sessionUID,
   };
+}
+
+/**
+ * Fixture para US1: pacotes binários reais, 5 ticks da volta 1 espaçados em
+ * exatamente MIN_DISTANCE_DELTA_M (4m) pra decimação manter todos, mais 1
+ * tick final que fecha a volta 1. overallFrameId sobe 1 por tick - vão
+ * (span) de 5, bem abaixo de qualquer limiar de reinício de passada, o que
+ * não importa aqui porque este fixture nunca é usado em loop.
+ */
+export function buildSyntheticRecording(): SyntheticRecording {
+  return buildRecording(42n, 1, 1);
+}
+
+/**
+ * Fixture para US3: igual ao de cima, mas com overallFrameId espaçado em
+ * 32 por tick - vão de 160 (`overallFrameIdSpan`), 60% acima de
+ * PASS_RESTART_THRESHOLD_FRAMES (100) com margem explícita, não só
+ * raspando o limiar. Sem essa margem, o teste de loop (tasks.md T026)
+ * passaria sem nunca exercitar o reset de passada que existe pra provar -
+ * ver specs/001-realtime-replay/research.md, ponto 2. Este módulo não
+ * importa nada de src/persistence/ (abriria o banco de verdade cedo demais
+ * - ver testDb.ts), então quem usa este fixture confere o span contra o
+ * valor real de PASS_RESTART_THRESHOLD_FRAMES por conta própria, depois de
+ * já ter chamado setupIsolatedTestDb().
+ */
+export function buildLoopableSyntheticRecording(): SyntheticRecording {
+  return buildRecording(43n, 1000, 32);
 }
