@@ -91,7 +91,7 @@ None. US1 is itself the foundation, since the CI cannot be green until a clean c
   The `[db] usando banco em ...` log is unchanged. Depends on T004.
   After the edit, run `node -r ts-node/register --test src/config/serverFailFast.test.ts` and `node -r ts-node/register --test src/persistence/dbWithoutPorts.test.ts` explicitly by path (FR-006, FR-007). The first must still pass, and the second must pass now that both T005 and T006 are done. Then run `npm test`.
 - [x] T007 [US1] Run T002 alone (must pass now) and T003 alone (must still pass). Then run `npm test` and `npx tsc --noEmit` in the real checkout. Commit `src/config/dbPath.ts`, `src/config/env.ts`, `src/persistence/db.ts`, `src/persistence/dbWithoutPorts.test.ts` and `src/config/serverFailFast.test.ts` as `fix: let persistence load without the network ports` (FR-007).
-- [ ] T008 [US1] Verify the T007 commit in a disposable worktree outside the repository (`git worktree add --detach <temp-dir> HEAD`), with no `.env`, `data/`, `recordings/`, or port/`DB_PATH` variables (FR-006, FR-008; SC-001):
+- [x] T008 [US1] Verify the T007 commit in a disposable worktree outside the repository (`git worktree add --detach <temp-dir> HEAD`), with no `.env`, `data/`, `recordings/`, or port/`DB_PATH` variables (FR-006, FR-008; SC-001):
   - quickstart.md §1: `npm ci`, `npx tsc --noEmit` and `npm test` (all files load, all pass, `# skipped 0`);
   - `node -r ts-node/register --test src/config/serverFailFast.test.ts` explicitly by path, since `npm test` does not cover `src/config/` until T012. `src/persistence/dbWithoutPorts.test.ts` is covered by `npm test`, because it is in one of the four current folders;
   - both server messages;
