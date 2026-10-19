@@ -29,7 +29,10 @@ Last come the README badge, the documentation updates, and the manual protection
 
 **Storage**: not affected. `data/telemetry.db` stays the default path and `DB_PATH` keeps its exact semantics. The CI never has a `data/` folder; tests use `src/persistence/testDb.ts` as today.
 
-**Testing**: Node's built-in runner via `ts-node/register`, unchanged. The discovery changes from four shell-expanded folder globs to one Node-expanded `"src/**/*.test.ts"`, plus a zero-files guard. No test is added for the config split: the 5 test files that fail today without ports are its regression test, as is SC-001 itself.
+**Testing**: Node's built-in runner via `ts-node/register`, unchanged. The discovery changes from four shell-expanded folder globs to one Node-expanded `"src/**/*.test.ts"`, plus a zero-files guard. Three tests are written before the code they cover (tasks T002, T003, T009). Each runs its target in a child process with a clean environment and a working directory outside the repository, because `dotenv/config` reads `.env` from the current directory:
+- `src/persistence/dbWithoutPorts.test.ts`: the persistence layer loads without the ports. It is the FR-007 regression test and fails today.
+- `src/config/serverFailFast.test.ts`: the server stops at startup with today's messages. It is a characterization test and passes before and after.
+- `src/tooling/assertTestFiles.test.ts`: the zero-files guard fails with zero files and passes with at least one. It fails before the guard exists.
 
 **Target Platform**: GitHub-hosted Linux runner, pinned to `ubuntu-24.04` (see D4), for the CI. The maintainer's Windows machine covers the Windows half of FR-009.
 
@@ -59,7 +62,7 @@ Last come the README badge, the documentation updates, and the manual protection
 | IV. Record what is known; documentation describes only what exists | ✅ Pass | Documentation edits (FR-016) remove the "type-check does not cover `tools/`" statements in the same change that makes them false. Research facts not yet observed on Linux (prebuild download, UDP tests, run duration, workflow version on pull requests) are marked as pending and get recorded after the first run, not assumed. |
 | V. Simple, embedded infrastructure; minimal dependencies | ✅ Pass | No dependency added (FR-018). One new config module, following the existing one-concern-per-file layout of `src/config/`. |
 | VI. This repository owns the API contract | ✅ Pass | **FR-017: contract unchanged.** None of `src/ws/messageFormat.ts`, `src/http/` routers, repository row types or error strings is touched. Touched files: `src/config/`, `src/persistence/db.ts` (import line only), `tsconfig.json`, `package.json` scripts, `.nvmrc`, `.github/workflows/ci.yml`, a guard under `tools/`, `README.md` and `CLAUDE.md`. Nothing to flag to the frontend. |
-| Tech constraints (Node ≥ 22.6, TS strict, CommonJS, `node:test`) | ✅ Pass | `engines.node` becomes `>=22.17`. That is narrower than, and still inside, the constitution's "Node.js ≥ 22.6", so nothing violates it. The constitution text keeps saying "≥ 22.6" until the planned amendment pull request, which updates the minimum version and the CI-as-merge-gate rule together (Phase 4, step 7). `strict`/CommonJS are kept. The runner change is in discovery only. |
+| Tech constraints (Node ≥ 22.6, TS strict, CommonJS, `node:test`) | ✅ Pass | `engines.node` becomes `>=22.17`. That is narrower than, and still inside, the constitution's "Node.js ≥ 22.6", so nothing violates it. The constitution text keeps saying "≥ 22.6" until the planned amendment pull request, which updates the minimum version and the CI-as-merge-gate rule together (Phase 4, step 9). `strict`/CommonJS are kept. The runner change is in discovery only. |
 | Workflow: spec → plan → tasks committed first | ✅ Pass | Spec and clarifications are committed (`f3afa95`, `7cb0018`, `de4eba9`). This plan, research and quickstart are committed as `docs:` before any implementation commit. |
 | Workflow: `npm test` and `npx tsc --noEmit` before every commit | ✅ Pass | Both commands keep working. `npx tsc --noEmit` now covers `tools/` too, through `tsconfig.json`. `npm run typecheck` is the documented equivalent. The constitution's wording stays true, so no amendment is needed for this. |
 | Workflow: known limitations in both CLAUDE.md and README | ✅ Pass | Neither file lists the `tools/` gap under "Known limitations". It is in the commands sections, and both get updated together. |
@@ -142,7 +145,9 @@ No `env:` block anywhere in the workflow (FR-006).
 
 It is the smallest change that preserves every message and the `DB_PATH` semantics, and it is prototyped at 89/89 with no environment.
 
-**Future improvement, out of this feature**: Option 3, a per-consumer configuration in which `record` and `replay` need only `UDP_PORT` and `env.ts` disappears. It belongs together with dependency injection of the database connection, so `db.ts` stops opening the connection at module load and tests stop relying on setting `DB_PATH` before a `require()`. Both change user-visible behaviour or the test pattern and need their own spec.
+**Scope of FR-007 after `/speckit-analyze`**: the persistence layer no longer depends on the ports, and the server keeps failing fast. The command-line tools (`record`, `replay`) and the AI coach (`coachService.ts`) keep loading the shared `env`, so they still require the three ports. The spec's FR-007 was narrowed to say exactly this.
+
+**Future improvement, out of this feature**: Option 3, a per-consumer configuration in which `record` and `replay` need only `UDP_PORT`, the coach reads only its key, and `env.ts` disappears. It belongs together with dependency injection of the database connection, so `db.ts` stops opening the connection at module load and tests stop relying on setting `DB_PATH` before a `require()`. Both change user-visible behaviour or the test pattern and need their own spec.
 
 ### D8. Type-check scope. **Decided: Option A** (research.md point 6)
 
@@ -157,7 +162,7 @@ It is the smallest change that preserves every message and the `DB_PATH` semanti
   - The reason: `fs.globSync`, which the D10 guard uses, is stable only from 22.17. On 22.6–22.16 it works but prints an `ExperimentalWarning`, so the old minimum was no longer honest.
   - The `.nvmrc` stays `22`; it resolves to 22.23.x on both sides.
   - `CLAUDE.md` ("Node.js ≥ 22.6") and `README.md` ("Requirements: Node.js ≥ 22.6.") are updated to 22.17 in the documentation commit (FR-016).
-  - The constitution keeps "Node.js ≥ 22.6" until the planned amendment pull request, which updates **both** the minimum version and the CI-as-merge-gate rule together (Phase 4, step 7).
+  - The constitution keeps "Node.js ≥ 22.6" until the planned amendment pull request, which updates **both** the minimum version and the CI-as-merge-gate rule together (Phase 4, step 9).
 
 - Exactly one file is committed, never both, because fnm prefers `.nvmrc` when both exist.
 - The CLAUDE.md note "Node is installed through fnm" gains "the version comes from `.nvmrc`".
@@ -200,7 +205,7 @@ Each phase ends with its own verification before the next starts. Commits are sm
 
 ### Phase 3: the workflow on a branch with a pull request (US2, P1)
 
-1. Add `.github/workflows/ci.yml` per D1–D6.
+1. Add `.github/workflows/ci.yml` per D1–D6, committed as `chore:`. The constitution lists `feat`/`fix`/`docs`/`test`/`chore` as the commit types, and `ci` waits for the amendment (Phase 4, step 9).
 2. Push the branch and open the pull request against `main`. **Push and opening the pull request each need the maintainer's explicit approval.**
 3. On the first run, record the following in research.md:
    - Linux results of both jobs, and whether `better-sqlite3` downloaded the `linux-x64` prebuild or compiled (install log);
@@ -209,7 +214,7 @@ Each phase ends with its own verification before the next starts. Commits are sm
    - each job's duration (the SC-007 reference; investigate if over 5 minutes);
    - the cache result: a miss on the first run, a hit on a re-run with an unchanged lockfile (SC-009).
 4. If anything fails only on Linux, record the cause and the fix in research.md (FR-011, FR-013). No skip.
-5. Demonstrate SC-004 with three throw-away pull requests, closed unmerged: a type error in `src/`, a type error in `tools/`, and a failing test. Confirm SC-003, the failing check named in the list, and that both jobs ran (FR-002). These also need push approval.
+The SC-004 demonstration pull requests are not here. They run in Phase 4, after the protection exists, so each one also proves a blocked merge.
 
 ### Phase 4: documentation and protection (US4, P3)
 
@@ -223,9 +228,16 @@ Each phase ends with its own verification before the next starts. Commits are sm
    - add the check-names-are-a-contract rule (D2) and the third-party-actions-by-SHA rule (D3);
    - change "Node.js ≥ 22.6" to "Node.js ≥ 22.17" in CLAUDE.md's Stack and in README's Requirements (D9);
    - add the ABI fact to the Known pitfalls: switching Node major without `npm ci` gives `ERR_DLOPEN_FAILED` (research.md point 4), and the same entry goes to the README's Known limitations.
+   - the commit-type list is **not** changed: `ci` waits for the amendment;
+   - the "Node.js ≥ 22.17" in CLAUDE.md diverges from the constitution's "≥ 22.6". The divergence is temporary and intentional, and the amendment (step 9) resolves it.
    README and CLAUDE.md are edited in the same commit (FR-016).
-3. The feature's pull request is merged by the maintainer with "Rebase and merge", after the green run.
-4. **Then the maintainer applies the protection on `main`**, after the merge, so that `main` itself carries the workflow. Before that, a pull request branched from an older `main` would have no workflow and would wait forever for the required checks. The steps:
+3. **FR-017 check, before the merge**: run `git diff --stat origin/main...HEAD -- src/ws/ src/http/ 'src/persistence/*Repository.ts'`. These are the files the Constitution Check (principle VI) names as the API contract:
+   - `src/ws/messageFormat.ts`, the WebSocket payloads;
+   - `src/http/` routers and `httpServer.ts`, the REST routes, payloads and error strings;
+   - the repositories' row types, in `src/persistence/*Repository.ts`.
+   The diff must be empty.
+4. The feature's pull request is merged by the maintainer with "Rebase and merge", after the green run.
+5. **Then the maintainer applies the protection on `main`**, after the merge, so that `main` itself carries the workflow. Before that, a pull request branched from an older `main` would have no workflow and would wait forever for the required checks. The steps:
    - require a pull request before merging;
    - require status checks `typecheck` and `test`;
    - require branches to be up to date before merging;
@@ -233,13 +245,31 @@ Each phase ends with its own verification before the next starts. Commits are sm
    - allow only "Rebase and merge";
    - do not allow bypassing, administrators included;
    - document the last-resort procedure from the clarifications: wait for GitHub Actions first; otherwise turn the protection off, merge, turn it back on at once, and record the reason in the pull request.
-5. **Verify the protection** (SC-006): a direct push to `main` as administrator, a merge with a failing check, and a merge with a branch behind `main` are all refused. Merging a green, up-to-date pull request with "Rebase and merge" is allowed.
-6. **Verify that a pull request runs its own workflow version** (US4 scenario 6, research.md point 8): open a pull request whose only change is a visible edit to `ci.yml`, for example an extra step that prints `versao-do-PR`. Confirm in that pull request's run that the edited step appears. Record the result in research.md, and close the pull request unmerged.
-7. Open the separate constitution-amendment pull request (clarification d), after the CI works. It updates two things together:
+6. **Demonstrate SC-004, after the protection.** Three throw-away pull requests are created from the updated `main`:
+   - a type error in a `src/` file that no test loads at runtime;
+   - a type error in `tools/replayer.ts`, where `test` fails too, because `replayerCli.test.ts` runs the replayer through ts-node, which type-checks it;
+   - a failing test.
+   For each one, confirm the failing check is named in the list (SC-003) and that both jobs ran (FR-002). The maintainer's merge attempt must be blocked (SC-006). Close each unmerged, and delete its branch locally and remotely.
+7. **Verify the rest of the protection** (SC-006):
+   - **direct push**: from a throw-away branch, `git push origin HEAD:main` must be rejected, administrator included, without ever committing on the local `main`;
+   - **branch behind `main`**: a green pull request whose branch is behind `main` must be blocked;
+   - **allowed merge**: a green, up-to-date pull request merged with "Rebase and merge" must be allowed.
+8. **Verify that a pull request runs its own workflow version** (US4 scenario 6, research.md point 8): open a pull request whose only change is a visible edit to `ci.yml`, for example an extra step that prints `versao-do-PR`. Confirm in that pull request's run that the edited step appears. Record the result in research.md, then close the pull request unmerged.
+9. **Open the separate constitution-amendment pull request** (clarification d), after the CI works. It has three items:
+   - "Development Workflow": the CI (`typecheck` and `test`) is the merge gate of `main`;
    - "Technology and Quality Constraints": Node.js ≥ 22.6 becomes ≥ 22.17, matching `engines.node`;
-   - "Development Workflow": the CI (`typecheck` and `test`) is the merge gate of `main`.
+   - "Development Workflow": `ci:` joins the list of commit types (`feat:`, `fix:`, `docs:`, `test:`, `chore:`), and CLAUDE.md's list follows in the same pull request.
 
    It is out of this feature's tasks and is listed only so it is not forgotten.
+
+## Future improvements (out of this feature)
+
+- **Per-consumer configuration and database dependency injection** (D7, Option 3): the CLIs need only `UDP_PORT`, the coach reads only its key, and `db.ts` stops opening the connection at module load.
+- **A build `tsconfig`** (D8), when a build, for example for the public demo, is introduced.
+- **Tests in ts-node transpile-only mode** (`TS_NODE_TRANSPILE_ONLY=true`), so the `test` job stops repeating the type check that the `typecheck` job already does.
+  - Trade-off: faster tests and sharper CI signals. A type error would show only under `typecheck`, as in the `tools/replayer.ts` demonstration, where today both jobs fail.
+  - The cost: a local `npm test` would no longer catch type errors, so `npm run typecheck` would have to be run on its own.
+  - It needs its own decision, and the test-before-commit rule would have to name both scripts.
 
 ## Project Structure
 
