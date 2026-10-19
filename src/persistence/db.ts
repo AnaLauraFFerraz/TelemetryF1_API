@@ -1,16 +1,16 @@
 import fs from "node:fs";
 import path from "node:path";
 import Database from "better-sqlite3";
-import { env } from "../config/env";
+import { dbPath } from "../config/dbPath";
 import { SCHEMA_SQL } from "./schema";
 
-fs.mkdirSync(path.dirname(env.dbPath), { recursive: true });
+fs.mkdirSync(path.dirname(dbPath), { recursive: true });
 
-export const db = new Database(env.dbPath);
+export const db = new Database(dbPath);
 
-// Só muda de data/telemetry.db quando DB_PATH está definida (ver env.ts) -
+// Só muda de data/telemetry.db quando DB_PATH está definida (ver dbPath.ts) -
 // loga pra deixar visível quando isso acontece, em vez de silencioso.
-console.log(`[db] usando banco em ${env.dbPath}`);
+console.log(`[db] usando banco em ${dbPath}`);
 
 // WAL: leituras feitas pelas rotas HTTP não ficam bloqueadas por escritas do
 // pipeline UDP (e vice-versa) - no modo journal padrão elas se bloqueariam.

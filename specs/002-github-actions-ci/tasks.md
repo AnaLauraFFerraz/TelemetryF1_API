@@ -38,7 +38,7 @@ All three run the code in a **child process with a clean environment and a worki
 
 ## Phase 1: Setup
 
-- [ ] T001 Baseline for SC-001, read-only:
+- [x] T001 Baseline for SC-001, read-only:
   - confirm `node -v` is v22.23.x (`fnm use 22.23.1` if not; research.md, intro);
   - in a disposable worktree of `HEAD` outside the repository, with no `.env`, `data/`, `recordings/` or port variables, run `npm ci` and `npm test`;
   - expected: the same 5 files fail with `Variável de ambiente WS_PORT não definida`.
@@ -58,7 +58,7 @@ None. US1 is itself the foundation, since the CI cannot be green until a clean c
 
 ### Tests first
 
-- [ ] T002 [US1] Write `src/persistence/dbWithoutPorts.test.ts` (FR-006, FR-007, FR-008; SC-001). One flat `test()` with a Portuguese name, e.g. `"a persistência carrega sem WS_PORT, UDP_PORT e HTTP_PORT"`. It:
+- [x] T002 [US1] Write `src/persistence/dbWithoutPorts.test.ts` (FR-006, FR-007, FR-008; SC-001). One flat `test()` with a Portuguese name, e.g. `"a persistência carrega sem WS_PORT, UDP_PORT e HTTP_PORT"`. It:
   1. creates a temp dir with `fs.mkdtempSync(path.join(os.tmpdir(), "telemetryf1-noports-"))`;
   2. builds a child env from `process.env`, deleting `WS_PORT`, `UDP_PORT`, `HTTP_PORT` and `DB_PATH`, then setting `DB_PATH` to `<temp>/test.db` and `TS_NODE_PROJECT` to the absolute path of the repository's `tsconfig.json`;
   3. runs `spawnSync(process.execPath, ["-r", require.resolve("ts-node/register"), "-e", "require(<absolute path of src/persistence/db.ts>)"], { cwd: <temp>, env, encoding: "utf8", timeout: 30000 })`;
@@ -66,7 +66,7 @@ None. US1 is itself the foundation, since the CI cannot be green until a clean c
   5. removes the temp dir in `finally`.
 
   Run it alone (`node -r ts-node/register --test src/persistence/dbWithoutPorts.test.ts`). It **must fail now**, with the child's stderr showing `Variável de ambiente WS_PORT não definida`. Keep the output for the T007 commit message or notes.
-- [ ] T003 [P] [US1] Write `src/config/serverFailFast.test.ts` (FR-007; US1 scenario 2). It has two flat `test()` calls, using the same clean-child setup as T002 (temp `cwd`, ports and `DB_PATH` removed, `DB_PATH` set to a temp file, `TS_NODE_PROJECT` absolute, `timeout: 30000`), each spawning `node -r <require.resolve("ts-node/register")> <absolute path of src/server.ts>`:
+- [x] T003 [P] [US1] Write `src/config/serverFailFast.test.ts` (FR-007; US1 scenario 2). It has two flat `test()` calls, using the same clean-child setup as T002 (temp `cwd`, ports and `DB_PATH` removed, `DB_PATH` set to a temp file, `TS_NODE_PROJECT` absolute, `timeout: 30000`), each spawning `node -r <require.resolve("ts-node/register")> <absolute path of src/server.ts>`:
   - **no ports**: `status !== 0`, and stderr contains exactly `Variável de ambiente WS_PORT não definida. Confira seu arquivo .env (veja .env.example).`;
   - **`WS_PORT=abc`, `UDP_PORT=1`, `HTTP_PORT=2`**: `status !== 0`, and stderr contains `Variável de ambiente WS_PORT="abc" não é uma porta válida (1-65535).`.
 
@@ -74,23 +74,23 @@ None. US1 is itself the foundation, since the CI cannot be green until a clean c
 
 ### Implementation
 
-- [ ] T004 [US1] Create `src/config/dbPath.ts` (FR-007):
+- [x] T004 [US1] Create `src/config/dbPath.ts` (FR-007):
   - `import "dotenv/config"` (so a `DB_PATH` in `.env` keeps working) and `import path from "node:path"`;
   - move `FIXED_DB_PATH` and `resolveDbPath()` from `src/config/env.ts` together with their existing comment block, unchanged;
   - `export const dbPath = resolveDbPath();`.
   The empty-string rule (`raw ? raw : FIXED_DB_PATH` after `trim()`) is unchanged.
-- [ ] T005 [US1] Edit `src/config/env.ts` (FR-007):
+- [x] T005 [US1] Edit `src/config/env.ts` (FR-007):
   - remove `FIXED_DB_PATH`, `resolveDbPath()` and their comment;
   - remove the `node:path` import if it becomes unused;
   - add `import { dbPath } from "./dbPath";` and keep the `env.dbPath` property.
   `readPort`, both messages, the three ports and `anthropicApiKey` are unchanged, and `import "dotenv/config"` stays first. Depends on T004.
   After the edit, run `node -r ts-node/register --test src/config/serverFailFast.test.ts` explicitly by path (FR-007; US1 scenario 2), because the current `test` script does not cover `src/config/` until T012. It must still pass. Do not expect `npm test` to be green yet: `src/persistence/dbWithoutPorts.test.ts` (T002), which `npm test` covers, keeps failing until T006 removes `db.ts`'s import of `env`.
-- [ ] T006 [US1] Edit `src/persistence/db.ts` (FR-007):
+- [x] T006 [US1] Edit `src/persistence/db.ts` (FR-007):
   - replace `import { env } from "../config/env";` with `import { dbPath } from "../config/dbPath";`, and `env.dbPath` with `dbPath`;
   - in the comment "Só muda de data/telemetry.db quando DB_PATH está definida (ver env.ts)", change only `env.ts` to `dbPath.ts`.
   The `[db] usando banco em ...` log is unchanged. Depends on T004.
   After the edit, run `node -r ts-node/register --test src/config/serverFailFast.test.ts` and `node -r ts-node/register --test src/persistence/dbWithoutPorts.test.ts` explicitly by path (FR-006, FR-007). The first must still pass, and the second must pass now that both T005 and T006 are done. Then run `npm test`.
-- [ ] T007 [US1] Run T002 alone (must pass now) and T003 alone (must still pass). Then run `npm test` and `npx tsc --noEmit` in the real checkout. Commit `src/config/dbPath.ts`, `src/config/env.ts`, `src/persistence/db.ts`, `src/persistence/dbWithoutPorts.test.ts` and `src/config/serverFailFast.test.ts` as `fix: let persistence load without the network ports` (FR-007).
+- [x] T007 [US1] Run T002 alone (must pass now) and T003 alone (must still pass). Then run `npm test` and `npx tsc --noEmit` in the real checkout. Commit `src/config/dbPath.ts`, `src/config/env.ts`, `src/persistence/db.ts`, `src/persistence/dbWithoutPorts.test.ts` and `src/config/serverFailFast.test.ts` as `fix: let persistence load without the network ports` (FR-007).
 - [ ] T008 [US1] Verify the T007 commit in a disposable worktree outside the repository (`git worktree add --detach <temp-dir> HEAD`), with no `.env`, `data/`, `recordings/`, or port/`DB_PATH` variables (FR-006, FR-008; SC-001):
   - quickstart.md §1: `npm ci`, `npx tsc --noEmit` and `npm test` (all files load, all pass, `# skipped 0`);
   - `node -r ts-node/register --test src/config/serverFailFast.test.ts` explicitly by path, since `npm test` does not cover `src/config/` until T012. `src/persistence/dbWithoutPorts.test.ts` is covered by `npm test`, because it is in one of the four current folders;
