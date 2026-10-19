@@ -33,6 +33,6 @@
 
 1. The feature is itself about repository tooling, so the spec names the things it acts on (`package.json` scripts, `tools/`, `*.test.ts`, GitHub, fnm, the README badge). It does not prescribe how: no workflow syntax, no action names, no Node version number, no tsconfig layout, no glob or runner choice. Those are plan decisions.
 2. The audience is the maintainer, as in spec 001; "non-technical" is read as "does not require knowing the implementation".
-3. The four points the author reserved for `/speckit-clarify` are recorded as Assumptions with a stated default, not as markers, so they are not lost and not blocking.
+3. The four points the author reserved for `/speckit-clarify` were resolved in the clarify session of 2026-10-19, together with the CI platform and the bypass procedure, and are recorded in the spec's Clarifications section; the spec never used `[NEEDS CLARIFICATION]` markers.
 4. SC-001 quotes the measured baseline (15 of 20 test files load); SC-005 and SC-007 avoid hard-coded counts that would go stale. The Linux runner result is explicitly unknown.
 5. FR-017 records that no API contract changes (constitution principle VI); FR-007 preserves fail-fast (principle II); FR-018 follows principle V.
