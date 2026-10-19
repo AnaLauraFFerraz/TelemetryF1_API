@@ -24,7 +24,7 @@ All three run the code in a **child process with a clean environment and a worki
 - Small Conventional Commits with no `Co-Authored-By` trailer.
 - `npm test` and `npx tsc --noEmit` run before every commit.
 - A test that fails by design is committed together with the change that makes it pass, never alone, so no commit has a red suite.
-- The workflow commit uses `ci:`, and `ci` is added to CLAUDE.md's list of commit types in T025.
+- The workflow commit uses `chore:`, because the constitution lists `feat`/`fix`/`docs`/`test`/`chore`. Adding `ci` is one of the three items of the constitution-amendment pull request (see "Outside this feature's tasks").
 
 **[PARADA]**: the agent stops before every push, every pull request it opens, and every merge, and waits for the maintainer's explicit go-ahead. Merges and GitHub settings are always done by the maintainer.
 
@@ -174,7 +174,7 @@ None. US1 is itself the foundation, since the CI cannot be green until a clean c
   - `grep -nE "env:|secrets\.|node-version:"` finds nothing;
   - the job names are exactly `typecheck` and `test`.
 
-  Run `npm test` and `npx tsc --noEmit`, then commit as `ci: add GitHub Actions CI workflow`.
+  Run `npm test` and `npx tsc --noEmit`, then commit as `chore: add GitHub Actions CI workflow`.
 - [ ] T019 [US2] **[PARADA] push and pull request.** After the maintainer's go-ahead, push `002-github-actions-ci` to `origin` and open the pull request against `main` (FR-001; SC-002). The body is in English, with the attribution line the maintainer prefers. Merge nothing.
 - [ ] T020 [US2] From the first run, append "Post-implementation evidence → Linux (CI, first run)" to `specs/002-github-actions-ci/research.md` (FR-011, FR-013; SC-001, SC-003, SC-005, SC-007):
   - the result of each job;
@@ -208,20 +208,20 @@ None. US1 is itself the foundation, since the CI cannot be green until a clean c
   - **new short section "CI and branch protection"**:
     - what runs (`typecheck`, `test`), on which events, on Linux only;
     - the check names are a contract with the protection rule;
-    - the manual protection steps (plan.md Phase 4 step 4): PR required, required checks `typecheck` and `test`, branch up to date, linear history, only "Rebase and merge", no bypass including administrators;
+    - the manual protection steps (plan.md Phase 4 step 5): PR required, required checks `typecheck` and `test`, branch up to date, linear history, only "Rebase and merge", no bypass including administrators;
     - the last-resort procedure: wait for GitHub Actions first; otherwise turn the protection off, merge, turn it back on immediately, and record the reason in the pull request;
   - **Known limitations**: switching Node major without running `npm ci` again makes `better-sqlite3` fail with `ERR_DLOPEN_FAILED`, because its binary is built for one major's ABI.
 
   **No figure that goes stale**: no test or file counts, no durations, no patch versions.
 - [ ] T025 [P] [US4] Edit `CLAUDE.md` (FR-016):
-  - **Stack**: "Node.js ≥ 22.6" becomes "≥ 22.17", with the version coming from `.nvmrc`;
+  - **Stack**: "Node.js ≥ 22.6" becomes "≥ 22.17", with the version coming from `.nvmrc`. This makes CLAUDE.md diverge from the constitution's "Node.js ≥ 22.6". The divergence is **temporary and intentional**: the constitution-amendment pull request resolves it (plan.md Phase 4 step 9). Say so in one short parenthesis next to the version, so a reader does not take it for a contradiction;
   - **Commands**:
     - add `npm run typecheck`;
     - the `npm test` comment becomes "all `src/**/*.test.ts`, found by Node itself; a pretest guard fails if none";
     - replace the `npx tsc --noEmit ... (does NOT cover tools/, it is outside rootDir)` line with the `typecheck` script.
     "There are no `build`, `start` or `lint` scripts" stays;
   - **Conventions**:
-    - the commit types list gains `ci:`;
+    - the commit-type list is **not** changed: `ci` waits for the constitution amendment;
     - **check names as a contract**: the CI job names `typecheck` and `test`, and the file name `ci.yml`, are a contract with the branch protection rule and the README badge. Renaming requires updating both in the same piece of work (plan.md D2);
     - **actions**: first-party `actions/*` by major tag; any third-party action by full commit SHA with a trailing version comment (plan.md D3);
   - **Known pitfalls**: the same `ERR_DLOPEN_FAILED` entry as README. It is mirrored in README's Known limitations by T024, as CLAUDE.md requires.
@@ -231,7 +231,20 @@ None. US1 is itself the foundation, since the CI cannot be green until a clean c
 
 ### Merge and protection (maintainer)
 
-- [ ] T027 [US4] **[PARADA] merge, done by the maintainer.** The maintainer merges the feature's pull request with "Rebase and merge". Then confirm the push to `main` triggered the workflow and both jobs went green on `main` (FR-001; SC-002), and that the README badge renders "passing" (FR-015).
+- [ ] T027 [US4] First, **FR-017 check, before the [PARADA]**: after `git fetch origin`, run:
+
+  ```bash
+  git diff --stat origin/main...HEAD -- src/ws/ src/http/ 'src/persistence/*Repository.ts'
+  ```
+
+  The paths are the API-contract files that plan.md names under Constitution principle VI:
+  - `src/ws/messageFormat.ts`, the WebSocket payloads;
+  - `src/http/` routers and `httpServer.ts`, the REST routes, payloads and error strings;
+  - `src/persistence/*Repository.ts`, the row types.
+
+  Expected: empty output, meaning no contract file changed. Paste the command and its output in the pull request. Anything non-empty stops the merge and is reported.
+
+  Then, **[PARADA] merge, done by the maintainer.** The maintainer merges the feature's pull request with "Rebase and merge". Then confirm the push to `main` triggered the workflow and both jobs went green on `main` (FR-001; SC-002), and that the README badge renders "passing" (FR-015).
 - [ ] T028 [US4] **MANUAL, the maintainer on GitHub, only after T027** (FR-014): apply the protection on `main` exactly as documented by T024:
   - require a pull request;
   - required checks `typecheck` and `test`, source GitHub Actions;
@@ -245,11 +258,17 @@ None. US1 is itself the foundation, since the CI cannot be green until a clean c
 
 Every throw-away branch below is created from the updated `main`. At the end, delete it **locally and on `origin`** (`git branch -D <b>` and `git push origin --delete <b>`). The remote delete is a push: **[PARADA]**.
 
-- [ ] T029 [P] [US4] **[PARADA] push and pull request.** SC-004a: type error in `src/`. Add a type error to a file under `src/` on a throw-away branch, push it, and open a pull request against `main`. Expected:
-  - `typecheck` ✗ in the checks list, and `test` still runs to its own result (FR-002; SC-003, SC-004);
+- [ ] T029 [P] [US4] **[PARADA] push and pull request.** SC-004a: type error in `src/`, in `src/http/routes/sessionsRouter.ts`. The file was chosen from the import graph, computed on 2026-10-19 over every `*.test.ts`, plus `tools/replayer.ts` and `src/server.ts`, which tests run as child processes:
+  - **statically**, every `src/` file is reachable from some test, because `src/config/serverFailFast.test.ts` (T003) runs `src/server.ts`;
+  - **at runtime**, `src/server.ts` stops at its first import (`./config/env`) in both of T003's cases, so the modules only `server.ts` imports after that are never loaded. ts-node then never compiles or type-checks them. They are `src/http/` (routers, `httpServer.ts`), `src/network/wsBroadcaster.ts`, `src/ws/messageFormat.ts`, `src/telemetry/packetIds.ts`, `src/persistence/analysisRepository.ts` and `src/coaching/coachService.ts`/`coachPrompt.ts`.
+
+  Before pushing, confirm locally that `npm test` still passes with the error in place, and `npm run typecheck` fails. If `npm test` fails too, the runtime argument above is wrong: then expect both ✗, record why, and push anyway.
+
+  Then add the error on a throw-away branch, push it, and open a pull request against `main`. Expected:
+  - `typecheck` ✗ and `test` ✓ in the checks list, with the failing check identifiable from the list alone (FR-002; SC-003, SC-004);
   - the maintainer's attempt to merge is blocked (SC-006).
   Note both results, close unmerged, delete the branch locally and remotely.
-- [ ] T030 [P] [US4] **[PARADA] push and pull request.** SC-004b: type error in `tools/`. Same as T029, with the type error in `tools/replayer.ts`. Expected: `typecheck` ✗ (FR-005; SC-004) and the merge blocked (SC-006). Note, close, delete locally and remotely.
+- [ ] T030 [P] [US4] **[PARADA] push and pull request.** SC-004b: type error in `tools/`. Same as T029, with the type error in `tools/replayer.ts`. Expected: **`typecheck` ✗ and `test` ✗** (FR-005; SC-004), and the merge blocked (SC-006). `test` fails too, by design of today's setup: `src/replay/replayerCli.test.ts` runs `tools/replayer.ts` through `ts-node/register`, which type-checks the file it compiles, so the child process exits with a TS error instead of the expected `[replayer]` message. This is the case the transpile-only future improvement in plan.md addresses. Note, close, delete locally and remotely.
 - [ ] T031 [P] [US4] **[PARADA] push and pull request.** SC-004c: failing test. Same as T029, with one failing assertion in an existing test under `src/analysis/`. Expected: `test` ✗ and `typecheck` ✓, identifiable from the checks list alone (SC-003, SC-004), and the merge blocked (SC-006). Note, close, delete locally and remotely.
 - [ ] T032 [US4] **[PARADA] push.** Direct push refused, administrator included (FR-014; SC-006):
   - on a throw-away branch from `main`, make one throw-away commit and run `git push origin HEAD:main`;
@@ -266,7 +285,7 @@ Every throw-away branch below is created from the updated `main`. At the end, de
   - commit as `docs: record branch protection and workflow-version checks for spec 002`;
   - push and open the pull request. When it is green and up to date, the maintainer merges it with "Rebase and merge"; expected: allowed, and `main` stays linear.
   Delete its branch locally and remotely afterwards.
-- [ ] T035 [US4] Branch behind `main` (SC-006). The T033 pull request is now behind `main`, because T034 moved it. Expected: its merge is blocked as out of date, even though its checks are green. The maintainer attempts it. Note the result, close the T033 pull request unmerged, and delete its branch locally and remotely (**[PARADA]** for the remote delete).
+- [ ] T035 [US4] Branch behind `main` (SC-006). The T033 pull request is now behind `main`, because T034 moved it. Expected: its merge is blocked as out of date, even though its checks are green. The maintainer attempts it. Note the result. Closing that pull request and deleting its branch is done by T033's last step.
 - [ ] T036 [US4] **[PARADA] push and pull request; the merge is the maintainer's.** (SC-006) Record T034's allowed merge and T035's blocked merge in research.md, through one more small branch and pull request, `docs: record the remaining protection checks for spec 002`. The maintainer merges it, then delete its branch locally and remotely.
 
 **Checkpoint**: `main` only accepts green, up-to-date, linear pull requests, administrators included, and all evidence is in research.md.
@@ -276,7 +295,7 @@ Every throw-away branch below is created from the updated `main`. At the end, de
 ## Phase 7: Polish & Cross-Cutting Concerns
 
 - [ ] T037 Run quickstart.md §1 and §2 on the merged `main`, in a disposable worktree with no environment (SC-001, SC-005). Check README and CLAUDE.md:
-  - `grep -n "src/ only\|does NOT cover tools\|22\.6" README.md CLAUDE.md` finds nothing;
+  - `grep -n "src/ only\|does NOT cover tools\|22\.6" README.md CLAUDE.md` finds nothing, except CLAUDE.md's one parenthesis about the temporary divergence from the constitution's "≥ 22.6" (T025);
   - the sections edited by T024/T025 contain no test/file counts, durations or patch versions (FR-016).
   Report anything stale. A fix goes only through a pull request: **[PARADA]**.
 - [ ] T038 Run `/speckit-converge` for spec 002 (all FRs and SCs), to append any unbuilt requirement as new tasks.
@@ -285,11 +304,15 @@ Every throw-away branch below is created from the updated `main`. At the end, de
 
 ## Outside this feature's tasks
 
-- **Constitution amendment pull request** (clarification d; plan.md Phase 4 step 7), opened after the CI works, per the constitution's Governance section (MINOR version bump). It updates two things together:
-  - Technology and Quality Constraints: Node.js ≥ 22.6 becomes ≥ 22.17;
-  - Development Workflow: the CI (`typecheck` and `test`) is the merge gate of `main`.
-- **Future improvement** (plan.md D7): per-consumer configuration, so `record` and `replay` need only `UDP_PORT`, together with dependency injection of the database connection. It needs its own spec.
-- **Future need** (plan.md D8): a separate build `tsconfig` when a build, for example for the public demo, is introduced.
+- **Constitution amendment pull request** (clarification d; plan.md Phase 4 step 9), opened after the CI works, per the constitution's Governance section (MINOR version bump). It has three items:
+  - Development Workflow: the CI (`typecheck` and `test`) is the merge gate of `main`;
+  - Technology and Quality Constraints: Node.js ≥ 22.6 becomes ≥ 22.17, ending the temporary divergence with CLAUDE.md;
+  - Development Workflow: `ci:` joins the commit types, and CLAUDE.md's list follows in the same pull request.
+- **Future improvements** (plan.md, "Future improvements"):
+  - a per-consumer configuration, so `record` and `replay` need only `UDP_PORT` and the coach only its key, together with dependency injection of the database connection;
+  - a separate build `tsconfig` when a build is introduced;
+  - tests in ts-node transpile-only mode, with the trade-off recorded in the plan.
+  Each needs its own decision or spec.
 
 ---
 
