@@ -43,7 +43,7 @@ $ node -e 'console.log(require("fs").globSync("nada/**/*.test.ts").length)'
 0
 ```
 
-The Node v22 docs (`fs.json`, `fs.globSync`) show it was "added: v22.0.0" and marked stable in **v22.17.0** ("Marking the API stable", nodejs/node#57513). Between 22.6 and 22.16, which `engines.node` (`>=22.6`) still admits, the function exists but is experimental and would print an `ExperimentalWarning`; this was not measured, it is documented. The pinned `.nvmrc` resolves to 22.23.1 locally and 22.23.3 on the runner, both past 22.17. Whether to raise `engines.node` to `>=22.17` is left open in plan.md.
+The Node v22 docs (`fs.json`, `fs.globSync`) show it was "added: v22.0.0" and marked stable in **v22.17.0** ("Marking the API stable", nodejs/node#57513). Between 22.6 and 22.16, which the current `engines.node` (`>=22.6`) admits, the function exists but is experimental and would print an `ExperimentalWarning`; this was not measured, it is documented. The pinned `.nvmrc` resolves to 22.23.1 locally and 22.23.3 on the runner, both past 22.17. **Decided** by the maintainer on 2026-10-19: `engines.node` is raised to `>=22.17` in this feature, so the declared minimum matches the stable API the guard relies on (plan.md D9).
 
 **Alternatives that were considered for where the guard lives.** Option A was chosen.
 
@@ -100,7 +100,7 @@ This was repeated with the prototype of points 5 and 6 in a disposable worktree,
 ```
 
 - `fnm list` shows v22.14.0 and v22.23.1 installed. `22` resolved to the newest installed 22.x, not to the newest released.
-- With no version file, fnm falls back to `engines.node` (`--resolve-engines`, enabled). Per its help text, it takes "the latest satisfying version", so today `>=22.6` would pick a Node 24 if one were installed.
+- With no version file, fnm falls back to `engines.node` (`--resolve-engines`, enabled). Per its help text, it takes "the latest satisfying version", so today `>=22.6` would pick a Node 24 if one were installed. That stays true for the new `>=22.17`, which is why the version file is needed.
 
 **setup-node** (README, fetched 2026-10-19; current major is `v7`):
 
@@ -110,7 +110,7 @@ This was repeated with the prototype of points 5 and 6 in a disposable worktree,
 
 **Finding**: both tools read `.nvmrc` and `.node-version`. "22" is predictable at the major level, which is what clarification (a) asks for, but not at the patch level. Today the CI would resolve 22.23.3 (the runner's cache) and the maintainer's machine 22.23.1 (the newest installed). Each side moves when its own cache changes. This is accepted by decision (a); the plan records it instead of hiding it.
 
-**Decision**: exactly one version file, containing `22`, and never both files, because fnm prefers `.nvmrc` when both exist. `engines.node` stays `>=22.6` as the minimum. With the file present, fnm no longer falls back to `engines`.
+**Decision**: exactly one version file, containing `22`, and never both files, because fnm prefers `.nvmrc` when both exist. `engines.node` stays the declared minimum, raised to `>=22.17` (point 1). With the file present, fnm no longer falls back to `engines`.
 
 **Trade-off: which file.** Decided by the maintainer on 2026-10-19: `.nvmrc`.
 
