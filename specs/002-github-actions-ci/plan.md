@@ -23,7 +23,7 @@ Last come the README badge, the documentation updates, and the manual protection
 
 ## Technical Context
 
-**Language/Version**: Node.js major 22, pinned in one version file read by fnm and by `actions/setup-node`. `engines.node` stays `>=22.6` as the minimum. TypeScript 5.6, `strict`, CommonJS, all unchanged. Patch versions may differ between the maintainer's machine (22.23.1 today) and the runner's cache (22.23.3 today), which is accepted by clarification (a) and recorded in research.md point 3.
+**Language/Version**: Node.js major 22, pinned in one version file read by fnm and by `actions/setup-node`. `engines.node` is raised from `>=22.6` to `>=22.17` and stays the declared minimum: 22.17 is where the `fs.globSync` the D10 guard uses became stable (D9). TypeScript 5.6, `strict`, CommonJS, all unchanged. Patch versions may differ between the maintainer's machine (22.23.1 today) and the runner's cache (22.23.3 today), which is accepted by clarification (a) and recorded in research.md point 3.
 
 **Primary Dependencies**: none new, runtime or development (FR-018). The guard uses `node:fs`. The workflow uses two first-party actions, `actions/checkout` and `actions/setup-node` (research.md point 9).
 
@@ -59,7 +59,7 @@ Last come the README badge, the documentation updates, and the manual protection
 | IV. Record what is known; documentation describes only what exists | ✅ Pass | Documentation edits (FR-016) remove the "type-check does not cover `tools/`" statements in the same change that makes them false. Research facts not yet observed on Linux (prebuild download, UDP tests, run duration, workflow version on pull requests) are marked as pending and get recorded after the first run, not assumed. |
 | V. Simple, embedded infrastructure; minimal dependencies | ✅ Pass | No dependency added (FR-018). One new config module, following the existing one-concern-per-file layout of `src/config/`. |
 | VI. This repository owns the API contract | ✅ Pass | **FR-017: contract unchanged.** None of `src/ws/messageFormat.ts`, `src/http/` routers, repository row types or error strings is touched. Touched files: `src/config/`, `src/persistence/db.ts` (import line only), `tsconfig.json`, `package.json` scripts, `.nvmrc`, `.github/workflows/ci.yml`, a guard under `tools/`, `README.md` and `CLAUDE.md`. Nothing to flag to the frontend. |
-| Tech constraints (Node ≥ 22.6, TS strict, CommonJS, `node:test`) | ✅ Pass | The pinned major 22 satisfies `>=22.6`, and `strict`/CommonJS are kept. The runner change is in discovery only. |
+| Tech constraints (Node ≥ 22.6, TS strict, CommonJS, `node:test`) | ✅ Pass | `engines.node` becomes `>=22.17`. That is narrower than, and still inside, the constitution's "Node.js ≥ 22.6", so nothing violates it. The constitution text keeps saying "≥ 22.6" until the planned amendment pull request, which updates the minimum version and the CI-as-merge-gate rule together (Phase 4, step 7). `strict`/CommonJS are kept. The runner change is in discovery only. |
 | Workflow: spec → plan → tasks committed first | ✅ Pass | Spec and clarifications are committed (`f3afa95`, `7cb0018`, `de4eba9`). This plan, research and quickstart are committed as `docs:` before any implementation commit. |
 | Workflow: `npm test` and `npx tsc --noEmit` before every commit | ✅ Pass | Both commands keep working. `npx tsc --noEmit` now covers `tools/` too, through `tsconfig.json`. `npm run typecheck` is the documented equivalent. The constitution's wording stays true, so no amendment is needed for this. |
 | Workflow: known limitations in both CLAUDE.md and README | ✅ Pass | Neither file lists the `tools/` gap under "Known limitations". It is in the commands sections, and both get updated together. |
@@ -153,7 +153,11 @@ It is the smallest change that preserves every message and the `DB_PATH` semanti
 
 ### D9. Version file. **Decided: `.nvmrc` containing `22`** (research.md point 3)
 
-- **Open point, not decided**: `engines.node` is `>=22.6`, but `fs.globSync` (D10) is stable only from 22.17. On 22.6–22.16 it works but prints an `ExperimentalWarning`. Raising the minimum to `>=22.17` would make the declared minimum honest. That would change a declared constraint (Constitution, "Node.js ≥ 22.6"), so it is the maintainer's decision. Until decided, `engines.node` stays as is.
+- **Decided** by the maintainer on 2026-10-19: `engines.node` goes from `>=22.6` to `>=22.17` in this feature.
+  - The reason: `fs.globSync`, which the D10 guard uses, is stable only from 22.17. On 22.6–22.16 it works but prints an `ExperimentalWarning`, so the old minimum was no longer honest.
+  - The `.nvmrc` stays `22`; it resolves to 22.23.x on both sides.
+  - `CLAUDE.md` ("Node.js ≥ 22.6") and `README.md` ("Requirements: Node.js ≥ 22.6.") are updated to 22.17 in the documentation commit (FR-016).
+  - The constitution keeps "Node.js ≥ 22.6" until the planned amendment pull request, which updates **both** the minimum version and the CI-as-merge-gate rule together (Phase 4, step 7).
 
 - Exactly one file is committed, never both, because fnm prefers `.nvmrc` when both exist.
 - The CLAUDE.md note "Node is installed through fnm" gains "the version comes from `.nvmrc`".
@@ -185,7 +189,7 @@ Each phase ends with its own verification before the next starts. Commits are sm
 
 1. Implement D8: `tsconfig.json` changes and the `typecheck` script.
 2. Implement the test script with the quoted glob, and the D10 guard.
-3. Add the D9 version file.
+3. Add the D9 version file, and raise `engines.node` to `>=22.17` in `package.json`.
 4. Verify on the maintainer's Windows machine:
    - `npm run typecheck` passes, and fails on an injected error in `src/` and in `tools/` (reverted, never committed);
    - `npm test` passes and the guard reports the file count;
@@ -217,6 +221,7 @@ Each phase ends with its own verification before the next starts. Commits are sm
    - update the Commands block (`typecheck`, the `test` glob, the `.nvmrc`);
    - remove "does NOT cover tools/";
    - add the check-names-are-a-contract rule (D2) and the third-party-actions-by-SHA rule (D3);
+   - change "Node.js ≥ 22.6" to "Node.js ≥ 22.17" in CLAUDE.md's Stack and in README's Requirements (D9);
    - add the ABI fact to the Known pitfalls: switching Node major without `npm ci` gives `ERR_DLOPEN_FAILED` (research.md point 4), and the same entry goes to the README's Known limitations.
    README and CLAUDE.md are edited in the same commit (FR-016).
 3. The feature's pull request is merged by the maintainer with "Rebase and merge", after the green run.
@@ -230,7 +235,11 @@ Each phase ends with its own verification before the next starts. Commits are sm
    - document the last-resort procedure from the clarifications: wait for GitHub Actions first; otherwise turn the protection off, merge, turn it back on at once, and record the reason in the pull request.
 5. **Verify the protection** (SC-006): a direct push to `main` as administrator, a merge with a failing check, and a merge with a branch behind `main` are all refused. Merging a green, up-to-date pull request with "Rebase and merge" is allowed.
 6. **Verify that a pull request runs its own workflow version** (US4 scenario 6, research.md point 8): open a pull request whose only change is a visible edit to `ci.yml`, for example an extra step that prints `versao-do-PR`. Confirm in that pull request's run that the edited step appears. Record the result in research.md, and close the pull request unmerged.
-7. Open the separate constitution-amendment pull request (clarification d). It is out of this feature's tasks and is listed only so it is not forgotten.
+7. Open the separate constitution-amendment pull request (clarification d), after the CI works. It updates two things together:
+   - "Technology and Quality Constraints": Node.js ≥ 22.6 becomes ≥ 22.17, matching `engines.node`;
+   - "Development Workflow": the CI (`typecheck` and `test`) is the merge gate of `main`.
+
+   It is out of this feature's tasks and is listed only so it is not forgotten.
 
 ## Project Structure
 
@@ -256,7 +265,7 @@ specs/002-github-actions-ci/
 ```text
 .github/workflows/ci.yml        # new: workflow CI, jobs typecheck and test (D1–D6)
 .nvmrc                          # new: "22" (D9; or .node-version if chosen)
-package.json                    # scripts: typecheck, pretest, test (quoted glob)
+package.json                    # scripts: typecheck, pretest, test (quoted glob); engines.node >=22.17
 tsconfig.json                   # rootDir ".", include src + tools (D8)
 src/config/dbPath.ts            # new: DB path resolution moved out of env.ts (D7)
 src/config/env.ts               # ports + API key; re-exports dbPath
