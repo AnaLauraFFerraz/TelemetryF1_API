@@ -84,13 +84,16 @@ None. US1 is itself the foundation, since the CI cannot be green until a clean c
   - remove the `node:path` import if it becomes unused;
   - add `import { dbPath } from "./dbPath";` and keep the `env.dbPath` property.
   `readPort`, both messages, the three ports and `anthropicApiKey` are unchanged, and `import "dotenv/config"` stays first. Depends on T004.
+  After the edit, run `node -r ts-node/register --test src/config/serverFailFast.test.ts` explicitly by path (FR-007; US1 scenario 2), because the current `test` script does not cover `src/config/` until T012. It must still pass. Do not expect `npm test` to be green yet: `src/persistence/dbWithoutPorts.test.ts` (T002), which `npm test` covers, keeps failing until T006 removes `db.ts`'s import of `env`.
 - [ ] T006 [US1] Edit `src/persistence/db.ts` (FR-007):
   - replace `import { env } from "../config/env";` with `import { dbPath } from "../config/dbPath";`, and `env.dbPath` with `dbPath`;
   - in the comment "Só muda de data/telemetry.db quando DB_PATH está definida (ver env.ts)", change only `env.ts` to `dbPath.ts`.
   The `[db] usando banco em ...` log is unchanged. Depends on T004.
+  After the edit, run `node -r ts-node/register --test src/config/serverFailFast.test.ts` and `node -r ts-node/register --test src/persistence/dbWithoutPorts.test.ts` explicitly by path (FR-006, FR-007). The first must still pass, and the second must pass now that both T005 and T006 are done. Then run `npm test`.
 - [ ] T007 [US1] Run T002 alone (must pass now) and T003 alone (must still pass). Then run `npm test` and `npx tsc --noEmit` in the real checkout. Commit `src/config/dbPath.ts`, `src/config/env.ts`, `src/persistence/db.ts`, `src/persistence/dbWithoutPorts.test.ts` and `src/config/serverFailFast.test.ts` as `fix: let persistence load without the network ports` (FR-007).
 - [ ] T008 [US1] Verify the T007 commit in a disposable worktree outside the repository (`git worktree add --detach <temp-dir> HEAD`), with no `.env`, `data/`, `recordings/`, or port/`DB_PATH` variables (FR-006, FR-008; SC-001):
   - quickstart.md §1: `npm ci`, `npx tsc --noEmit` and `npm test` (all files load, all pass, `# skipped 0`);
+  - `node -r ts-node/register --test src/config/serverFailFast.test.ts` explicitly by path, since `npm test` does not cover `src/config/` until T012. `src/persistence/dbWithoutPorts.test.ts` is covered by `npm test`, because it is in one of the four current folders;
   - both server messages;
   - `data/` absent afterwards;
   - `DB_PATH=<temp-file>` honoured by `tools/analyze.ts`.
@@ -257,7 +260,7 @@ Every throw-away branch below is created from the updated `main`. At the end, de
   - on a throw-away branch from `main`, add a step `- run: echo versao-do-PR` to the `test` job in `.github/workflows/ci.yml`;
   - push and open the pull request;
   - confirm its own run shows the `echo versao-do-PR` step printing.
-  **Leave it open**; T035 uses it.
+  **Leave it open**; T035 uses it. Once T035's check is done, close this pull request unmerged and delete its branch locally (`git branch -D <b>`) and remotely (`git push origin --delete <b>`). **[PARADA] before deleting the remote branch.**
 - [ ] T034 [US4] **[PARADA] push and pull request; the merge is the maintainer's.** Evidence pull request, which is also the allowed-merge case (SC-006):
   - on a branch from `main`, append the results of T027–T033 to "Post-implementation evidence" in `specs/002-github-actions-ci/research.md`;
   - commit as `docs: record branch protection and workflow-version checks for spec 002`;
