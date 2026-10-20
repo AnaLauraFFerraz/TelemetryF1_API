@@ -134,7 +134,7 @@ None. US1 is itself the foundation, since the CI cannot be green until a clean c
   Leave the other scripts and the dependencies untouched. Depends on T011.
 - [x] T013 [P] [US3] Create `.nvmrc` containing exactly `22` and a newline (FR-012; SC-008). Confirm `git ls-files .node-version` is empty, and create no `.node-version` (research.md point 3).
 - [x] T014 [US3] Run `npm ci` in the real checkout (FR-012, FR-018). If `package-lock.json` changes, the diff must be only the root package's `engines` field; keep it for T016.
-- [ ] T015 [US3] Verify on the maintainer's Windows machine (FR-005, FR-009, FR-010, FR-012; SC-005, SC-008). Follow quickstart.md §2, and revert every temporary change:
+- [x] T015 [US3] Verify on the maintainer's Windows machine (FR-005, FR-009, FR-010, FR-012; SC-005, SC-008). Follow quickstart.md §2, and revert every temporary change:
   - T009 passes when run alone;
   - `npm run typecheck` gives exit 0, and a non-zero exit with TS2322 for `const x: number = "a";` appended to `tools/recorder.ts`, then separately to `src/server.ts`;
   - `npm test` prints the guard's count line, then all tests pass with `# skipped 0`. The run includes `src/config/serverFailFast.test.ts` and `src/tooling/assertTestFiles.test.ts`, which the old script would not have found: a new folder is picked up with no script edit;
@@ -143,7 +143,7 @@ None. US1 is itself the foundation, since the CI cannot be green until a clean c
   - `fnm use` in the repository root prints `v22.x`.
 
   Save the sorted list of executed test files in a new section "Post-implementation evidence → Windows (local)" at the end of `specs/002-github-actions-ci/research.md`, for the SC-005 comparison in T020.
-- [ ] T016 [US3] Run `npm test` and `npx tsc --noEmit` again (FR-003–FR-005, FR-009, FR-010, FR-012). Commit `tsconfig.json`, `tools/assertTestFiles.ts`, `src/tooling/assertTestFiles.test.ts`, `package.json`, `package-lock.json` (only if T014 changed it) and `.nvmrc` as `chore: add typecheck script, Node-side test discovery and a pinned Node version`. Commit the research.md evidence from T015 separately as `docs:`.
+- [x] T016 [US3] Run `npm test` and `npx tsc --noEmit` again (FR-003–FR-005, FR-009, FR-010, FR-012). Commit `tsconfig.json`, `tools/assertTestFiles.ts`, `src/tooling/assertTestFiles.test.ts`, `package.json`, `package-lock.json` (only if T014 changed it) and `.nvmrc` as `chore: add typecheck script, Node-side test discovery and a pinned Node version`. Commit the research.md evidence from T015 separately as `docs:`.
 
 **Checkpoint**: everything the CI will call exists as an `npm` script, is tested, and passes locally.
 
