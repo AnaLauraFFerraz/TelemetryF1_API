@@ -6,6 +6,8 @@ import { env } from "../src/config/env";
 import { runReplay } from "../src/replay/runner";
 import { RecordedPacket, ReplayOptions, ReplaySpeed } from "../src/replay/types";
 
+const quebra: number = "texto";
+
 /**
  * Lê um arquivo .jsonl gravado por tools/recorder.ts e reenvia cada pacote
  * via UDP para a própria API (127.0.0.1:UDP_PORT), respeitando o
