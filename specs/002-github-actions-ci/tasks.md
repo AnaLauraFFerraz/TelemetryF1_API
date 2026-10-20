@@ -201,7 +201,7 @@ None. US1 is itself the foundation, since the CI cannot be green until a clean c
 
 ### Documentation
 
-- [ ] T024 [P] [US4] Edit `README.md` (FR-014, FR-015, FR-016):
+- [x] T024 [P] [US4] Edit `README.md` (FR-014, FR-015, FR-016):
   - **badge**: `[![CI](https://github.com/AnaLauraFFerraz/TelemetryF1_API/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/AnaLauraFFerraz/TelemetryF1_API/actions/workflows/ci.yml)` near the title;
   - **Requirements**: "Node.js ≥ 22.6" becomes "≥ 22.17", and mention `.nvmrc`;
   - **Tests block**: `npx tsc --noEmit  # type-check (src/ only)` becomes `npm run typecheck  # type-check (src/ and tools/)`. Add one line on the zero-files guard;
@@ -215,7 +215,7 @@ None. US1 is itself the foundation, since the CI cannot be green until a clean c
   - **`analyze` and the ports**: confirm README no longer says `npm run analyze` needs `WS_PORT`, `UDP_PORT` and `HTTP_PORT` (after US1 it does not; `record` and `replay` still do), and fix any such statement (plan.md D7, "Effect observed in US1").
 
   **No figure that goes stale**: no test or file counts, no durations, no patch versions.
-- [ ] T025 [P] [US4] Edit `CLAUDE.md` (FR-016):
+- [x] T025 [P] [US4] Edit `CLAUDE.md` (FR-016):
   - **Stack**: "Node.js ≥ 22.6" becomes "≥ 22.17", with the version coming from `.nvmrc`. This makes CLAUDE.md diverge from the constitution's "Node.js ≥ 22.6". The divergence is **temporary and intentional**: the constitution-amendment pull request resolves it (plan.md Phase 4 step 9). Say so in one short parenthesis next to the version, so a reader does not take it for a contradiction;
   - **Commands**:
     - add `npm run typecheck`;

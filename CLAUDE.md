@@ -4,27 +4,27 @@ Backend that ingests the F1 24 game's UDP telemetry, persists it to SQLite, stre
 
 ## Stack
 
-- Node.js ≥ 22.6 + TypeScript (CommonJS, `strict`), run with `ts-node-dev` (no build step yet)
+- Node.js: major 22 pinned in `.nvmrc`, minimum 22.17 declared in `engines` (the constitution still says ≥ 22.6 until its amendment PR). TypeScript (CommonJS, `strict`), run with `ts-node-dev` (no build step yet)
 - `dgram` (UDP), `ws` (WebSocket), Express 5 (REST), `better-sqlite3` (SQLite, WAL)
 - `@anthropic-ai/sdk` for the coach
 - Tests: Node's built-in runner (`node:test` + `node:assert/strict`) via `ts-node/register`
 
-Node is installed through **fnm** on the dev machine; make sure it is on `PATH` before running npm.
+Node is installed through **fnm** on the dev machine; make sure it is on `PATH` before running npm. The version comes from `.nvmrc`.
 
 ## Commands
 
 ```bash
 npm run dev                                   # UDP, WebSocket and REST on the ports from .env (example: 20777 / 8080 / 3001)
-npm test                                      # all *.test.ts under src/persistence, src/analysis, src/coaching, src/replay
+npm test                                      # all src/**/*.test.ts, found by Node itself; a pretest guard fails if none
 npm run record                                # writes recordings/session-<timestamp>.jsonl
 npm run replay -- recordings/<file>.jsonl [--speed=1x|2x|max] [--loop]  # re-sends a recording to 127.0.0.1:UDP_PORT; default 1x, no loop
 npm run analyze -- <sessionId> <lapA> <lapB>  # prints the LapInsights JSON for two laps, no AI call
-npx tsc --noEmit                              # type-check (does NOT cover tools/, it is outside rootDir)
+npm run typecheck                             # type-check, covers src/ and tools/ (same as npx tsc --noEmit)
 ```
 
 There are no `build`, `start` or `lint` scripts and no ESLint config yet.
 
-Configuration comes from `.env` (copy `.env.example`): `WS_PORT`, `UDP_PORT`, `HTTP_PORT` are required and validated at startup; `ANTHROPIC_API_KEY` is optional. The database path is fixed in production: `data/telemetry.db`. An optional `DB_PATH` environment variable overrides it — tests and manual verification use this to point at a temporary database, never at the real one (see Rules).
+Configuration comes from `.env` (copy `.env.example`): `WS_PORT`, `UDP_PORT`, `HTTP_PORT` are required and validated at startup by the server, `record` and `replay`; `analyze` and the tests do not need them, only the database path (below); `ANTHROPIC_API_KEY` is optional. The database path is fixed in production: `data/telemetry.db`. An optional `DB_PATH` environment variable overrides it — tests and manual verification use this to point at a temporary database, never at the real one (see Rules).
 
 ## Architecture
 
@@ -33,7 +33,7 @@ Flow: `network/udpListener` → `telemetry/dispatcher` (parse) → `persistence/
 | Path | Responsibility |
 |---|---|
 | `src/server.ts` | Entry point: wires UDP, WS and HTTP; per-packet try/catch so a malformed packet never kills the process |
-| `src/config/` | Fail-fast env loading |
+| `src/config/` | `env.ts` loads and validates the ports with fail-fast; `dbPath.ts` resolves the database path (including `DB_PATH`) and is the only config file the persistence layer imports, so persistence does not depend on the ports |
 | `src/network/` | Transport only: UDP socket, WebSocket server with ping/pong heartbeat |
 | `src/telemetry/` | Binary parsing of the F1 24 protocol, one folder per packet type (`header`, `motion`, `lapData`, `carTelemetry`, `session`), shared `BufferCursor`, sizes and `assertBytesRead` in `shared/` |
 | `src/ws/` | WebSocket message envelope |
@@ -42,7 +42,8 @@ Flow: `network/udpListener` → `telemetry/dispatcher` (parse) → `persistence/
 | `src/coaching/` | Static system prompt, user-message builder, Anthropic call with typed errors |
 | `src/http/` | Express app and routers (`sessionsRouter`, `analysisRouter`) |
 | `src/replay/` | Pure replay pacing (`computeDelayMs`) and orchestration (`runReplay`): speed, loop, absolute-deadline scheduling |
-| `tools/` | CLI scripts: recorder, analyze, and a thin replayer CLI over `src/replay/` |
+| `src/tooling/` | Tests of the project's own tooling: the test of the empty-discovery guard |
+| `tools/` | CLI scripts: recorder, analyze, a thin replayer CLI over `src/replay/`, and `assertTestFiles.ts`, the guard that runs as the `pretest` of `npm test` |
 
 The REST and WebSocket payloads are a contract consumed by the frontend, which mirrors the types by hand. This repo owns that contract: any change to `src/ws/messageFormat.ts`, the routers or the repository row types must be flagged so the frontend's `src/types/` can be updated.
 
@@ -54,13 +55,15 @@ The REST and WebSocket payloads are a contract consumed by the frontend, which m
 - `analysis/` stays pure and deterministic. The AI coach only ever receives the derived `LapInsights` JSON, never raw samples.
 - Repositories use prepared statements created at module load and map snake_case rows to camelCase objects.
 - Unknown values are stored as `NULL`, never invented (see `lapCompletionDetector`).
-- Tests: flat `test()` calls, synthetic data from a `testFixtures.ts` per folder (`src/analysis/`, `src/replay/`), mostly pure functions. The handful of tests that need a real SQLite connection (sample repositories, the replay integration test) use `src/persistence/testDb.ts` to open an isolated, disposable database via `DB_PATH` — never `data/telemetry.db`. A new test file must live in one of the folders covered by the `test` script, or the script must be updated.
+- Tests: flat `test()` calls, synthetic data from a `testFixtures.ts` per folder (`src/analysis/`, `src/replay/`), mostly pure functions. The handful of tests that need a real SQLite connection (sample repositories, the replay integration test) use `src/persistence/testDb.ts` to open an isolated, disposable database via `DB_PATH` — never `data/telemetry.db`. A new test file under `src/` is picked up by the `test` script with no edit.
 - Commits: small, Conventional Commits (`feat:`, `fix:`, `docs:`, `test:`, `chore:`), English subject, **no `Co-Authored-By` trailer**.
+- **Check names are a contract:** renaming a CI job (`typecheck`, `test`) requires updating the required checks of the ruleset on `main` in the same piece of work, and renaming `ci.yml` requires updating the README badge in the same piece of work.
+- **Actions:** first-party `actions/*` by major tag; any third-party action by full commit SHA with a trailing version comment.
 
 ## Rules
 
 - Never commit secrets: `.env`, API keys, tokens. `.env`, `data/` and `recordings/` are gitignored.
-- Run `npm test` and `npx tsc --noEmit` before every commit; report any failure instead of committing around it.
+- Run `npm test` and `npm run typecheck` (the same scripts the CI calls) before every commit; report any failure instead of committing around it.
 - Do not change packet layouts, field order or sizes in `src/telemetry/` without checking the official spec, *Data Output from F1 24* (v27.2x).
 - Documentation must describe only what exists in the code. Partial features are described as partial; no invented metrics or results.
 - Never rewrite published git history. Exception made once, on 2026-10-18: `main` was rewritten with `git filter-repo` to remove a `Co-Authored-By` trailer from one already-published commit (AI usage on this project is disclosed elsewhere; this repo's own commits don't carry the trailer by choice). The rule otherwise still stands — this is not a precedent for routine history rewrites.
@@ -86,6 +89,7 @@ These are also listed under "Known limitations" in the README. When a limitation
 - The `max` replay speed overflows the UDP receive buffer by design: laps, times and sectors arrive intact, but a large share of the per-distance samples is lost. `1x` and `2x` do not lose samples.
 - `--speed=max` combined with `--loop` delivers practically no samples (measured: effectively zero) — the flood never lets up between passes. Use `1x` or `2x` for a continuous demo.
 - A looped replay of a recording whose own `overallFrameIdentifier` span is at or below `PASS_RESTART_THRESHOLD_FRAMES` (100, in `sessionContext.ts`) does not reset the in-memory lap/decimation state at the loop boundary — the next pass carries over stale state instead of starting fresh. Not expected to matter for any realistic recording (the published Interlagos example spans about 4,500 frames).
+- Switching the Node major without running `npm ci` again makes `better-sqlite3` fail to load with `ERR_DLOPEN_FAILED` (its native binary is built for one major's ABI).
 - `sessionType` 18 is Time Trial in F1 24 (the numbering differs from F1 23).
 - `.env` is read only at startup; `ts-node-dev` does not restart on `.env` changes.
 - Without `ANTHROPIC_API_KEY`, `POST /sessions/:id/analysis` returns 503 (cached analyses are still served).

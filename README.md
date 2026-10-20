@@ -1,5 +1,7 @@
 # TelemetryF1_API
 
+[![CI](https://github.com/AnaLauraFFerraz/TelemetryF1_API/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/AnaLauraFFerraz/TelemetryF1_API/actions/workflows/ci.yml)
+
 Backend for **F1 24** game telemetry. It ingests the game's binary UDP stream, persists sessions and laps to SQLite, streams live data over WebSocket, serves history over REST, and runs a deterministic lap-analysis engine with an AI coach on top of it.
 
 The problem it solves: the game broadcasts packed binary structs at up to 60 Hz and keeps none of them. This service turns that stream into structured, queryable laps and explains *where* time was lost between two laps.
@@ -59,7 +61,7 @@ flowchart LR
 
 ## Getting started
 
-Requirements: Node.js ≥ 22.6.
+Requirements: Node.js ≥ 22.17. The major version (22) is pinned in `.nvmrc`, which fnm, nvm and `actions/setup-node` all read.
 
 ```bash
 npm install
@@ -119,11 +121,36 @@ npm run analyze -- <sessionId> <lapA> <lapB>
 ## Tests
 
 ```bash
-npm test          # node:test via ts-node
-npx tsc --noEmit  # type-check (src/ only)
+npm test          # node:test via ts-node; finds every src/**/*.test.ts
+npm run typecheck # type-check (src/ and tools/)
 ```
 
+`npm test` first runs a guard (`pretest`) that fails when no test file is found, because `node --test` exits 0 on an empty glob.
+
 The tests cover pure logic (decimation, lap completion detection, every analysis module, the coach's user-message builder, replay pacing) with synthetic data, plus the sample repositories' deduplication and one end-to-end test of the replay path against a real UDP socket and an isolated, disposable database. HTTP routes and the WebSocket server are not covered yet.
+
+## CI and branch protection
+
+The workflow in `.github/workflows/ci.yml` runs on every pull request to `main` and on every push to `main`, on Linux only. It has two independent jobs, `typecheck` (`npm run typecheck`) and `test` (`npm test`), so the pull request's checks list shows which one failed. It needs no secret and asks for read-only repository access.
+
+**The check names are a contract.** Renaming a job (`typecheck`, `test`) requires updating the required checks of the ruleset in the same piece of work; otherwise every pull request waits forever for a check that never reports. Renaming `ci.yml` requires updating the badge above in the same piece of work.
+
+### Protecting `main`
+
+This is done by the maintainer on GitHub, after the workflow is on `main`; it is not stored in the repository. The steps use a **GitHub ruleset** (Settings → Rules → Rulesets → New ruleset → New branch ruleset), not a classic branch protection rule, for three reasons: it is GitHub's current mechanism; its bypass is an explicit list, so an empty list means nobody, administrators included, can get around the rule; and the rules are visible to anyone who reads this public repository.
+
+1. Name the ruleset (for example `main`) and set **Enforcement status** to **Active**.
+2. Leave the bypass list empty: do not use **Add bypass**.
+3. Under **Target branches**, use **Add a target** to target the default branch, `main`.
+4. Enable these branch rules:
+   - **Restrict deletions**, so `main` cannot be deleted;
+   - **Require linear history**;
+   - **Block force pushes**;
+   - **Require a pull request before merging**, with the number of required approvals set to **0**. GitHub does not let the author approve their own pull request, and with an empty bypass list a required approval would block every merge by the maintainer, who is the only contributor;
+   - **Require status checks to pass before merging**, with **Require branches to be up to date before merging** ticked, so a green pull request that is behind `main` cannot merge, and the checks `typecheck` and `test` added, source GitHub Actions.
+5. In the repository's general settings (Settings → General → Pull Requests), keep only **Allow rebase merging** enabled; disable merge commits and squash merging.
+
+Last resort, if GitHub Actions itself is down: wait first. Only if it stays down, set the ruleset's **Enforcement status** to **Disabled**, merge, set it back to **Active** immediately, and record the reason in the pull request.
 
 ## Technical decisions and trade-offs
 
@@ -149,7 +176,8 @@ The game's send rate sets the other limit. The recording used for validation was
 - **A looped replay of a very short recording** does not reset its in-memory lap/decimation state at the loop boundary: if a recording's own `overallFrameIdentifier` span is 100 frames or less (roughly 5 seconds), the next pass carries over stale state instead of starting fresh. Recordings of a lap or more are unaffected — the published Interlagos recording spans about 4,500 frames.
 - **The analysis cache** is keyed only by session and lap pair. It ignores the model, the prompt version and later benchmark changes.
 - **Error responses** are plain strings in mixed languages, and the frontend matches some of them literally.
-- No build, lint or CI pipeline yet.
+- **Switching the Node major without running `npm ci` again** makes `better-sqlite3` fail to load with `ERR_DLOPEN_FAILED`: its native binary is built for one major's ABI.
+- No build or lint scripts yet.
 
 ## Next steps
 
@@ -159,4 +187,4 @@ Planned with Spec Driven Development (spec, plan and tasks are committed before 
 2. **Parser tests with real packets** extracted from a recording.
 3. **Stable error codes**, e.g. `{ code: "SESSION_NOT_FOUND", message }`, with the frontend deciding by code, and a single language for messages.
 4. **Single source for tyre temperature windows**: the API exposes the windows and the frontend consumes them, replacing the two diverging hard-coded ranges. Open question to settle in the spec: whether the ideal window in F1 24 depends on the tyre compound.
-5. **Public demo** running from a recorded session (the real-time loop this repo now supports), and **CI** (lint, tests, build) on GitHub Actions.
+5. **Public demo** running from a recorded session (the real-time loop this repo now supports), and a **build** and **lint** step in the CI (which already runs the type-check and the tests).
