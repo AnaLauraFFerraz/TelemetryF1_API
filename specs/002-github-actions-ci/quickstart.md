@@ -82,7 +82,7 @@ git diff --stat origin/main...HEAD -- src/ws/ src/http/ 'src/persistence/*Reposi
 - The README renders the CI badge for `main`, with no counts (FR-015).
 - README and CLAUDE.md no longer say the type check skips `tools/`. Both show `npm run typecheck` (FR-016).
 
-After the maintainer applies the protection steps documented in the README, each of these must be refused:
+After the maintainer creates the ruleset documented in the README (Enforcement status Active, empty bypass list), each of these must be refused:
 
 | Attempt | Expected |
 |---|---|
