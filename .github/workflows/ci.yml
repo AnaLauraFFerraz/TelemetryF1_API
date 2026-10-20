@@ -42,4 +42,5 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
+      - run: echo versao-do-PR
       - run: npm test
