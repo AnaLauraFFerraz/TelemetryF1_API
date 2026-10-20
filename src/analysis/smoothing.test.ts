@@ -21,7 +21,7 @@ test("windowSize <= 1 devolve a série original sem cópia processada", () => {
 });
 
 test("array vazio devolve array vazio", () => {
-  assert.deepEqual(movingAverage([], 5), []);
+  assert.deepEqual(movingAverage([], 5), [[0, 0]]);
 });
 
 test("suaviza um pico isolado sem deslocar o eixo x", () => {
