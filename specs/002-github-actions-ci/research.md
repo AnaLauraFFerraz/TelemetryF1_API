@@ -395,3 +395,17 @@ Pull request #4, commit `382edf7`, run `39462160338`, 2026-10-20. The pull reque
   - the **Rebase and merge** button disabled, and no option to bypass the rule. As in T029, the page also offers the command-line merge instructions, covered by T032.
 
   `mergeStateStatus` was `BLOCKED` in the API for the same pull request.
+
+### T031: failing test in `src/analysis/` (SC-003, SC-004c, SC-006)
+
+Pull request #5, commit `061edf4`, run `39463042210`, 2026-10-20. The change was one assertion in `src/analysis/smoothing.test.ts` (`array vazio devolve array vazio` expecting `[[0, 0]]` instead of `[]`). The pull request was closed unmerged and its branch deleted locally and on `origin`.
+
+- **Local, before the push**: `npm run typecheck` exit 0; `npm test` exit 1, `# tests 95  # pass 94  # fail 1`, `not ok 28 - array vazio devolve array vazio`.
+- **Checks (SC-004c)**: `typecheck` ✓ (15 s) and `test` ✗ (45 s), as expected. The log of `test` has the same single failure as the local run.
+- **Maintainer's merge attempt (SC-006)**: screenshot [`evidence/t031-merge-blocked.png`](evidence/t031-merge-blocked.png), checked by the maintainer in the interface on 2026-10-20. It shows:
+  - the heading "Some checks were not successful", "1 failing, 1 successful checks", for commit `061edf4`;
+  - `CI / test (pull_request)` failing after 45 s and `CI / typecheck (pull_request)` successful in 15 s, so the failing check is identifiable from the list alone (SC-003);
+  - both checks marked **Required**;
+  - the **Rebase and merge** button disabled, and no option to bypass the rule. The command-line merge instructions are offered here too, covered by T032.
+
+  `mergeStateStatus` was `BLOCKED` in the API for the same pull request. The screen matched the maintainer's description in every detail.
