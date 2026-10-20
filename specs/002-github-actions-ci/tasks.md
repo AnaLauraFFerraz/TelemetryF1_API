@@ -175,8 +175,8 @@ None. US1 is itself the foundation, since the CI cannot be green until a clean c
   - the job names are exactly `typecheck` and `test`.
 
   Run `npm test` and `npx tsc --noEmit`, then commit as `chore: add GitHub Actions CI workflow`.
-- [ ] T019 [US2] **[PARADA] push and pull request.** After the maintainer's go-ahead, push `002-github-actions-ci` to `origin` and open the pull request against `main` (FR-001; SC-002). The body is in English, with the attribution line the maintainer prefers. Merge nothing.
-- [ ] T020 [US2] From the first run, append "Post-implementation evidence → Linux (CI, first run)" to `specs/002-github-actions-ci/research.md` (FR-011, FR-013; SC-001, SC-003, SC-005, SC-007):
+- [x] T019 [US2] **[PARADA] push and pull request.** After the maintainer's go-ahead, push `002-github-actions-ci` to `origin` and open the pull request against `main` (FR-001; SC-002). The body is in English, with the attribution line the maintainer prefers. Merge nothing.
+- [x] T020 [US2] From the first run, append "Post-implementation evidence → Linux (CI, first run)" to `specs/002-github-actions-ci/research.md` (FR-011, FR-013; SC-001, SC-003, SC-005, SC-007):
   - the result of each job;
   - from the `npm ci` log, whether `better-sqlite3` downloaded the `linux-x64` prebuild or compiled;
   - that the UDP tests passed;
@@ -185,9 +185,9 @@ None. US1 is itself the foundation, since the CI cannot be green until a clean c
   - the cache result, expected to be a miss.
 
   Above 5 minutes, investigate and record the cause.
-- [ ] T021 [US2] Re-run both jobs with an unchanged `package-lock.json`. Record the setup step's cache hit in the same research.md section (FR-019; SC-009).
+- [x] T021 [US2] Re-run both jobs with an unchanged `package-lock.json`. Record the setup step's cache hit in the same research.md section (FR-019; SC-009).
 - [ ] T022 [US2] **Only if T020 or T021 shows a Linux-only failure** (FR-011, FR-013): find the cause, fix it in the smallest owning file, and record cause and fix in research.md. Never skip or disable a test. Commit with the matching type. **[PARADA] before pushing the fix.**
-- [ ] T023 [US2] (FR-011, FR-013; SC-005, SC-007, SC-009) Commit the research.md evidence from T020–T022 as `docs: record the first CI runs for spec 002`. **[PARADA] before pushing.**
+- [x] T023 [US2] (FR-011, FR-013; SC-005, SC-007, SC-009) Commit the research.md evidence from T020–T022 as `docs: record the first CI runs for spec 002`. **[PARADA] before pushing.**
 
 **Checkpoint**: the verification runs on Linux, reports per step, needs no secret, and is green on the feature's pull request.
 
