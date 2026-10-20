@@ -159,10 +159,10 @@ None. US1 is itself the foundation, since the CI cannot be green until a clean c
   - `name: CI`;
   - `on: pull_request` with `branches: [main]`, and `push` with `branches: [main]`. No `paths`/`paths-ignore` and no `workflow_dispatch`;
   - a top-level `permissions: contents: read` and nothing else;
-  - `concurrency: group: ${{ github.workflow }}-${{ github.ref }}`, with `cancel-in-progress: ${{ github.event_name == 'pull_request' }}`;
+  - `concurrency: group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.sha }}`, with `cancel-in-progress: ${{ github.event_name == 'pull_request' }}`;
   - two jobs with no `needs:`: id/`name` `typecheck`, and id/`name` `test`. Both use `runs-on: ubuntu-24.04` and `timeout-minutes: 10`;
   - each job's steps:
-    1. `actions/checkout@v7`;
+    1. `actions/checkout@v7` with `persist-credentials: false`;
     2. `actions/setup-node@v7` with `node-version-file: .nvmrc` and `cache: npm`;
     3. `npm ci`;
     4. `npm run typecheck` (typecheck job) or `npm test` (test job);

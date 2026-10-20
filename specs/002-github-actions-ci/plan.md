@@ -120,7 +120,8 @@ The maintainer decided every **Trade-off** below on 2026-10-19; each one states 
 
 - **Permissions**: a top-level `permissions: contents: read`, and nothing else (FR-020, SC-010). It applies to every job.
 - **Triggers**: `pull_request` with `branches: [main]` and `push` with `branches: [main]`. There are no `paths`/`paths-ignore` filters (see Constraints) and no `workflow_dispatch`, which nobody asked for.
-- **Concurrency**: group by workflow and ref. `cancel-in-progress` is on only for `pull_request` events, so a superseded pull request run is cancelled, but a push to `main` always completes (SC-002: every push to `main` has a result).
+- **Concurrency**: group by workflow and ref for pull requests, and by workflow and commit SHA for pushes. `cancel-in-progress` is on only for `pull_request` events, so a superseded pull request run is cancelled, and every push to `main` has its own group and always completes (SC-002). Keying pushes on the ref would not be enough: a group keeps one pending run and replaces it when a newer one arrives (research.md, "Workflow hardening decided before the first push").
+- **Checkout credentials**: `actions/checkout` runs with `persist-credentials: false`; no step pushes, and `npm ci` runs dependency install scripts after the checkout.
 - **Timeouts**: `timeout-minutes: 10` per job, a backstop against a hung UDP test well above the 5-minute investigation ceiling of SC-007. GitHub's default is 360 minutes.
 - **Retries**: none (spec edge case: a failure is a failure).
 

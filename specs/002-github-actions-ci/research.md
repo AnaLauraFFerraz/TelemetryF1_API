@@ -292,3 +292,7 @@ Checked on 2026-10-19 with `gh api repos/actions/<name>/releases/latest` and `gi
 | `actions/setup-node` | `v7.1.0` | 2026-10-08 | `949feb2413d6458794dcd2491c4babbbce0c15c1` |
 
 `v7` is still the newest major of both, so the workflow references `@v7` (plan.md D3). Same result as point 9.
+### Workflow hardening decided before the first push
+
+- **Concurrency group per push (SC-002).** A concurrency group admits one running and one pending run, and a newer pending run replaces the older pending one, even with `cancel-in-progress: false`. With the group keyed on the ref, two quick pushes to `main` while a run is in progress could drop the first one's run, leaving that commit with no result. The group is now `${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.sha }}`: pull requests share one group per ref and a newer run cancels the older (`cancel-in-progress` is true only for `pull_request`), while every push to `main` gets its own group and always completes.
+- **`persist-credentials: false` on `actions/checkout`.** No step pushes, so the token that checkout writes into `.git/config` has no use. `npm ci` runs the dependencies' install scripts after the checkout, and without this setting they could read that token. It is defence in depth alongside `permissions: contents: read`.
