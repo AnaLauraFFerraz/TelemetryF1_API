@@ -155,7 +155,7 @@ None. US1 is itself the foundation, since the CI cannot be green until a clean c
 
 **Independent Test**: the feature's pull request shows `typecheck` ✓ and `test` ✓, with the first-run evidence recorded (quickstart.md §3). The SC-004 demonstrations run in US4, after protection exists, so each one also proves a blocked merge.
 
-- [ ] T017 [US2] Create `.github/workflows/ci.yml` per plan.md D1–D6 (FR-001, FR-002, FR-003, FR-006, FR-008, FR-012, FR-019, FR-020, FR-021; SC-010):
+- [x] T017 [US2] Create `.github/workflows/ci.yml` per plan.md D1–D6 (FR-001, FR-002, FR-003, FR-006, FR-008, FR-012, FR-019, FR-020, FR-021; SC-010):
   - `name: CI`;
   - `on: pull_request` with `branches: [main]`, and `push` with `branches: [main]`. No `paths`/`paths-ignore` and no `workflow_dispatch`;
   - a top-level `permissions: contents: read` and nothing else;
@@ -169,7 +169,7 @@ None. US1 is itself the foundation, since the CI cannot be green until a clean c
   - no `env:`, no `secrets.`, and no literal Node version.
 
   First-party actions use their major tag (plan.md D3). No third-party action is used.
-- [ ] T018 [US2] Self-check `.github/workflows/ci.yml` (FR-008, FR-020; SC-010; plan.md D2):
+- [x] T018 [US2] Self-check `.github/workflows/ci.yml` (FR-008, FR-020; SC-010; plan.md D2):
   - `grep -n "permissions" -A2` shows only `contents: read`;
   - `grep -nE "env:|secrets\.|node-version:"` finds nothing;
   - the job names are exactly `typecheck` and `test`.
