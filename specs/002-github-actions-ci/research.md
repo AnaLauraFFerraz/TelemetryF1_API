@@ -366,3 +366,17 @@ gh pr view 3 --json mergeStateStatus,mergeable,state
 ```
 
 Note: the ruleset's own `allowed_merge_methods` lists all three; the restriction to rebase comes from the repository setting, as the README step 6 says.
+
+### T029: type error in `src/` (SC-003, SC-004a, SC-006)
+
+Pull request #3, commit `6b3d524`, run `39448786391`, 2026-10-20. The pull request was closed unmerged and its branch deleted locally and on `origin`.
+
+- **Local, before the push**: `npm run typecheck` exit 2 (`sessionsRouter.ts(9,7): error TS2322`); `npm test` exit 0, `# tests 95  # pass 95  # fail 0`. The runtime argument of the task held: no test loads that module.
+- **Checks (SC-004a)**: `typecheck` ✗ (25 s), `test` ✓ (42 s), as expected.
+- **Maintainer's merge attempt (SC-006)**: screenshot [`evidence/t029-merge-blocked.png`](evidence/t029-merge-blocked.png), taken by the maintainer on the pull request page. It shows:
+  - the heading "Some checks were not successful", "1 failing, 1 successful checks", for commit `6b3d524`;
+  - `CI / typecheck (pull_request)` failing after 25 s and `CI / test (pull_request)` successful in 42 s, so the failing check is identifiable from the list alone (SC-003);
+  - both checks marked **Required**;
+  - the **Rebase and merge** button disabled, and no other merge button or bypass option on the page.
+
+  `mergeStateStatus` was `BLOCKED` in the API for the same pull request (output above).
