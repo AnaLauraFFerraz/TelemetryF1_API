@@ -208,7 +208,7 @@ None. US1 is itself the foundation, since the CI cannot be green until a clean c
   - **new short section "CI and branch protection"**:
     - what runs (`typecheck`, `test`), on which events, on Linux only;
     - the check names are a contract with the protection rule;
-    - the manual protection steps (plan.md Phase 4 step 5): PR required, required checks `typecheck` and `test`, branch up to date, linear history, only "Rebase and merge", no bypass including administrators;
+    - the manual protection steps (plan.md Phase 4 step 5), naming the mechanism (a GitHub ruleset, and why): Enforcement status Active, empty bypass list, target `main`, Restrict deletions, Require linear history, Block force pushes, PR required with 0 approvals and why, required checks `typecheck` and `test` with the branch up to date, and only "Allow rebase merging" in the repository's general settings;
     - the last-resort procedure: wait for GitHub Actions first; otherwise turn the protection off, merge, turn it back on immediately, and record the reason in the pull request;
   - **Known limitations**: switching Node major without running `npm ci` again makes `better-sqlite3` fail with `ERR_DLOPEN_FAILED`, because its binary is built for one major's ABI.
 
@@ -224,7 +224,7 @@ None. US1 is itself the foundation, since the CI cannot be green until a clean c
     "There are no `build`, `start` or `lint` scripts" stays;
   - **Conventions**:
     - the commit-type list is **not** changed: `ci` waits for the constitution amendment;
-    - **check names as a contract**: the CI job names `typecheck` and `test`, and the file name `ci.yml`, are a contract with the branch protection rule and the README badge. Renaming requires updating both in the same piece of work (plan.md D2);
+    - **check names as a contract**: the CI job names `typecheck` and `test`, and the file name `ci.yml`, are a contract with the ruleset on `main` (its required checks) and the README badge. Renaming requires updating both in the same piece of work (plan.md D2);
     - **actions**: first-party `actions/*` by major tag; any third-party action by full commit SHA with a trailing version comment (plan.md D3);
   - **Known pitfalls**: the same `ERR_DLOPEN_FAILED` entry as README. It is mirrored in README's Known limitations by T024, as CLAUDE.md requires.
 
@@ -249,13 +249,13 @@ None. US1 is itself the foundation, since the CI cannot be green until a clean c
   Expected: empty output, meaning no contract file changed. Paste the command and its output in the pull request. Anything non-empty stops the merge and is reported.
 
   Then, **[PARADA] merge, done by the maintainer.** The maintainer merges the feature's pull request with "Rebase and merge". Then confirm the push to `main` triggered the workflow and both jobs went green on `main` (FR-001; SC-002), and that the README badge renders "passing" (FR-015).
-- [ ] T028 [US4] **MANUAL, the maintainer on GitHub, only after T027** (FR-014): apply the protection on `main` exactly as documented by T024:
-  - require a pull request;
-  - required checks `typecheck` and `test`, source GitHub Actions;
-  - require branches to be up to date;
-  - require linear history;
-  - allow only "Rebase and merge";
-  - no bypass, administrators included.
+- [ ] T028 [US4] **MANUAL, the maintainer on GitHub, only after T027** (FR-014): create the ruleset on `main` exactly as documented by T024 (Settings → Rules → Rulesets → New branch ruleset):
+  - Enforcement status Active, and an empty bypass list (administrators included);
+  - target branch `main`;
+  - Restrict deletions, Require linear history, Block force pushes;
+  - Require a pull request before merging, with 0 required approvals;
+  - Require status checks to pass before merging, with the branch up to date and the checks `typecheck` and `test`, source GitHub Actions;
+  - in Settings → General, only "Allow rebase merging" enabled.
   Applying it before T027 would leave pull requests from the older `main` waiting forever.
 
 ### Verifications, after protection

@@ -95,7 +95,7 @@ The maintainer decided every **Trade-off** below on 2026-10-19; each one states 
 - **Workflow name**: `CI`.
 - **Jobs**: the job ids `typecheck` and `test` with explicit `name: typecheck` and `name: test`. GitHub's required status checks match the job's check-run name, which is the job `name`, not the `CI / ...` prefix shown in the list.
 - **Required checks on `main`**: `typecheck` and `test`, both selected with GitHub Actions as their source.
-- **Renaming** a job `name`, or adding another workflow with a job of the same name, requires updating the protection rule in the same piece of work. Otherwise every pull request waits forever for a check that will never report. Renaming `ci.yml` breaks the badge. The plan writes this rule into the protection steps (FR-014) and into CLAUDE.md, next to the existing "the frontend matches the literal error strings" note.
+- **Renaming** a job `name`, or adding another workflow with a job of the same name, requires updating the ruleset's required checks in the same piece of work. Otherwise every pull request waits forever for a check that will never report. Renaming `ci.yml` breaks the badge. The plan writes this rule into the protection steps (FR-014) and into CLAUDE.md, next to the existing "the frontend matches the literal error strings" note.
 
 ### D3. How the actions are referenced. **Decided: major tag for GitHub's first-party actions; full SHA for any third-party action**
 
@@ -241,13 +241,13 @@ The SC-004 demonstration pull requests are not here. They run in Phase 4, after 
    The diff must be empty.
 4. The feature's pull request is merged by the maintainer with "Rebase and merge", after the green run.
 5. **Then the maintainer applies the protection on `main`**, after the merge, so that `main` itself carries the workflow. Before that, a pull request branched from an older `main` would have no workflow and would wait forever for the required checks. The steps:
-   - require a pull request before merging;
-   - require status checks `typecheck` and `test`;
-   - require branches to be up to date before merging;
-   - require linear history;
-   - allow only "Rebase and merge";
-   - do not allow bypassing, administrators included;
-   - document the last-resort procedure from the clarifications: wait for GitHub Actions first; otherwise turn the protection off, merge, turn it back on at once, and record the reason in the pull request.
+   - mechanism: a **GitHub ruleset** (Settings → Rules → Rulesets → New branch ruleset), not a classic branch protection rule. Reasons: it is GitHub's current mechanism; its bypass is an explicit list, and an empty list means nobody, administrators included, can get around the rule (clarification c); and the rules are visible to anyone who reads the public repository;
+   - Enforcement status **Active**; bypass list empty; target the default branch, `main`;
+   - rules: Restrict deletions; Require linear history; Block force pushes;
+   - Require a pull request before merging, with **0 required approvals** (GitHub does not let the author approve their own pull request, and with an empty bypass list a required approval would block every merge by the maintainer);
+   - Require status checks to pass before merging, with Require branches to be up to date before merging, and the checks `typecheck` and `test`, source GitHub Actions;
+   - in the repository's general settings, enable only "Allow rebase merging";
+   - document the last-resort procedure from the clarifications: wait for GitHub Actions first; otherwise set the ruleset's Enforcement status to Disabled, merge, set it back to Active at once, and record the reason in the pull request.
 6. **Demonstrate SC-004, after the protection.** Three throw-away pull requests are created from the updated `main`:
    - a type error in a `src/` file that no test loads at runtime;
    - a type error in `tools/replayer.ts`, where `test` fails too, because `replayerCli.test.ts` runs the replayer through ts-node, which type-checks it;
