@@ -409,3 +409,24 @@ Pull request #5, commit `061edf4`, run `39463042210`, 2026-10-20. The change was
   - the **Rebase and merge** button disabled, and no option to bypass the rule. The command-line merge instructions are offered here too, covered by T032.
 
   `mergeStateStatus` was `BLOCKED` in the API for the same pull request. The screen matched the maintainer's description in every detail.
+
+### T032: direct push refused (SC-006)
+
+2026-10-20, by the maintainer, who is the repository administrator, with an empty bypass list (`current_user_can_bypass: "never"`). On a throw-away branch created from `origin/main` (`e26c3cc`), one throw-away commit (`95ba3e4`, a blank line at the end of `README.md`) was pushed with `git push origin HEAD:main`. Local `main` was not touched. The push exited with code 1 and GitHub printed:
+
+```text
+remote: error: GH013: Repository rule violations found for refs/heads/main.
+remote: Review all repository rules at https://github.com/AnaLauraFFerraz/TelemetryF1_API/rules?ref=refs%2Fheads%2Fmain
+remote:
+remote: - Changes must be made through a pull request.
+remote:
+remote: - 2 of 2 required status checks are expected.
+remote:
+To https://github.com/AnaLauraFFerraz/TelemetryF1_API.git
+ ! [remote rejected] HEAD -> main (push declined due to repository rule violations)
+error: failed to push some refs to 'https://github.com/AnaLauraFFerraz/TelemetryF1_API.git'
+```
+
+- **Remote unchanged**: `git ls-remote --heads origin` afterwards listed only `refs/heads/main` at `e26c3cc187db636066d15688e6d073839aa3e5bc`, the same commit as before, so no branch was created on `origin`.
+- **Cleanup**: the throw-away branch was deleted locally. It was never pushed under its own name.
+- This closes the command-line path noted in T029: the instructions offered by the pull request page also end in a push to `main`, and that push is refused as above.
