@@ -296,3 +296,35 @@ Checked on 2026-10-19 with `gh api repos/actions/<name>/releases/latest` and `gi
 
 - **Concurrency group per push (SC-002).** A concurrency group admits one running and one pending run, and a newer pending run replaces the older pending one, even with `cancel-in-progress: false`. With the group keyed on the ref, two quick pushes to `main` while a run is in progress could drop the first one's run, leaving that commit with no result. The group is now `${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.sha }}`: pull requests share one group per ref and a newer run cancels the older (`cancel-in-progress` is true only for `pull_request`), while every push to `main` gets its own group and always completes.
 - **`persist-credentials: false` on `actions/checkout`.** No step pushes, so the token that checkout writes into `.git/config` has no use. `npm ci` runs the dependencies' install scripts after the checkout, and without this setting they could read that token. It is defence in depth alongside `permissions: contents: read`.
+
+### Linux (CI, first run)
+
+Pull request #2, workflow run 39359419705, runner `ubuntu-24.04`, Node `v22.23.3` (`.nvmrc` resolved as `22`, found in the runner's tool cache), 2026-10-20.
+
+| Job | Result | Duration |
+|---|---|---|
+| `typecheck` | success | 11 s |
+| `test` | success | 31 s |
+
+Both are far below the 5-minute ceiling of SC-007, so there was nothing to investigate. Reference for later runs: `test` ≈ 30 s, `typecheck` ≈ 10 s, wall-clock ≈ the slower job.
+
+- **`better-sqlite3`**: `npm ci` finished in 2 s (`added 184 packages, and audited 185 packages in 2s`) in both jobs, and the log has no `node-gyp` or compiler output, so it did not compile. npm hides the install scripts' output, so the log does not show the `prebuild-install` download line itself; "prebuild used" is inferred from the 2 s and the absence of a compile, not read from a line.
+- **UDP tests passed**: `replayIntegration` and `replayerCli` ran (`[udpListener] escutando pacotes UDP em 0.0.0.0:0` is in the log); `# tests 95  # pass 95  # fail 0  # skipped 0`.
+- **Guard**: `[assertTestFiles] 23 arquivos de teste encontrados em src/**/*.test.ts`, the same count as Windows (T015).
+- **Test list vs Windows (SC-005)**: the default reporter does not print file names, so the comparison is by test name. The 95 `ok` lines of the Linux log and of a local Windows run have identical sets of names (no name only on one side), the same 95 tests, and the same count of 23 files. The sorted list of files is the Windows list above.
+- **Cache (first run)**: miss in both jobs (`npm cache is not found`). The `typecheck` job saved it (`Cache saved with the key: node-cache-Linux-x64-npm-97c2ec39...`). The `test` job could not: `Failed to save: Unable to reserve cache with key ..., another job may be creating this cache.` Two independent jobs started at the same moment race to save the same key; the loser only logs it and the job is green. It is a consequence of D1 (two jobs) and is harmless.
+
+### Linux (CI, re-run, SC-009)
+
+Same run, attempt 2 (`gh run rerun`), `package-lock.json` unchanged.
+
+| Job | Result | Duration |
+|---|---|---|
+| `typecheck` | success | 9 s |
+| `test` | success | 38 s |
+
+- **Cache hit** in both jobs: `Cache hit for: node-cache-Linux-x64-npm-97c2ec39...` and `Cache restored successfully`; the post step says `Cache hit occurred on the primary key ..., not saving cache.`
+- `npm ci` still took 2 s, as on the cold run: this project's dependency set is small, so the cache saves little time here. The 38 s of `test` is within the noise of the 31 s of the first run (the suite is dominated by child-process tests).
+- Guard count 23 and `# tests 95  # pass 95  # fail 0` again.
+
+No Linux-only failure appeared, so T022 was not needed.
