@@ -430,3 +430,20 @@ error: failed to push some refs to 'https://github.com/AnaLauraFFerraz/Telemetry
 - **Remote unchanged**: `git ls-remote --heads origin` afterwards listed only `refs/heads/main` at `e26c3cc187db636066d15688e6d073839aa3e5bc`, the same commit as before, so no branch was created on `origin`.
 - **Cleanup**: the throw-away branch was deleted locally. It was never pushed under its own name.
 - This closes the command-line path noted in T029: the instructions offered by the pull request page also end in a push to `main`, and that push is refused as above.
+
+### T033: the pull request runs its own workflow version (US4 scenario 6, research point 8)
+
+Pull request #6, commit from `origin/main` (`e26c3cc`) plus one line in `.github/workflows/ci.yml`: a step `- run: echo versao-do-PR` in the `test` job, before `npm test`. Job names, triggers and permissions are unchanged. Run `39473001785`, 2026-10-20.
+
+- **Local, before the push**: `npm run typecheck` exit 0; `npm test` `# tests 95  # pass 95  # fail 0`.
+- **Checks**: `typecheck` ✓ (18 s) and `test` ✓ (43 s).
+- **Proof**: the log of the `test` job has the new step, which only exists in the pull request's version of the file, and its output (`main` has no such step):
+
+  ```text
+  test  Run echo versao-do-PR  2026-10-20T18:14:34Z  ##[group]Run echo versao-do-PR
+  test  Run echo versao-do-PR  2026-10-20T18:14:34Z  shell: /usr/bin/bash -e {0}
+  test  Run echo versao-do-PR  2026-10-20T18:14:34Z  versao-do-PR
+  ```
+
+  This confirms empirically what point 8 inferred from the documentation: a `pull_request` run uses the workflow file as changed by the pull request.
+- **Status**: the pull request stays open, unmerged, for T035. Its `mergeStateStatus` was `CLEAN` right after the checks finished, because it was still up to date with `main`.

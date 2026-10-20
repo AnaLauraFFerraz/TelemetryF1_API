@@ -231,11 +231,11 @@ None. US1 is itself the foundation, since the CI cannot be green until a clean c
   - **`analyze` and the ports**: confirm CLAUDE.md no longer says `npm run analyze` needs `WS_PORT`, `UDP_PORT` and `HTTP_PORT` (after US1 it does not; `record` and `replay` still do), and fix any such statement (plan.md D7, "Effect observed in US1").
 
   **No figure that goes stale**, and no other comment or rule is touched.
-- [ ] T026 [US4] Commit T024 and T025 together as `docs: document the CI, its checks and the branch protection steps` (FR-016 requires README and CLAUDE.md in the same change). **[PARADA] before pushing.** Then wait for `typecheck` and `test` to be green on the pull request (SC-002, SC-003).
+- [x] T026 [US4] Commit T024 and T025 together as `docs: document the CI, its checks and the branch protection steps` (FR-016 requires README and CLAUDE.md in the same change). **[PARADA] before pushing.** Then wait for `typecheck` and `test` to be green on the pull request (SC-002, SC-003).
 
 ### Merge and protection (maintainer)
 
-- [ ] T027 [US4] First, **FR-017 check, before the [PARADA]**: after `git fetch origin`, run:
+- [x] T027 [US4] First, **FR-017 check, before the [PARADA]**: after `git fetch origin`, run:
 
   ```bash
   git diff --stat origin/main...HEAD -- src/ws/ src/http/ 'src/persistence/*Repository.ts'
@@ -249,7 +249,7 @@ None. US1 is itself the foundation, since the CI cannot be green until a clean c
   Expected: empty output, meaning no contract file changed. Paste the command and its output in the pull request. Anything non-empty stops the merge and is reported.
 
   Then, **[PARADA] merge, done by the maintainer.** The maintainer merges the feature's pull request with "Rebase and merge". Then confirm the push to `main` triggered the workflow and both jobs went green on `main` (FR-001; SC-002), and that the README badge renders "passing" (FR-015).
-- [ ] T028 [US4] **MANUAL, the maintainer on GitHub, only after T027** (FR-014): create the ruleset on `main` exactly as documented by T024 (Settings → Rules → Rulesets → New branch ruleset):
+- [x] T028 [US4] **MANUAL, the maintainer on GitHub, only after T027** (FR-014): create the ruleset on `main` exactly as documented by T024 (Settings → Rules → Rulesets → New branch ruleset):
   - Enforcement status Active, and an empty bypass list (administrators included);
   - target branch `main`;
   - Restrict deletions, Require linear history, Block force pushes;
@@ -262,7 +262,7 @@ None. US1 is itself the foundation, since the CI cannot be green until a clean c
 
 Every throw-away branch below is created from the updated `main`. At the end, delete it **locally and on `origin`** (`git branch -D <b>` and `git push origin --delete <b>`). The remote delete is a push: **[PARADA]**.
 
-- [ ] T029 [P] [US4] **[PARADA] push and pull request.** SC-004a: type error in `src/`, in `src/http/routes/sessionsRouter.ts`. The file was chosen from the import graph, computed on 2026-10-19 over every `*.test.ts`, plus `tools/replayer.ts` and `src/server.ts`, which tests run as child processes:
+- [x] T029 [P] [US4] **[PARADA] push and pull request.** SC-004a: type error in `src/`, in `src/http/routes/sessionsRouter.ts`. The file was chosen from the import graph, computed on 2026-10-19 over every `*.test.ts`, plus `tools/replayer.ts` and `src/server.ts`, which tests run as child processes:
   - **statically**, every `src/` file is reachable from some test, because `src/config/serverFailFast.test.ts` (T003) runs `src/server.ts`;
   - **at runtime**, `src/server.ts` stops at its first import (`./config/env`) in both of T003's cases, so the modules only `server.ts` imports after that are never loaded. ts-node then never compiles or type-checks them. They are `src/http/` (routers, `httpServer.ts`), `src/network/wsBroadcaster.ts`, `src/ws/messageFormat.ts`, `src/telemetry/packetIds.ts`, `src/persistence/analysisRepository.ts` and `src/coaching/coachService.ts`/`coachPrompt.ts`.
 
@@ -272,9 +272,9 @@ Every throw-away branch below is created from the updated `main`. At the end, de
   - `typecheck` ✗ and `test` ✓ in the checks list, with the failing check identifiable from the list alone (FR-002; SC-003, SC-004);
   - the maintainer's attempt to merge is blocked (SC-006).
   Note both results, close unmerged, delete the branch locally and remotely.
-- [ ] T030 [P] [US4] **[PARADA] push and pull request.** SC-004b: type error in `tools/`. Same as T029, with the type error in `tools/replayer.ts`. Expected: **`typecheck` ✗ and `test` ✗** (FR-005; SC-004), and the merge blocked (SC-006). `test` fails too, by design of today's setup: `src/replay/replayerCli.test.ts` runs `tools/replayer.ts` through `ts-node/register`, which type-checks the file it compiles, so the child process exits with a TS error instead of the expected `[replayer]` message. This is the case the transpile-only future improvement in plan.md addresses. Note, close, delete locally and remotely.
-- [ ] T031 [P] [US4] **[PARADA] push and pull request.** SC-004c: failing test. Same as T029, with one failing assertion in an existing test under `src/analysis/`. Expected: `test` ✗ and `typecheck` ✓, identifiable from the checks list alone (SC-003, SC-004), and the merge blocked (SC-006). Note, close, delete locally and remotely.
-- [ ] T032 [US4] **[PARADA] push.** Direct push refused, administrator included (FR-014; SC-006):
+- [x] T030 [P] [US4] **[PARADA] push and pull request.** SC-004b: type error in `tools/`. Same as T029, with the type error in `tools/replayer.ts`. Expected: **`typecheck` ✗ and `test` ✗** (FR-005; SC-004), and the merge blocked (SC-006). `test` fails too, by design of today's setup: `src/replay/replayerCli.test.ts` runs `tools/replayer.ts` through `ts-node/register`, which type-checks the file it compiles, so the child process exits with a TS error instead of the expected `[replayer]` message. This is the case the transpile-only future improvement in plan.md addresses. Note, close, delete locally and remotely.
+- [x] T031 [P] [US4] **[PARADA] push and pull request.** SC-004c: failing test. Same as T029, with one failing assertion in an existing test under `src/analysis/`. Expected: `test` ✗ and `typecheck` ✓, identifiable from the checks list alone (SC-003, SC-004), and the merge blocked (SC-006). Note, close, delete locally and remotely.
+- [x] T032 [US4] **[PARADA] push.** Direct push refused, administrator included (FR-014; SC-006):
   - on a throw-away branch from `main`, make one throw-away commit and run `git push origin HEAD:main`;
   - expected: GitHub rejects it;
   - local `main` is never touched: no commit on it and no reset.
