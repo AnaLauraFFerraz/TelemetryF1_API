@@ -147,6 +147,8 @@ It is the smallest change that preserves every message and the `DB_PATH` semanti
 
 **Scope of FR-007 after `/speckit-analyze`**: the persistence layer no longer depends on the ports, and the server keeps failing fast. The command-line tools (`record`, `replay`) and the AI coach (`coachService.ts`) keep loading the shared `env`, so they still require the three ports. The spec's FR-007 was narrowed to say exactly this.
 
+**Effect observed in US1 (T008)**: `tools/analyze.ts` no longer requires `WS_PORT`, `UDP_PORT` and `HTTP_PORT`. It depended on the ports only through the chain `db.ts` → `env.ts`, which `db.ts` no longer follows. `tools/recorder.ts` and `tools/replayer.ts` still import `env` and still require them. README and CLAUDE.md must not claim that `analyze` needs the ports (checked in T024/T025).
+
 **Future improvement, out of this feature**: Option 3, a per-consumer configuration in which `record` and `replay` need only `UDP_PORT`, the coach reads only its key, and `env.ts` disappears. It belongs together with dependency injection of the database connection, so `db.ts` stops opening the connection at module load and tests stop relying on setting `DB_PATH` before a `require()`. Both change user-visible behaviour or the test pattern and need their own spec.
 
 ### D8. Type-check scope. **Decided: Option A** (research.md point 6)

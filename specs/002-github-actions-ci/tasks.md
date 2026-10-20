@@ -212,6 +212,8 @@ None. US1 is itself the foundation, since the CI cannot be green until a clean c
     - the last-resort procedure: wait for GitHub Actions first; otherwise turn the protection off, merge, turn it back on immediately, and record the reason in the pull request;
   - **Known limitations**: switching Node major without running `npm ci` again makes `better-sqlite3` fail with `ERR_DLOPEN_FAILED`, because its binary is built for one major's ABI.
 
+  - **`analyze` and the ports**: confirm README no longer says `npm run analyze` needs `WS_PORT`, `UDP_PORT` and `HTTP_PORT` (after US1 it does not; `record` and `replay` still do), and fix any such statement (plan.md D7, "Effect observed in US1").
+
   **No figure that goes stale**: no test or file counts, no durations, no patch versions.
 - [ ] T025 [P] [US4] Edit `CLAUDE.md` (FR-016):
   - **Stack**: "Node.js ≥ 22.6" becomes "≥ 22.17", with the version coming from `.nvmrc`. This makes CLAUDE.md diverge from the constitution's "Node.js ≥ 22.6". The divergence is **temporary and intentional**: the constitution-amendment pull request resolves it (plan.md Phase 4 step 9). Say so in one short parenthesis next to the version, so a reader does not take it for a contradiction;
@@ -225,6 +227,8 @@ None. US1 is itself the foundation, since the CI cannot be green until a clean c
     - **check names as a contract**: the CI job names `typecheck` and `test`, and the file name `ci.yml`, are a contract with the branch protection rule and the README badge. Renaming requires updating both in the same piece of work (plan.md D2);
     - **actions**: first-party `actions/*` by major tag; any third-party action by full commit SHA with a trailing version comment (plan.md D3);
   - **Known pitfalls**: the same `ERR_DLOPEN_FAILED` entry as README. It is mirrored in README's Known limitations by T024, as CLAUDE.md requires.
+
+  - **`analyze` and the ports**: confirm CLAUDE.md no longer says `npm run analyze` needs `WS_PORT`, `UDP_PORT` and `HTTP_PORT` (after US1 it does not; `record` and `replay` still do), and fix any such statement (plan.md D7, "Effect observed in US1").
 
   **No figure that goes stale**, and no other comment or rule is touched.
 - [ ] T026 [US4] Commit T024 and T025 together as `docs: document the CI, its checks and the branch protection steps` (FR-016 requires README and CLAUDE.md in the same change). **[PARADA] before pushing.** Then wait for `typecheck` and `test` to be green on the pull request (SC-002, SC-003).
