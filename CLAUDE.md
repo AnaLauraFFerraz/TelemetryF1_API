@@ -4,7 +4,7 @@ Backend that ingests the F1 24 game's UDP telemetry, persists it to SQLite, stre
 
 ## Stack
 
-- Node.js: major 22 pinned in `.nvmrc`, minimum 22.17 declared in `engines` (the constitution still says ≥ 22.6 until its amendment PR). TypeScript (CommonJS, `strict`), run with `ts-node-dev` (no build step yet)
+- Node.js: major 22 pinned in `.nvmrc`, minimum 22.17 declared in `engines`. TypeScript (CommonJS, `strict`), run with `ts-node-dev` (no build step yet)
 - `dgram` (UDP), `ws` (WebSocket), Express 5 (REST), `better-sqlite3` (SQLite, WAL)
 - `@anthropic-ai/sdk` for the coach
 - Tests: Node's built-in runner (`node:test` + `node:assert/strict`) via `ts-node/register`
@@ -56,7 +56,7 @@ The REST and WebSocket payloads are a contract consumed by the frontend, which m
 - Repositories use prepared statements created at module load and map snake_case rows to camelCase objects.
 - Unknown values are stored as `NULL`, never invented (see `lapCompletionDetector`).
 - Tests: flat `test()` calls, synthetic data from a `testFixtures.ts` per folder (`src/analysis/`, `src/replay/`), mostly pure functions. The handful of tests that need a real SQLite connection (sample repositories, the replay integration test) use `src/persistence/testDb.ts` to open an isolated, disposable database via `DB_PATH` — never `data/telemetry.db`. A new test file under `src/` is picked up by the `test` script with no edit.
-- Commits: small, Conventional Commits (`feat:`, `fix:`, `docs:`, `test:`, `chore:`), English subject, **no `Co-Authored-By` trailer**.
+- Commits: small, Conventional Commits (`feat:`, `fix:`, `docs:`, `test:`, `chore:`, `ci:`), English subject, **no `Co-Authored-By` trailer**.
 - **Check names are a contract:** renaming a CI job (`typecheck`, `test`) requires updating the required checks of the ruleset on `main` in the same piece of work, and renaming `ci.yml` requires updating the README badge in the same piece of work.
 - **Actions:** first-party `actions/*` by major tag; any third-party action by full commit SHA with a trailing version comment.
 
