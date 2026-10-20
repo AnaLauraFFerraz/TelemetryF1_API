@@ -244,3 +244,41 @@ On the maintainer's machine:
 - `tsc --noEmit`: a few seconds.
 
 The 5-minute ceiling of SC-007 applies to the CI run, which is measured on its first green execution and recorded in this file.
+
+## Post-implementation evidence
+
+### Windows (local)
+
+Maintainer's machine (Windows 11, Node v22.23.1), checkout with the US1 and US3 changes, on 2026-10-19. `fnm use` was not run by the agent; the `.nvmrc` check is the maintainer's, on their own terminal.
+
+- `src/tooling/assertTestFiles.test.ts` failed before `tools/assertTestFiles.ts` existed (`Cannot find module '...\tools\assertTestFiles.ts'`, 3 of 3 failing) and passes after (3 of 3).
+- `npm run typecheck` exits 0. A temporary `const x: number = "a";` appended to `tools/recorder.ts` gives `TS2322`, exit 2; the same in `src/server.ts` gives `TS2322`, exit 2. Both were reverted with `git checkout`.
+- `npm test` runs the `pretest` guard first (`[assertTestFiles] 23 arquivos de teste encontrados em src/**/*.test.ts`), then `# tests 95  # pass 95  # fail 0  # skipped 0`.
+- A temporary `src/tmpcheck/probe.test.ts` was picked up with no script edit: the guard reported 24 files and the run `# tests 96`. It was removed.
+- With the guard's pattern temporarily set to `nada/**/*.test.ts`, `npm test` printed `[assertTestFiles] nenhum arquivo de teste encontrado em nada/**/*.test.ts`, exited 1, and no test ran. The pattern was restored.
+
+Executed test files (23, sorted; the list comes from a `-r` preload that logs each test file's `process.argv[1]`, not from the glob). The 20 files of commit `978292b` plus the three added by this feature, `src/config/serverFailFast.test.ts`, `src/persistence/dbWithoutPorts.test.ts` and `src/tooling/assertTestFiles.test.ts`:
+
+- `src/analysis/brakingAnalysis.test.ts`
+- `src/analysis/buildInsights.test.ts`
+- `src/analysis/cornerDetection.test.ts`
+- `src/analysis/lineDeviation.test.ts`
+- `src/analysis/segmentDelta.test.ts`
+- `src/analysis/smoothing.test.ts`
+- `src/analysis/throttleAnalysis.test.ts`
+- `src/analysis/tyreAnalysis.test.ts`
+- `src/analysis/tyreWindows.test.ts`
+- `src/coaching/coachUserMessage.test.ts`
+- `src/config/serverFailFast.test.ts`
+- `src/persistence/carTelemetrySampleRepository.test.ts`
+- `src/persistence/dbWithoutPorts.test.ts`
+- `src/persistence/decimation.test.ts`
+- `src/persistence/lapCompletionDetector.test.ts`
+- `src/persistence/motionSampleRepository.test.ts`
+- `src/persistence/sessionContext.test.ts`
+- `src/persistence/testDb.test.ts`
+- `src/replay/replayerCli.test.ts`
+- `src/replay/replayIntegration.test.ts`
+- `src/replay/runner.test.ts`
+- `src/replay/scheduler.test.ts`
+- `src/tooling/assertTestFiles.test.ts`
