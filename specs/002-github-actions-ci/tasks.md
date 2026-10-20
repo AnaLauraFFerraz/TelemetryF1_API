@@ -279,18 +279,18 @@ Every throw-away branch below is created from the updated `main`. At the end, de
   - expected: GitHub rejects it;
   - local `main` is never touched: no commit on it and no reset.
   Note the rejection message, then delete the throw-away branch locally. It was never pushed under its own name.
-- [ ] T033 [US4] **[PARADA] push and pull request.** The pull request runs its own workflow version (US4 scenario 6; FR-014; research.md point 8):
+- [x] T033 [US4] **[PARADA] push and pull request.** The pull request runs its own workflow version (US4 scenario 6; FR-014; research.md point 8):
   - on a throw-away branch from `main`, add a step `- run: echo versao-do-PR` to the `test` job in `.github/workflows/ci.yml`;
   - push and open the pull request;
   - confirm its own run shows the `echo versao-do-PR` step printing.
   **Leave it open**; T035 uses it. Once T035's check is done, close this pull request unmerged and delete its branch locally (`git branch -D <b>`) and remotely (`git push origin --delete <b>`). **[PARADA] before deleting the remote branch.**
-- [ ] T034 [US4] **[PARADA] push and pull request; the merge is the maintainer's.** Evidence pull request, which is also the allowed-merge case (SC-006):
+- [x] T034 [US4] **[PARADA] push and pull request; the merge is the maintainer's.** Evidence pull request, which is also the allowed-merge case (SC-006):
   - on a branch from `main`, append the results of T027–T033 to "Post-implementation evidence" in `specs/002-github-actions-ci/research.md`;
   - commit as `docs: record branch protection and workflow-version checks for spec 002`;
   - push and open the pull request. When it is green and up to date, the maintainer merges it with "Rebase and merge"; expected: allowed, and `main` stays linear.
   Delete its branch locally and remotely afterwards.
-- [ ] T035 [US4] Branch behind `main` (SC-006). The T033 pull request is now behind `main`, because T034 moved it. Expected: its merge is blocked as out of date, even though its checks are green. The maintainer attempts it. Note the result. Closing that pull request and deleting its branch is done by T033's last step.
-- [ ] T036 [US4] **[PARADA] push and pull request; the merge is the maintainer's.** (SC-006) Record T034's allowed merge and T035's blocked merge in research.md, through one more small branch and pull request, `docs: record the remaining protection checks for spec 002`. The maintainer merges it, then delete its branch locally and remotely.
+- [x] T035 [US4] Branch behind `main` (SC-006). The T033 pull request is now behind `main`, because T034 moved it. Expected: its merge is blocked as out of date, even though its checks are green. The maintainer attempts it. Note the result. Closing that pull request and deleting its branch is done by T033's last step.
+- [x] T036 [US4] **[PARADA] push and pull request; the merge is the maintainer's.** (SC-006) Record T034's allowed merge and T035's blocked merge in research.md, through one more small branch and pull request, `docs: record the remaining protection checks for spec 002`. The maintainer merges it, then delete its branch locally and remotely.
 
 **Checkpoint**: `main` only accepts green, up-to-date, linear pull requests, administrators included, and all evidence is in research.md.
 

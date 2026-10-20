@@ -464,4 +464,28 @@ Pull request #6, commit from `origin/main` (`e26c3cc`) plus one line in `.github
   ```
 
   This confirms empirically what point 8 inferred from the documentation: a `pull_request` run uses the workflow file as changed by the pull request.
-- **Status**: the pull request stays open, unmerged, for T035. Its `mergeStateStatus` was `CLEAN` right after the checks finished, because it was still up to date with `main`.
+- **Status**: the pull request stays open, unmerged, for T035. Its `mergeStateStatus` was `CLEAN` right after the checks finished, because it was still up to date with `main`. After T035 it was closed unmerged and its branch deleted locally and on `origin`.
+
+### T034: the allowed merge (SC-006)
+
+Pull request #7 (`docs: record branch protection and workflow-version checks for spec 002`), 8 commits, 2026-10-20. Its checks were green (`typecheck` 10 s, `test` 29 s, run `39474150244`) and `mergeStateStatus` was `CLEAN` before the merge. The maintainer merged it with "Rebase and merge", the only method the repository allows, and the merge was accepted: `state` `MERGED`, `mergedAt` `2026-10-20T18:26:55Z`.
+
+- **`main` stays linear**: `git rev-list --merges --count main` gives `0`, and also `0` for `666744a..main`. The 8 commits of the pull request are now the 8 commits of `e26c3cc..main`, ending at `24755db`.
+- **Rebase changes the hashes**: the commits on `main` are not the ones that were pushed (`127f8ea` became `24755db`, for example). The content was compared instead: `git diff main docs/002-evidence` was empty before the local branch was deleted.
+- **Automatic deletion**: `git ls-remote --heads origin` after the merge no longer listed `docs/002-evidence`; GitHub deleted it, as the "Automatically delete head branches" setting says.
+- **Run on `main`** (push of `24755db`): run `39474816446`, `typecheck` success (10 s), `test` success (34 s). FR-001 and SC-002 hold on the protected `main`.
+
+### T035: branch behind `main` (SC-006)
+
+Pull request #6 (T033), after pull request #7 moved `main`. Screenshot [`evidence/t035-out-of-date.png`](evidence/t035-out-of-date.png), checked by the maintainer in the interface on 2026-10-20. It shows:
+
+- the pull request's own commit `a9bcc84` (`ci: print the workflow version in the test job (T033, do not merge)`) with a green check, and above the checks box the event of pull request #7 marked **Merged**;
+- "All checks have passed", "2 successful checks";
+- "This branch is out-of-date with the base branch", with the text "Merge the latest changes from main into this branch" and an **Update branch** button with a dropdown arrow;
+- the **Rebase and merge** button disabled, with the command-line merge instructions link beside it.
+
+So a pull request with green checks is still blocked from merging when it is behind `main`, as SC-006 requires (the "branch up to date" option of the required checks). The screenshot does not show what the dropdown of **Update branch** offers; it was not opened. The pull request was then closed unmerged, and its branch `demo/t033-workflow-version` was deleted locally and on `origin`.
+
+### T036
+
+This record is itself the T036 pull request: T034 and T035 above, and the marks of T033 to T036 in `tasks.md`.
