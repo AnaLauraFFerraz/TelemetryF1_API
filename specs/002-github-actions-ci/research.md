@@ -381,3 +381,17 @@ Pull request #3, commit `6b3d524`, run `39448786391`, 2026-10-20. The pull reque
 
   `mergeStateStatus` was `BLOCKED` in the API for the same pull request (output above).
 - **Command-line merge path**: the same page also offers "You can also merge this with the command line" with instructions. That path ends in a direct push to `main`, so it is not covered by the button being disabled. T032 tests it (`git push origin HEAD:main`).
+
+### T030: type error in `tools/` (SC-003, SC-004b, SC-006)
+
+Pull request #4, commit `382edf7`, run `39462160338`, 2026-10-20. The pull request was closed unmerged and its branch deleted locally and on `origin`.
+
+- **Local, before the push**: `npm run typecheck` exit 2 (`tools/replayer.ts(9,7): error TS2322`); `npm test` exit 1, `# tests 95  # pass 94  # fail 1`.
+- **Checks (SC-004b)**: `typecheck` ✗ (9 s) and `test` ✗ (43 s), as expected. The log of `test` has the same single failure as the local run, `# tests 95  # pass 94  # fail 1`.
+- **Failing test**: `not ok 76 - CLI: diretório no lugar do arquivo sai com código 1, mensagem do [replayer], e não envia pacote nenhum`. `src/replay/replayerCli.test.ts` runs `tools/replayer.ts` as a child process through `ts-node/register`, which type-checks the file it compiles. The child exits with `tools/replayer.ts(9,7): error TS2322` instead of the `[replayer]` message the test expects, and that text is in the test's output in the log. This is the case the transpile-only future improvement in plan.md addresses.
+- **Maintainer's merge attempt (SC-006)**: screenshot [`evidence/t030-merge-blocked.png`](evidence/t030-merge-blocked.png), checked by the maintainer in the interface on 2026-10-20. It shows:
+  - the heading "All checks have failed", "2 failing checks", for commit `382edf7`;
+  - `CI / test (pull_request)` failing after 43 s and `CI / typecheck (pull_request)` failing after 9 s, both marked **Required**;
+  - the **Rebase and merge** button disabled, and no option to bypass the rule. As in T029, the page also offers the command-line merge instructions, covered by T032.
+
+  `mergeStateStatus` was `BLOCKED` in the API for the same pull request.
