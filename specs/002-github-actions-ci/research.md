@@ -282,3 +282,13 @@ Executed test files (23, sorted; the list comes from a `-r` preload that logs ea
 - `src/replay/runner.test.ts`
 - `src/replay/scheduler.test.ts`
 - `src/tooling/assertTestFiles.test.ts`
+### Action versions confirmed before writing the workflow
+
+Checked on 2026-10-19 with `gh api repos/actions/<name>/releases/latest` and `git/ref/tags/v7`, against the official repositories:
+
+| Action | Latest release | Published | `v7` tag points to |
+|---|---|---|---|
+| `actions/checkout` | `v7.0.1` | 2026-07-20 | `3d3c42e5aac5ba805825da76410c181273ba90b1` |
+| `actions/setup-node` | `v7.1.0` | 2026-10-08 | `949feb2413d6458794dcd2491c4babbbce0c15c1` |
+
+`v7` is still the newest major of both, so the workflow references `@v7` (plan.md D3). Same result as point 9.
