@@ -10,6 +10,7 @@
     "record": "ts-node-dev tools/recorder.ts",
     "replay": "ts-node-dev tools/replayer.ts",
     "analyze": "ts-node-dev tools/analyze.ts",
+    "typecheck": "tsc --noEmit",
     "test": "node -r ts-node/register --test src/persistence/*.test.ts src/analysis/*.test.ts src/coaching/*.test.ts src/replay/*.test.ts"
   },
   "keywords": [],

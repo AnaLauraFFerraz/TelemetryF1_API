@@ -120,7 +120,7 @@ None. US1 is itself the foundation, since the CI cannot be green until a clean c
 
 ### Implementation
 
-- [ ] T010 [P] [US3] Edit `tsconfig.json` (FR-005): `"rootDir": "./src"` becomes `"."`, and `"include": ["src"]` becomes `["src", "tools"]`. Keep every other option, including `outDir` (plan.md D8). `npx tsc --noEmit` must exit 0 (research.md point 6).
+- [x] T010 [P] [US3] Edit `tsconfig.json` (FR-005): `"rootDir": "./src"` becomes `"."`, and `"include": ["src"]` becomes `["src", "tools"]`. Keep every other option, including `outDir` (plan.md D8). `npx tsc --noEmit` must exit 0 (research.md point 6).
 - [ ] T011 [P] [US3] Create `tools/assertTestFiles.ts` (FR-009, FR-010; plan.md D10):
   - call `fs.globSync("src/**/*.test.ts", { exclude: (name) => name === "node_modules" })` from `node:fs`, relative to `process.cwd()`. The pattern string must be identical to the `test` script's (T012);
   - when the count is 0: a Portuguese `console.error` naming the pattern, then `process.exit(1)`;
