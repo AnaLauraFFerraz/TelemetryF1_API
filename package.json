@@ -11,7 +11,8 @@
     "replay": "ts-node-dev tools/replayer.ts",
     "analyze": "ts-node-dev tools/analyze.ts",
     "typecheck": "tsc --noEmit",
-    "test": "node -r ts-node/register --test src/persistence/*.test.ts src/analysis/*.test.ts src/coaching/*.test.ts src/replay/*.test.ts"
+    "pretest": "node -r ts-node/register tools/assertTestFiles.ts",
+    "test": "node -r ts-node/register --test \"src/**/*.test.ts\""
   },
   "keywords": [],
   "author": "",

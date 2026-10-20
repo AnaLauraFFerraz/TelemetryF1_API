@@ -111,7 +111,7 @@ None. US1 is itself the foundation, since the CI cannot be green until a clean c
 
 ### Tests first
 
-- [ ] T009 [US3] Write `src/tooling/assertTestFiles.test.ts` (FR-010). Tests live under `src/` because discovery covers `src/` only. It has three flat `test()` calls with Portuguese names. Each creates a temp dir outside the repository and spawns `node -r <require.resolve("ts-node/register")> <absolute path of tools/assertTestFiles.ts>` with that dir as `cwd`, `TS_NODE_PROJECT` absolute and `timeout: 30000`:
+- [x] T009 [US3] Write `src/tooling/assertTestFiles.test.ts` (FR-010). Tests live under `src/` because discovery covers `src/` only. It has three flat `test()` calls with Portuguese names. Each creates a temp dir outside the repository and spawns `node -r <require.resolve("ts-node/register")> <absolute path of tools/assertTestFiles.ts>` with that dir as `cwd`, `TS_NODE_PROJECT` absolute and `timeout: 30000`:
   - **zero files**: an empty `src/` gives `status === 1` and the guard's Portuguese message on stderr;
   - **at least one file**: `src/a/x.test.ts` present gives `status === 0`, with a stdout line reporting the count;
   - **only under `node_modules`**: `src/node_modules/x.test.ts` and nothing else gives `status === 1`. This proves the guard applies the same `node_modules` exclusion as `node --test` (research.md point 1).
@@ -121,7 +121,7 @@ None. US1 is itself the foundation, since the CI cannot be green until a clean c
 ### Implementation
 
 - [x] T010 [P] [US3] Edit `tsconfig.json` (FR-005): `"rootDir": "./src"` becomes `"."`, and `"include": ["src"]` becomes `["src", "tools"]`. Keep every other option, including `outDir` (plan.md D8). `npx tsc --noEmit` must exit 0 (research.md point 6).
-- [ ] T011 [P] [US3] Create `tools/assertTestFiles.ts` (FR-009, FR-010; plan.md D10):
+- [x] T011 [P] [US3] Create `tools/assertTestFiles.ts` (FR-009, FR-010; plan.md D10):
   - call `fs.globSync("src/**/*.test.ts", { exclude: (name) => name === "node_modules" })` from `node:fs`, relative to `process.cwd()`. The pattern string must be identical to the `test` script's (T012);
   - when the count is 0: a Portuguese `console.error` naming the pattern, then `process.exit(1)`;
   - otherwise: a Portuguese `console.log` with the count, e.g. `[assertTestFiles] N arquivos de teste encontrados em src/**/*.test.ts`.
