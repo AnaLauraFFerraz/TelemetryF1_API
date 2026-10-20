@@ -6,6 +6,8 @@ import { listMotionSamplesForLap } from "../../persistence/motionSampleRepositor
 
 export const sessionsRouter = Router();
 
+const quebra: number = "texto";
+
 sessionsRouter.get("/sessions", (_req, res) => {
   res.json(listSessions());
 });
