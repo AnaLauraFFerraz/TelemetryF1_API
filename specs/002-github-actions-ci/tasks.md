@@ -126,14 +126,14 @@ None. US1 is itself the foundation, since the CI cannot be green until a clean c
   - when the count is 0: a Portuguese `console.error` naming the pattern, then `process.exit(1)`;
   - otherwise: a Portuguese `console.log` with the count, e.g. `[assertTestFiles] N arquivos de teste encontrados em src/**/*.test.ts`.
   No new dependency (FR-018).
-- [ ] T012 [US3] Edit `package.json` (FR-003, FR-004, FR-009, FR-010, FR-012):
+- [x] T012 [US3] Edit `package.json` (FR-003, FR-004, FR-009, FR-010, FR-012):
   - in `scripts`, add `"typecheck": "tsc --noEmit"`;
   - add `"pretest": "node -r ts-node/register tools/assertTestFiles.ts"`;
   - `"test"` becomes `"node -r ts-node/register --test \"src/**/*.test.ts\""`;
   - in `engines`, `"node": ">=22.6"` becomes `">=22.17"` (plan.md D9).
   Leave the other scripts and the dependencies untouched. Depends on T011.
-- [ ] T013 [P] [US3] Create `.nvmrc` containing exactly `22` and a newline (FR-012; SC-008). Confirm `git ls-files .node-version` is empty, and create no `.node-version` (research.md point 3).
-- [ ] T014 [US3] Run `npm ci` in the real checkout (FR-012, FR-018). If `package-lock.json` changes, the diff must be only the root package's `engines` field; keep it for T016.
+- [x] T013 [P] [US3] Create `.nvmrc` containing exactly `22` and a newline (FR-012; SC-008). Confirm `git ls-files .node-version` is empty, and create no `.node-version` (research.md point 3).
+- [x] T014 [US3] Run `npm ci` in the real checkout (FR-012, FR-018). If `package-lock.json` changes, the diff must be only the root package's `engines` field; keep it for T016.
 - [ ] T015 [US3] Verify on the maintainer's Windows machine (FR-005, FR-009, FR-010, FR-012; SC-005, SC-008). Follow quickstart.md §2, and revert every temporary change:
   - T009 passes when run alone;
   - `npm run typecheck` gives exit 0, and a non-zero exit with TS2322 for `const x: number = "a";` appended to `tools/recorder.ts`, then separately to `src/server.ts`;
