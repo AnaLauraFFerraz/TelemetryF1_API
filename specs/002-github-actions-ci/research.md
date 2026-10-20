@@ -335,7 +335,7 @@ No Linux-only failure appeared, so T022 was not needed.
 
 1. **Automatically delete head branches** (Settings → General → Pull Requests) was also ticked: GitHub deletes the remote branch after each merge. Added to the general-settings step.
 2. The ruleset only exists after the **Create** button at the end of the page. Added as a step.
-3. The rules must be listed in the order the ruleset interface shows them. Pending: the order was not provided yet.
+3. The order of the rules in the README list was not aligned with the order of the ruleset interface. Dropped by the maintainer as cosmetic: it changes no setting.
 
 **First attempt, T029 (PR #3), 2026-10-20 15:3x UTC.** The PR got `typecheck` ✗ and `test` ✓ (run `39448786391`: `typecheck` 25 s, `src/http/routes/sessionsRouter.ts(9,7): error TS2322`; `test` 42 s). Before the ruleset was saved, the API showed no protection: `GET /rulesets` → `[]`, `GET /rules/branches/main` → `[]`, `GET /branches/main/protection` → 404, `mergeStateStatus` `UNSTABLE`, and the three merge methods enabled. The maintainer then created the ruleset (item 2 above).
 
@@ -380,3 +380,4 @@ Pull request #3, commit `6b3d524`, run `39448786391`, 2026-10-20. The pull reque
   - the **Rebase and merge** button disabled, and no other merge button or bypass option on the page.
 
   `mergeStateStatus` was `BLOCKED` in the API for the same pull request (output above).
+- **Command-line merge path**: the same page also offers "You can also merge this with the command line" with instructions. That path ends in a direct push to `main`, so it is not covered by the button being disabled. T032 tests it (`git push origin HEAD:main`).
