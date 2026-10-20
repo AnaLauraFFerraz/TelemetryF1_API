@@ -4,7 +4,7 @@
 
 **Created**: 2026-10-18
 
-**Status**: Draft
+**Status**: Implemented and merged on 2026-10-20 (pull request #2). The constitution amendment is a separate pull request, outside this feature.
 
 **Input**: User description (verbatim, as given to `/speckit-specify`):
 
