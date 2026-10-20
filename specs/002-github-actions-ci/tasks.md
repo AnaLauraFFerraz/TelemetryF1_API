@@ -384,4 +384,4 @@ T001–T008. The suite runs on any clean checkout with no `.env`, guarded by its
 Appended by `/speckit-converge` (T038), on the maintainer's decision of 2026-10-20. Both findings were LOW and partial.
 
 - [x] T039 Update quickstart.md to the post-merge state: remove the stale note that `src/config/` is not covered by `npm test`, give the FR-017 command in both forms (before the merge, and by content between the state before the spec and the state after it), and say that §3 and §4 record the validation made for this spec, per Constitution IV (partial)
-- [ ] T040 Add `src/config/`, `src/ws/` and `src/tooling/` to the README folder table, and `assertTestFiles.ts` to the `tools/` row, consistent with the CLAUDE.md table, per FR-016 (partial)
+- [x] T040 Add `src/config/`, `src/ws/` and `src/tooling/` to the README folder table, and `assertTestFiles.ts` to the `tools/` row, consistent with the CLAUDE.md table, per FR-016 (partial)

@@ -30,14 +30,17 @@ flowchart LR
 
 | Path | Responsibility |
 |---|---|
+| `src/config/` | `env.ts` loads and validates the ports and fails fast; `dbPath.ts` resolves the database path (including `DB_PATH`) and is the only config file the persistence layer imports, so persistence does not depend on the ports |
 | `src/network/` | UDP socket; WebSocket server with a ping/pong heartbeat every 15 s |
+| `src/ws/` | WebSocket message envelope |
 | `src/telemetry/` | Binary parsers for packet ids 0 (motion), 1 (session, partial), 2 (lap data) and 6 (car telemetry), over a little-endian `BufferCursor`; each full parser asserts the exact byte count |
 | `src/persistence/` | SQLite schema, per-session in-memory state, decimation, lap completion detection, one repository per table; samples are deduplicated by `(session_id, overall_frame_identifier)`, since a packet's frame identifier survives a flashback and a looped or repeated replay unscathed, unlike session time or lap distance |
 | `src/analysis/` | Pure, deterministic lap analysis producing a compact `LapInsights` JSON |
 | `src/coaching/` | Static system prompt, user-message builder, Anthropic call with typed errors |
 | `src/http/` | Express REST API |
 | `src/replay/` | Pure replay pacing (`computeDelayMs`) and the orchestration loop (`runReplay`): speed, loop, absolute-deadline scheduling so error does not accumulate over a long recording |
-| `tools/` | Recorder, an offline `analyze` CLI, and a thin replayer CLI over `src/replay/` |
+| `src/tooling/` | Tests of the project's own tooling: the test of the empty-discovery guard |
+| `tools/` | Recorder, an offline `analyze` CLI, a thin replayer CLI over `src/replay/`, and `assertTestFiles.ts`, the guard that runs as the `pretest` of `npm test` |
 
 ## Features
 
