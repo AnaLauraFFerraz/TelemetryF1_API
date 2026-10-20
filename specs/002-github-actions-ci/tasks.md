@@ -186,7 +186,7 @@ None. US1 is itself the foundation, since the CI cannot be green until a clean c
 
   Above 5 minutes, investigate and record the cause.
 - [x] T021 [US2] Re-run both jobs with an unchanged `package-lock.json`. Record the setup step's cache hit in the same research.md section (FR-019; SC-009).
-- [ ] T022 [US2] **Only if T020 or T021 shows a Linux-only failure** (FR-011, FR-013): find the cause, fix it in the smallest owning file, and record cause and fix in research.md. Never skip or disable a test. Commit with the matching type. **[PARADA] before pushing the fix.**
+- [ ] T022 [US2] **Only if T020 or T021 shows a Linux-only failure** (FR-011, FR-013): find the cause, fix it in the smallest owning file, and record cause and fix in research.md. Never skip or disable a test. Commit with the matching type. **[PARADA] before pushing the fix.** Not needed: no Linux-only failure appeared (see research.md).
 - [x] T023 [US2] (FR-011, FR-013; SC-005, SC-007, SC-009) Commit the research.md evidence from T020–T022 as `docs: record the first CI runs for spec 002`. **[PARADA] before pushing.**
 
 **Checkpoint**: the verification runs on Linux, reports per step, needs no secret, and is green on the feature's pull request.
@@ -298,11 +298,11 @@ Every throw-away branch below is created from the updated `main`. At the end, de
 
 ## Phase 7: Polish & Cross-Cutting Concerns
 
-- [ ] T037 Run quickstart.md §1 and §2 on the merged `main`, in a disposable worktree with no environment (SC-001, SC-005). Check README and CLAUDE.md:
+- [x] T037 Run quickstart.md §1 and §2 on the merged `main`, in a disposable worktree with no environment (SC-001, SC-005). Check README and CLAUDE.md:
   - `grep -n "src/ only\|does NOT cover tools\|22\.6" README.md CLAUDE.md` finds nothing, except CLAUDE.md's one parenthesis about the temporary divergence from the constitution's "≥ 22.6" (T025);
   - the sections edited by T024/T025 contain no test/file counts, durations or patch versions (FR-016).
   Report anything stale. A fix goes only through a pull request: **[PARADA]**.
-- [ ] T038 Run `/speckit-converge` for spec 002 (all FRs and SCs), to append any unbuilt requirement as new tasks.
+- [x] T038 Run `/speckit-converge` for spec 002 (all FRs and SCs), to append any unbuilt requirement as new tasks.
 
 ---
 
