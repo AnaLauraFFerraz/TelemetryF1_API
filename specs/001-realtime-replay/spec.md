@@ -4,7 +4,7 @@
 
 **Created**: 2026-10-16
 
-**Status**: Draft
+**Status**: Implemented and merged on 2026-10-18 (pull request #1).
 
 **Input**: User description: "Replay em tempo real de gravações de telemetria. Hoje o replayer envia todos os pacotes de uma gravação o mais rápido possível, o que estoura o buffer UDP e perde de 67% a 79% das amostras; além disso, o dashboard não pode ser acompanhado ao vivo durante um replay. Quero reproduzir uma gravação respeitando o intervalo original entre os pacotes, com opção de velocidade (1x, 2x e o modo máximo atual) e de repetir a gravação em loop, para a demo pública. Hoje, reexecutar a mesma gravação duplica amostras no banco; esse comportamento precisa ser definido. Precisa funcionar com a gravação de exemplo de Interlagos (20 Hz) e ser testável sem o jogo."
 
