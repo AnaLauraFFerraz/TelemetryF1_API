@@ -367,6 +367,24 @@ gh pr view 3 --json mergeStateStatus,mergeable,state
 
 Note: the ruleset's own `allowed_merge_methods` lists all three; the restriction to rebase comes from the repository setting, as the README step 6 says.
 
+### T027: no API-contract file changed (FR-017)
+
+The check was meant to run before the merge of pull request #2 (`git diff --stat origin/main...HEAD -- ...`), but its output was lost. It was repeated on 2026-10-20, after the merge, by comparing the content of the state before the spec (`666744a`, the `main` before spec 002) with the state after it (`e26c3cc`, the `main` that holds the merged spec). The paths are the ones the task names. The result is the one the check would have given before the merge, because the diff between the two states is the same set of changes the pull request introduced.
+
+```text
+$ git merge-base --is-ancestor 666744a e26c3cc ; echo $?
+0
+
+$ git diff --stat 666744a e26c3cc -- src/ws/ src/http/ 'src/persistence/*Repository.ts'
+$                                          (empty output)
+```
+
+- **The paths do match files**: at both commits the pathspec covers 9 files: `src/ws/messageFormat.ts`, `src/http/httpServer.ts`, `src/http/routes/analysisRouter.ts`, `src/http/routes/sessionsRouter.ts` and the five `src/persistence/*Repository.ts` (`analysis`, `carTelemetrySample`, `lap`, `motionSample`, `session`). An empty diff is therefore not an empty pathspec.
+- **What did change between the two states** (`git diff --name-only 666744a e26c3cc -- src/ tools/`): `src/config/dbPath.ts`, `src/config/env.ts`, `src/config/serverFailFast.test.ts`, `src/persistence/db.ts`, `src/persistence/dbWithoutPorts.test.ts`, `src/tooling/assertTestFiles.test.ts` and `tools/assertTestFiles.ts`. None of them is a contract file; the whole range is 19 files, 1645 insertions and 37 deletions.
+- **Limit of this check**: the range is the whole of `666744a..e26c3cc`, not only the pull request, so it also covers the documentation commits made after it. That can only add changes, never hide one, and it added none to the contract files.
+
+No frontend update of `src/types/` is needed for this feature.
+
 ### T029: type error in `src/` (SC-003, SC-004a, SC-006)
 
 Pull request #3, commit `6b3d524`, run `39448786391`, 2026-10-20. The pull request was closed unmerged and its branch deleted locally and on `origin`.
