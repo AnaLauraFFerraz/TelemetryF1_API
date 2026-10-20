@@ -378,3 +378,10 @@ T001–T008. The suite runs on any clean checkout with no `.env`, guarded by its
 - Never commit to `main` locally. After T028 GitHub refuses direct pushes anyway, and T032 proves it from a throw-away branch.
 - Temporary edits in T015 and the throw-away branches in T029–T033 are never merged.
 - No task points anything at the real `data/telemetry.db` (CLAUDE.md, Rules). Every check uses a disposable worktree or a temporary `DB_PATH`.
+
+## Phase 8: Convergence
+
+Appended by `/speckit-converge` (T038), on the maintainer's decision of 2026-10-20. Both findings were LOW and partial.
+
+- [x] T039 Update quickstart.md to the post-merge state: remove the stale note that `src/config/` is not covered by `npm test`, give the FR-017 command in both forms (before the merge, and by content between the state before the spec and the state after it), and say that §3 and §4 record the validation made for this spec, per Constitution IV (partial)
+- [ ] T040 Add `src/config/`, `src/ws/` and `src/tooling/` to the README folder table, and `assertTestFiles.ts` to the `tools/` row, consistent with the CLAUDE.md table, per FR-016 (partial)

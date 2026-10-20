@@ -23,7 +23,7 @@ npm run typecheck        # expected: exit 0
 npm test                 # expected: guard prints the file count; all tests pass; "# skipped 0"; exit 0
 ```
 
-The two US1 tests (tasks T002, T003) also run on their own, by path. Until the `test` script changes in US3, `src/config/` is not covered by `npm test`:
+The two US1 tests (tasks T002, T003) also run on their own, by path:
 
 ```bash
 node -r ts-node/register --test src/persistence/dbWithoutPorts.test.ts   # fails before the config split, passes after
@@ -59,6 +59,8 @@ DB_PATH=<temp-file> node -r ts-node/register tools/analyze.ts   # "[db] usando b
 
 ## 3. The workflow (US2; FR-001, FR-002, FR-008, FR-019–FR-021; SC-002, SC-003, SC-007, SC-009, SC-010)
 
+This section and §4 record the validation made for spec 002, in the order it was done. The results are in research.md. §1 and §2 can be repeated at any time on a disposable worktree of `main`.
+
 On the feature's pull request:
 
 - The checks list shows two entries, `typecheck` and `test`, both green (SC-002, SC-003).
@@ -72,12 +74,23 @@ The SC-004 demonstration pull requests run in §4, after the protection exists.
 
 ## 4. Protection and docs (US4; FR-014–FR-017; SC-004, SC-006)
 
-The API contract is unchanged (FR-017). Before the feature is merged, this command must print nothing. These are the contract files named in plan.md, Constitution principle VI:
+The API contract is unchanged (FR-017). The command must print nothing. These are the contract files named in plan.md, Constitution principle VI. There are two forms, for two moments:
+
+**Before the merge**, from the feature's branch, comparing it with `main`:
 
 ```bash
 git fetch origin
 git diff --stat origin/main...HEAD -- src/ws/ src/http/ 'src/persistence/*Repository.ts'
 ```
+
+**After the merge**, when that comparison no longer separates the feature from `main`, compare the content of the state before the spec with the state after it (here `666744a`, the `main` before spec 002, and `e26c3cc`, the `main` that holds the merged spec):
+
+```bash
+git merge-base --is-ancestor 666744a e26c3cc && echo ok
+git diff --stat 666744a e26c3cc -- src/ws/ src/http/ 'src/persistence/*Repository.ts'
+```
+
+The second form is what was run for T027, after the merge, and it gave an empty output (research.md, "T027"). It covers every commit between the two states, so it can only add changes, never hide one.
 
 - The README renders the CI badge for `main`, with no counts (FR-015).
 - README and CLAUDE.md no longer say the type check skips `tools/`. Both show `npm run typecheck` (FR-016).
