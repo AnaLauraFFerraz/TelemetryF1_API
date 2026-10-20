@@ -102,3 +102,4 @@ These are also listed under "Known limitations" in the README. When a limitation
 - When a decision has a trade-off, present the options instead of deciding alone.
 - If a request conflicts with what the code actually does, say so before proceeding.
 - Only commit as part of an approved plan or when asked; never push without explicit approval.
+- Edit text files only with the Edit and Write tools, never with shell scripts: a PowerShell alias (`rd`) already deleted a file during spec 002.
