@@ -328,3 +328,41 @@ Same run, attempt 2 (`gh run rerun`), `package-lock.json` unchanged.
 - Guard count 23 and `# tests 95  # pass 95  # fail 0` again.
 
 No Linux-only failure appeared, so T022 was not needed.
+
+### Branch protection (T028, T029)
+
+**Interface check.** The maintainer created the ruleset and set the merge methods on 2026-10-20 and checked the README steps against the GitHub interface. The labels and the steps matched (this confirms the labels that could not be confirmed from the documentation). Differences found, to be fixed in the README in the T034 pull request:
+
+1. **Automatically delete head branches** (Settings → General → Pull Requests) was also ticked: GitHub deletes the remote branch after each merge. Added to the general-settings step.
+2. The ruleset only exists after the **Create** button at the end of the page. Added as a step.
+3. The rules must be listed in the order the ruleset interface shows them. Pending: the order was not provided yet.
+
+**First attempt, T029 (PR #3), 2026-10-20 15:3x UTC.** The PR got `typecheck` ✗ and `test` ✓ (run `39448786391`: `typecheck` 25 s, `src/http/routes/sessionsRouter.ts(9,7): error TS2322`; `test` 42 s). Before the ruleset was saved, the API showed no protection: `GET /rulesets` → `[]`, `GET /rules/branches/main` → `[]`, `GET /branches/main/protection` → 404, `mergeStateStatus` `UNSTABLE`, and the three merge methods enabled. The maintainer then created the ruleset (item 2 above).
+
+**Protection state after the ruleset was created** (`gh api`, same day):
+
+```text
+GET /repos/AnaLauraFFerraz/TelemetryF1_API/rulesets
+  id 25486518, name "main", target branch, enforcement "active", created_at 2026-10-20T12:39:07-03:00
+
+GET /repos/.../rulesets/25486518   (selected fields)
+  bypass_actors: []
+  conditions.ref_name: include ["~DEFAULT_BRANCH"], exclude []
+  current_user_can_bypass: "never"
+
+GET /repos/.../rules/branches/main   (rules, in the order returned)
+  deletion
+  non_fast_forward
+  required_linear_history
+  pull_request: required_approving_review_count 0, allowed_merge_methods [merge, squash, rebase]
+  required_status_checks: strict_required_status_checks_policy true,
+                          contexts typecheck and test, integration_id 15368 (GitHub Actions)
+
+GET /repos/... (merge settings)
+  allow_merge_commit false, allow_squash_merge false, allow_rebase_merge true, delete_branch_on_merge true
+
+gh pr view 3 --json mergeStateStatus,mergeable,state
+  {"mergeStateStatus":"BLOCKED","mergeable":"MERGEABLE","state":"OPEN"}
+```
+
+Note: the ruleset's own `allowed_merge_methods` lists all three; the restriction to rebase comes from the repository setting, as the README step 6 says.
