@@ -72,6 +72,13 @@ cp .env.example .env    # WS_PORT, UDP_PORT, HTTP_PORT; ANTHROPIC_API_KEY is opt
 npm run dev
 ```
 
+To run the compiled server instead of `ts-node-dev`:
+
+```bash
+npm run build           # compiles src/ and tools/ to dist/ with tsconfig.build.json (tests excluded)
+npm start               # runs dist/src/server.js, with the same .env
+```
+
 In the game, enable UDP telemetry under *Settings → Telemetry*: IP `127.0.0.1`, port `20777`, UDP format `2024`.
 
 Without `ANTHROPIC_API_KEY` everything works except new coach analyses, which return HTTP 503.
@@ -181,7 +188,8 @@ The game's send rate sets the other limit. The recording used for validation was
 - **The analysis cache** is keyed only by session and lap pair. It ignores the model, the prompt version and later benchmark changes.
 - **Error responses** are plain strings in mixed languages, and the frontend matches some of them literally.
 - **Switching the Node major without running `npm ci` again** makes `better-sqlite3` fail to load with `ERR_DLOPEN_FAILED`: its native binary is built for one major's ABI.
-- No build or lint scripts yet.
+- **Replaying an old recording stretches its session's duration.** A replay re-sends the original packets, so it writes into the session the recording came from, if that session is already in the database, and moves its last-seen time to now: the history then shows a duration from the original capture to the time of the replay.
+- No lint script yet.
 
 ## Next steps
 

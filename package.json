@@ -7,6 +7,8 @@
   },
   "scripts": {
     "dev": "ts-node-dev src/server.ts",
+    "build": "tsc -p tsconfig.build.json",
+    "start": "node dist/src/server.js",
     "record": "ts-node-dev tools/recorder.ts",
     "replay": "ts-node-dev tools/replayer.ts",
     "analyze": "ts-node-dev tools/analyze.ts",

@@ -4,7 +4,7 @@ Backend that ingests the F1 24 game's UDP telemetry, persists it to SQLite, stre
 
 ## Stack
 
-- Node.js: major 22 pinned in `.nvmrc`, minimum 22.17 declared in `engines`. TypeScript (CommonJS, `strict`), run with `ts-node-dev` (no build step yet)
+- Node.js: major 22 pinned in `.nvmrc`, minimum 22.17 declared in `engines`. TypeScript (CommonJS, `strict`), run with `ts-node-dev` in development; `npm run build` compiles to `dist/` with its own `tsconfig.build.json` and `npm start` runs the compiled server
 - `dgram` (UDP), `ws` (WebSocket), Express 5 (REST), `better-sqlite3` (SQLite, WAL)
 - `@anthropic-ai/sdk` for the coach
 - Tests: Node's built-in runner (`node:test` + `node:assert/strict`) via `ts-node/register`
@@ -20,11 +20,13 @@ npm run record                                # writes recordings/session-<times
 npm run replay -- recordings/<file>.jsonl [--speed=1x|2x|max] [--loop]  # re-sends a recording to 127.0.0.1:UDP_PORT; default 1x, no loop
 npm run analyze -- <sessionId> <lapA> <lapB>  # prints the LapInsights JSON for two laps, no AI call
 npm run typecheck                             # type-check, covers src/ and tools/ (same as npx tsc --noEmit)
+npm run build                                 # compiles src/ and tools/ to dist/ (tsconfig.build.json, tests excluded)
+npm start                                     # runs the compiled server, dist/src/server.js
 ```
 
-There are no `build`, `start` or `lint` scripts and no ESLint config yet.
+There is no `lint` script and no ESLint config yet. The CI runs `typecheck` and `test`, not `build`: `tsconfig.build.json` is not checked by it.
 
-Configuration comes from `.env` (copy `.env.example`): `WS_PORT`, `UDP_PORT`, `HTTP_PORT` are required and validated at startup by the server, `record` and `replay`; `analyze` and the tests do not need them, only the database path (below); `ANTHROPIC_API_KEY` is optional. The database path is fixed in production: `data/telemetry.db`. An optional `DB_PATH` environment variable overrides it — tests and manual verification use this to point at a temporary database, never at the real one (see Rules).
+Configuration comes from `.env` (copy `.env.example`): `WS_PORT`, `UDP_PORT`, `HTTP_PORT` are required and validated at startup by the server, `record` and `replay`; `analyze` and the tests do not need them, only the database path (below); `ANTHROPIC_API_KEY` is optional. The database path is fixed in production: `data/telemetry.db`, resolved from the project root (the folder holding `package.json`, `src/config/projectRoot.ts`), so the compiled server under `dist/` uses the same file. An optional `DB_PATH` environment variable overrides it — tests and manual verification use this to point at a temporary database, never at the real one (see Rules).
 
 ## Architecture
 
@@ -92,6 +94,7 @@ These are also listed under "Known limitations" in the README. When a limitation
 - Switching the Node major without running `npm ci` again makes `better-sqlite3` fail to load with `ERR_DLOPEN_FAILED` (its native binary is built for one major's ABI).
 - `sessionType` 18 is Time Trial in F1 24 (the numbering differs from F1 23).
 - `.env` is read only at startup; `ts-node-dev` does not restart on `.env` changes.
+- Replaying an old recording writes into the session it came from, if that session is already in the database (same `sessionUID`), and moves its `last_seen_at` to now, so the history shows its duration stretched from the original capture to the replay.
 - Without `ANTHROPIC_API_KEY`, `POST /sessions/:id/analysis` returns 503 (cached analyses are still served).
 - The coach's system prompt (1,378 tokens for `claude-opus-4-8`, measured with the token-counting endpoint) is below the model's minimum cacheable length, so `cache_control` has no effect. Each call logs its token `usage` (`[coachService] usage ...`). Re-measure if the prompt changes.
 

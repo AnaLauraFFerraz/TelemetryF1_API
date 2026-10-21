@@ -1,7 +1,8 @@
 import "dotenv/config";
 import path from "node:path";
+import { findProjectRoot } from "./projectRoot";
 
-const FIXED_DB_PATH = path.resolve(__dirname, "..", "..", "data", "telemetry.db");
+const FIXED_DB_PATH = path.join(findProjectRoot(), "data", "telemetry.db");
 
 // DB_PATH é uma saída de emergência só para o teste de integração (ver
 // specs/001-realtime-replay/research.md, ponto 4) - em produção ela nunca é
