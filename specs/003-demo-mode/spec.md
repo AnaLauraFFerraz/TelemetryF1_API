@@ -31,9 +31,22 @@
 >
 > O que for decisão com trade-off ou não puder ser afirmado pelo código fica marcado como NEEDS CLARIFICATION, para o clarify. A documentação se refere à mantenedora pelo papel. Quando terminar, commite a spec como docs:, sem trailer, e me mostre o resumo: os três fatos lidos no código, os requisitos e as perguntas abertas. Edição só com Edit e Write.
 
+## Clarifications
+
+### Session 2026-10-21
+
+- Q: What does a visitor see on the first request after the server starts or wakes: the complete session, or a history that fills in during the first 1x pass? → A: The complete session (the three laps and all their samples) is in place before the first request is answered, and the health endpoint reports ready only from then on. The plan measures how much this adds to startup.
+- Q: Which time base do the demo session's dates and duration use? → A: The recording's own capture times (the `receivedAt` field the recorder already writes). They never change with the loop or with restarts. Using the game's session time (the former option C) is out of this spec: it goes back on a flashback, which is the subject of spec 004, and adopting it now would change the contract on a base not yet studied. Local mode keeps its current behaviour; this spec adds to Known limitations in `README.md` and `CLAUDE.md` that replaying an old recording in local mode stretches that session's duration to the current time.
+- Q: Which lap pairs does the coach seed file cover? → A: All six ordered pairs of laps 6, 7 and 8.
+- Q: Are the three defaults recorded in Assumptions approved (refuse to start in demo mode with `ANTHROPIC_API_KEY` set; the WebSocket handshake follows the same origin rule as CORS; the existing 503 body unchanged)? → A: Yes, all three. The origin rule only limits use from browsers, because a client outside a browser sends whatever `Origin` header it wants; the guarantee that no visitor writes to the database or triggers a paid call must not depend on it.
+- Q: When many visitors open the live view at once, should the server limit the number of simultaneous WebSocket connections, and what does a visitor beyond the limit see? → A: A configurable limit of simultaneous connections, default 5. A visitor beyond the limit has the connection accepted and then closed at once with a close code and reason of its own ("demo full"), which the frontend can show (frontend spec 003); REST keeps working. The limit only protects against many simultaneous visitors, not against the volume of each connection: measured on the published recording, one connection receives about 792 KiB/s, about 2.7 GiB per hour, so a single forgotten tab consumes that much on its own. The volume per connection is a separate decision.
+- Q: In demo mode, what reduces the volume of each WebSocket connection? → A: Both a maximum time per connection, 10 minutes by default (configurable), after which the connection is closed with a close code and reason of its own ("time limit") and reconnection happens only by the visitor's action; and, in demo mode only, messages that carry only the player's car, with `playerCarIndex` set to 0 (measured: 47.1 KiB/s instead of 791.6 KiB/s, about 28 MiB for a 10-minute visit, with no compression and so no extra CPU). This is recorded as a contract change even though the message shape is the same: it goes in the list of changes the frontend sees and in the contract documentation in `README.md`, so that a future reading of the other cars does not break only in the demo. Suggested for frontend spec 003: close the connection when the tab is hidden.
+- Q: In demo mode, should REST have any protection against volume, or stay open as today? → A: HTTP caching of the demo's read responses plus a per-IP request limit, under two conditions. The per-IP limit is adopted only if the plan confirms how the hosting platform forwards the visitor's real IP and configures the server's proxy trust (Express `trust proxy`) with the exact number of hops, so that a forged `X-Forwarded-For` cannot escape the limit and all visitors are not counted as one; if that cannot be confirmed, only the HTTP caching applies, with the reason recorded. The limit must sit well above the number of requests of a normal visit, which the plan measures. The coach's POST is excluded from HTTP caching.
+- Q: In demo mode, what should the server write to its log? → A: The per-packet log is silenced in demo mode, and only events are logged: start and time until ready, each new pass of the loop, the opening and closing of connections (normal, "demo full", "time limit"), 429 responses, and a periodic summary (every 15 minutes) with the active connections, the bytes sent over WebSocket and over REST and their sum (the bandwidth quota is a single one), and the count of coach 503 responses, which should stay at zero with the six pairs cached and signals that the frontend offers a combination with no cache. No full IP address goes to the log. Local-mode logs do not change.
+
 ## Current behaviour read from the code
 
-Read on 2026-10-21, without running anything, from `main` at `6fa1837` and, for the duration, from the frontend repository's working copy. Each item is marked **Fact** (stated by the code) or **Hypothesis** (consistent with the code and the observation, not confirmed).
+Items 1 to 3 were read on 2026-10-21, without running anything, from `main` at `6fa1837` and, for the duration, from the frontend repository's working copy. Item 4 was measured during the clarify step of the same day, by parsing the recording, with no database and no network. Each item is marked **Fact** (stated by the code) or **Hypothesis** (consistent with the code and the observation, not confirmed).
 
 ### 1. How a replay picks the session it writes to
 
@@ -54,7 +67,7 @@ Read on 2026-10-21, without running anything, from `main` at `6fa1837` and, for 
 
 - **Fact.** `src/config/env.ts` reads `WS_PORT`, `UDP_PORT` and `HTTP_PORT`, each required, an integer from 1 to 65535, and stops with a clear message at load time otherwise. It is loaded by `src/server.ts`, `tools/recorder.ts`, `tools/replayer.ts` and `src/coaching/coachService.ts` (and so by the analysis router). No `PORT` variable is read anywhere.
 - **Fact.** There are three separate listeners: REST with `app.listen(HTTP_PORT)` (`src/http/httpServer.ts`), a standalone WebSocket server on `WS_PORT` (`src/network/wsBroadcaster.ts`), and UDP bound to `0.0.0.0:UDP_PORT` (`src/network/udpListener.ts`).
-- **Fact.** CORS is `cors({ origin: true })`: any origin is reflected and allowed. There is no health endpoint.
+- **Fact.** CORS is `cors({ origin: true })`: any origin is reflected and allowed. There is no health endpoint. No `Cache-Control` header is set anywhere, and nothing changes Express's default `etag` setting, so JSON responses carry only Express's default weak ETag.
 - **Fact.** Endpoints, and what writes or pays:
 
 | Surface | What it does | Writes to the database | Calls Anthropic |
@@ -68,6 +81,13 @@ Read on 2026-10-21, without running anything, from `main` at `6fa1837` and, for 
 | UDP | Ingestion of game packets | Yes: `sessions`, `laps`, `car_telemetry_samples`, `motion_samples` | No |
 
 Anyone who can reach the UDP port can write to the database; the REST and WebSocket surfaces cannot write anything except the coach's cache row.
+
+### 4. Volume of the live stream (measured 2026-10-21, during the clarify step)
+
+- **Fact (measured).** Every connected WebSocket client receives, for every motion, lap data and car telemetry packet, a JSON message with the full array of 22 cars (`src/ws/messageFormat.ts`), with no compression. Parsing the published recording with the existing parsers and serializing each message with `buildWsMessage` (no database, no network) gives, per connection: 13,374 messages per pass, averaging 10.2 KB (motion), 16.9 KB (lap data) and 13.4 KB (car telemetry); 172.3 MiB per pass; **791.6 KiB/s, 2.72 GiB per hour**.
+- **Fact (measured).** Compressed message by message (deflate, default level, no shared context): 79.9 KiB/s, 9.9 times less, at a CPU cost of 0.79% of one core of the maintainer's machine (Intel i7-9750H) per client; at the fastest level: 90.4 KiB/s for 0.52%. The player's car only, uncompressed: 47.1 KiB/s; compressed: 24.2 KiB/s.
+- **Hypothesis.** The free instance's CPU is a fraction of one core (to be confirmed by the plan against the platform's documentation), so compression per client would cost a multiple of the percentages above on it.
+- **Fact.** The frontend reads only `message.data[message.playerCarIndex]` from each message (`Telemetry-F1/src/context/TelemetryProvider.tsx`), so a message whose array holds only the player's car, with `playerCarIndex` 0, is read the same way by today's frontend.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -85,9 +105,11 @@ A visitor opens the published frontend. The API, running in demo mode on the fre
 2. **Given** the demo session, **When** the visitor opens it, **Then** it shows laps 6 (1:14.306, invalid), 7 (1:14.144) and 8 (1:13.372, best valid lap), with sectors and validity identical to a local replay of the same recording at `1x`.
 3. **Given** the live view is open, **When** the replay advances, **Then** the visitor receives the live telemetry continuously at the recording's pace, and the stream restarts from the beginning of the recording at the end of each pass, with no gap longer than the recording's own.
 4. **Given** the replay has looped for any number of passes, **When** the visitor reloads the history, **Then** it still shows one session, three laps, the same times and the same per-lap sample counts as after the first full pass.
-5. **Given** the instance is restarted, put to sleep and woken, or its disk is wiped, **When** the visitor comes back, **Then** they see the same session and laps as before, with no error and no manual action by the maintainer.
-6. **Given** demo mode is on, **When** the server starts, **Then** no UDP port is opened.
-7. **Given** demo mode is on, **When** the visitor first loads the history after a start, **Then** what they see is [NEEDS CLARIFICATION: should the full session (all three laps and their samples) be in place before the server answers its first request, or may the history fill in while the first 1x pass runs (up to about 3 min 43 s, the recording's length)? See Edge Cases.]
+5. **Given** demo mode, **When** a live message reaches the visitor, **Then** its array holds only the player's car and `playerCarIndex` is 0.
+6. **Given** a visitor has had the live view open for 10 minutes, **When** the time limit is reached, **Then** the server closes the connection with the demo's "time limit" close code and reason and does not reopen it; reconnecting only by the visitor's action is the frontend's behaviour (frontend spec 003).
+7. **Given** the instance is restarted, put to sleep and woken, or its disk is wiped, **When** the visitor comes back, **Then** they see the same session and laps as before, with no error and no manual action by the maintainer.
+8. **Given** demo mode is on, **When** the server starts, **Then** no UDP port is opened.
+9. **Given** demo mode is on, **When** the visitor first loads the history after a start, **Then** the session is already complete, with its three laps and all their samples, because the server answers no request before that; the health endpoint reports ready only from then on.
 
 ---
 
@@ -103,8 +125,8 @@ The visitor looks at the session in the history: its date, start time and durati
 
 1. **Given** the demo has been looping for hours, **When** the visitor reads the session's duration, **Then** it equals the value after the first pass.
 2. **Given** a restart, **When** the visitor reads the session's dates and duration, **Then** they follow the same rule as before the restart.
-3. **Given** demo mode, **When** the session's dates are shown, **Then** they are [NEEDS CLARIFICATION: which time base should the demo session report? (A) the recording's own capture times, taken from the `receivedAt` field the recorder already writes (start 2026-10-16 16:30 UTC, duration the recording's span, about 4 min) — same payload shape, values that never change; (B) the time the instance started, with last-seen fixed at start plus the recording's span — same shape, the date moves on every restart; (C) a new duration field derived from the game's session time, added to the REST contract and used by the frontend in both modes — fixes the local case too, but changes the contract and needs the frontend spec to follow.]
-4. **Given** local mode, **When** any replay or live session runs, **Then** the session's dates and duration behave exactly as they do today, unless option C above is chosen.
+3. **Given** demo mode, **When** the session's dates are shown, **Then** they are the recording's own capture times: the session starts at the capture time of the recording's first packet (2026-10-16 16:30:23 UTC), its last-seen time is the capture time of the last packet, so the duration the frontend shows is the recording's span (222.8 s, displayed as 4 min), and each lap's recorded time is the capture time of the packet that completed it.
+4. **Given** local mode, **When** any replay or live session runs, **Then** the session's dates and duration behave exactly as they do today; replaying an old recording still stretches that session's duration to the current time, now documented as a known limitation.
 
 ---
 
@@ -124,6 +146,8 @@ Anyone on the internet can call the public API, with a browser or with a script.
 4. **Given** demo mode, **When** any client sends any message over the WebSocket, **Then** nothing is written.
 5. **Given** demo mode, **When** a visitor sends any other method or path, **Then** it is rejected as it is today, and nothing is written.
 6. **Given** demo mode, **When** packets are sent to the instance's UDP port number, **Then** nothing receives them, because no UDP socket exists in demo mode.
+7. **Given** demo mode and a visitor who already loaded a read endpoint, **When** their browser asks for it again, **Then** it is served from the browser's HTTP cache or revalidated without downloading the body again; the coach's POST and the health endpoint are never cached.
+8. **Given** demo mode with the per-IP limit in force (FR-027), **When** one client exceeds it, **Then** it receives 429 until its window resets, other visitors are unaffected, and adding a forged `X-Forwarded-For` header does not reset or move its count.
 
 ---
 
@@ -160,7 +184,7 @@ Before publishing, the maintainer runs, once, on their own machine, a documented
 1. **Given** the procedure, **When** the maintainer runs it, **Then** it never opens `data/telemetry.db`, it uses a disposable database, and it logs the token usage of every call.
 2. **Given** the committed seed file, **When** demo mode starts, **Then** every analysis in the file is served as cached for its pair.
 3. **Given** a seed file produced from a different recording, **When** demo mode starts, **Then** it stops with a clear message instead of serving analyses that do not match the data the visitor sees.
-4. **Given** the procedure, **When** it is asked to produce analyses, **Then** it produces exactly [NEEDS CLARIFICATION: which lap pairs should the demo offer? (A) all six ordered pairs of laps 6, 7 and 8 — six paid calls, any choice the visitor makes is covered; (B) the two pairs reachable from the frontend's default primary lap, 8 against 7 and 8 against 6 — two calls, other choices return 503; (C) only 8 against 7, the comparison the README recommends — one call.]
+4. **Given** the procedure, **When** it produces analyses, **Then** it produces exactly the six ordered pairs of laps 6, 7 and 8 (six paid calls), so any comparison a visitor can choose in the demo has a cached answer.
 5. **Given** the CI or the test suite, **When** they run, **Then** none of them can make a paid call; tests use a synthetic seed file.
 
 ---
@@ -182,17 +206,26 @@ With demo mode off, which is the default, the maintainer runs the server, the re
 
 ### Edge Cases
 
-- **First request right after a cold start.** The free tier takes about a minute to wake. If the session is built only by the 1x replay, a visitor arriving in the first pass sees a session with fewer than three laps, or none, and a seeded comparison for a lap that does not exist yet. This is the open question in Story 1, scenario 7.
-- **A lap only exists once the next one starts.** Lap completion is detected when the game reports the next lap number, so lap 8 is only recorded at the very end of a pass. Under the live-fill option, laps appear one by one; under the preload option, this is invisible to the visitor.
+- **First request right after a cold start.** The free tier takes about a minute to wake, and building the session adds to that (measured by the plan). A visitor never sees a partial session: the server answers no request until the session is complete (Story 1, scenario 9).
+- **A lap only exists once the next one starts.** Lap completion is detected when the game reports the next lap number, so lap 8 is only recorded at the very end of a pass. Because the session is built before the first request, this is invisible to the visitor.
+- **Building the session must not lose data.** The session built at startup must hold the same laps and the same samples as a full `1x` pass (2,411 per-distance samples, spec 001); building it faster than `1x` is acceptable only if nothing is lost, unlike the `max` replay speed over UDP.
+- **The recording lacks capture times.** If the recording's first or last packet has no `receivedAt`, the demo cannot know the session's dates and refuses to start rather than invent them.
 - **Restart in the middle of a pass.** The new process starts from a fresh database; the WebSocket clients of the old process are disconnected. Telling the visitor the server is waking or reconnecting is the frontend's job (frontend spec 003).
 - **The temporary disk survives a process restart.** A database left on disk by a previous process must not be reused: every start in demo mode begins from an empty database.
 - **The recording is unavailable or altered at build or start.** The published asset may be missing, partially downloaded or replaced. The demo must refuse to run with a clear message, checking the recording against the SHA-256 published in the README, rather than serve partial or different data.
 - **Loop boundary.** The recording's `overallFrameIdentifier` span (about 4,500 frames) is well above the threshold that resets the in-memory lap state between passes (100), so each pass starts clean (spec 001). A shorter recording would not; this feature uses only the published one.
 - **Cache seeded for a pair whose laps differ in the demo.** The coach cache is keyed only by session and lap numbers (known limitation). In demo mode the session is always the same recording, so the file must be tied to that recording (Story 5, scenario 3).
 - **An `ANTHROPIC_API_KEY` set by mistake on the hosting.** Demo mode refuses to start (Story 3, scenario 3) rather than silently ignoring it, so the mistake is visible on the first deploy.
-- **Non-browser clients.** CORS only limits which web pages a browser lets read the API. A script can still call every read endpoint, which is acceptable because everything readable is public demo data; it does not open any write path.
-- **Health probe during startup.** While data is being built or the seed loaded, the health endpoint reports not ready; the platform must not route visitors to a half-built demo (depends on Story 1, scenario 7).
-- **Several visitors at once.** All share one replay and one broadcast; a visitor joining mid-pass sees the stream from that point, not from the start of the recording.
+- **Non-browser clients.** The origin rule (CORS and the WebSocket handshake) only limits use from browsers: a client outside a browser sends whatever `Origin` header it wants. A script can therefore call every read endpoint and open the WebSocket, which is acceptable because everything readable is public demo data. The guarantee that no visitor writes or triggers a paid call does not rely on the origin rule (FR-015).
+- **Health probe during startup.** While the session is being built or the seed loaded, the health endpoint reports not ready, so the platform does not route visitors to a half-built demo.
+- **Local replay of an old recording.** In local mode, replaying a recording whose session already exists in the database moves that session's last-seen time to now, so its duration stretches to the current time. Unchanged by this feature; documented as a known limitation.
+- **Several visitors at once.** All share one replay and one broadcast; a visitor joining mid-pass sees the stream from that point, not from the start of the recording. At most 5 live connections are served at once (configurable); the sixth is accepted and closed immediately with the demo's own "demo full" close code and reason, while its REST pages keep working. When a connection ends, the next visitor can connect.
+- **One forgotten tab.** The connection limit does not reduce what each connection costs: at today's message volume an open tab takes about 2.7 GiB per hour (see "Current behaviour", item 4). In demo mode, sending only the player's car brings it to about 0.16 GiB per hour, and the 10-minute limit closes the connection after about 28 MiB; the tab reconnects only if the visitor acts.
+- **A forged `X-Forwarded-For`.** A client can send any `X-Forwarded-For` value. Unless the server trusts exactly the platform's proxy hops, it either reads a forged address (the client escapes the limit by changing it) or reads the proxy's own address (every visitor shares one count and the first busy visitor blocks everyone). This is why the per-IP limit is conditional on the plan confirming the platform's forwarding (FR-027).
+- **Visitors sharing one address.** Several visitors behind one network address (an office, a school, a mobile carrier) share one count; the limit is set well above a normal visit, measured by the plan, so a handful of them together are not refused.
+- **Cached responses across deploys.** The demo's data is identical on every start, but a later deploy may change the recording or the seed; a browser cache must not keep a visitor on the old data longer than the cache lifetime the plan documents.
+- **A client that reconnects on its own.** The server cannot stop a script, or a frontend that reconnects automatically, from opening a new connection after the time limit; each new connection simply counts against the limit of 5 and gets its own 10 minutes. Reconnecting only by the visitor's action is the frontend's behaviour (frontend spec 003).
+- **The frontend offers a pair with no cache.** With all six ordered pairs seeded, a coach 503 in demo mode means the frontend offered a combination outside them (for example a lap number the recording does not have); the periodic summary's 503 count makes that visible to the maintainer (FR-028).
 - **The existing 503 body.** The coach's 503 message says to configure `ANTHROPIC_API_KEY`. It is part of the contract and stays unchanged here; how the frontend presents it to a visitor belongs to the frontend's spec 003.
 
 ## Requirements *(mandatory)*
@@ -212,12 +245,12 @@ With demo mode off, which is the default, the maintainer runs the server, the re
 - **FR-006**: In demo mode, the server MUST NOT open any UDP socket.
 - **FR-007**: The recording MUST NOT be committed to git. The demo MUST obtain it from the published Release and MUST verify it against the SHA-256 published in the README before using it; on a missing file or a mismatch it MUST refuse to run with a clear message.
 - **FR-008**: The data visible to visitors MUST be bounded and stable across passes: one session, the recording's completed laps with the times, sectors and validity of a local `1x` replay, and per-lap sample counts that do not change after the first full pass.
-- **FR-009**: The state of the demo at the first visitor request after a start MUST follow the answer to the open question in Story 1, scenario 7 (complete before the first request, or filling in during the first pass), and the health endpoint's notion of "ready" (FR-017) MUST match it.
+- **FR-009**: In demo mode, before answering its first request after a start, the server MUST have the whole session in place: the recording's completed laps and all their samples, equal to what a full `1x` pass stores, with no sample lost. The health endpoint (FR-017) MUST report not ready until then. The plan measures the time this adds to startup.
 
 **Session dates and duration**
 
-- **FR-010**: In demo mode, the session's reported start, last-seen time and the duration derived from them MUST NOT change while the replay loops and MUST follow one documented rule across restarts (the rule is the open question in Story 2, scenario 3). Values that cannot be known are not invented (constitution, principle IV).
-- **FR-011**: In local mode, the session's dates and duration MUST behave as today, unless the clarification of FR-010 chooses a contract change that applies to both modes.
+- **FR-010**: In demo mode, the session's start time MUST be the capture time (`receivedAt`) of the recording's first packet, its last-seen time the capture time of the recording's last packet, and each lap's recorded time the capture time of the packet that completed it. These values MUST NOT change while the replay loops or across restarts. If the recording lacks those capture times, the server MUST refuse to start rather than invent them (constitution, principle IV). The payload shapes do not change.
+- **FR-011**: In local mode, the session's dates and duration MUST behave as today. The game's session time is not adopted as a time base by this feature, because it goes back on a flashback (spec 004).
 
 **Coach**
 
@@ -227,20 +260,35 @@ With demo mode off, which is the default, the maintainer runs the server, the re
 
 **No writes or costs from visitors**
 
-- **FR-015**: In demo mode, no request or message from a client, on any route, method or channel, MAY write to the database or trigger a call to a paid service. The only writes are those of the server's own replay and of the seeding at startup.
+- **FR-015**: In demo mode, no request or message from a client, on any route, method or channel, MAY write to the database or trigger a call to a paid service. The only writes are those of the server's own replay and of the seeding at startup. This guarantee MUST hold for a client that sends any `Origin` header, or none, so it MUST NOT depend on the origin rule of FR-018.
 
 **Hosting**
 
-- **FR-016**: In demo mode, REST and WebSocket MUST be served on the same single port. The WebSocket messages and the REST payloads MUST keep their current shapes.
+- **FR-016**: In demo mode, REST and WebSocket MUST be served on the same single port. The WebSocket messages and the REST payloads MUST keep their current shapes; the only change in content is the one in FR-025.
 - **FR-017**: The API MUST expose a health endpoint that reports success only when the demo is ready to serve visitors and failure otherwise, and that does not depend on the request's origin. In local mode it MAY exist; it MUST NOT change any other route.
-- **FR-018**: In demo mode, CORS MUST allow only the frontend's configured origin, and the WebSocket handshake MUST be refused for any browser origin other than that one. In local mode, any origin remains allowed, as today.
+- **FR-018**: In demo mode, CORS MUST allow only the frontend's configured origin, and the WebSocket handshake MUST be refused for any browser origin other than that one. This rule only limits use from browsers, since a client outside a browser chooses its own `Origin` header; it is not an access control, and the documentation MUST say so. In local mode, any origin remains allowed, as today.
 - **FR-019**: The repository MUST provide a build command that compiles the server to JavaScript using a build configuration of its own, separate from the type check, and a start command that runs the compiled output with no TypeScript runtime. `npm run dev` and `npm run typecheck` MUST keep working as today.
 
 **Contract and documentation**
 
-- **FR-020**: Every change visible to the frontend MUST be listed in the plan so the frontend's types and configuration can follow (constitution, principle VI). Known so far: the new health endpoint (addition), the single-port WebSocket address in demo mode (configuration), CORS restricted in demo mode, the demo session's date and duration values (FR-010), and no change to any existing route, error string or WebSocket message shape.
-- **FR-021**: `README.md` and `CLAUDE.md` MUST describe the demo mode, the build and start commands and the seed procedure as built, and the "no `build`, `start`" statement in `CLAUDE.md` MUST be updated in the same change. Limitations introduced by demo mode MUST be added to Known limitations in both files.
+- **FR-020**: Every change visible to the frontend MUST be listed in the plan so the frontend's types and configuration can follow (constitution, principle VI). Known so far: the new health endpoint (addition), the single-port WebSocket address in demo mode (configuration), CORS restricted in demo mode, the demo session's date and duration values (FR-010), the "demo full" and "time limit" close codes and reasons (FR-023, FR-024), the demo's live messages carrying only the player's car with `playerCarIndex` 0 (FR-025, a contract change despite the unchanged shape), HTTP caching headers on the demo's read responses (FR-026), the 429 status for a client over the per-IP limit if FR-027 is adopted, and no change to any existing route, error string or WebSocket message shape.
+- **FR-021**: `README.md` and `CLAUDE.md` MUST describe the demo mode, the build and start commands and the seed procedure as built, and the "no `build`, `start`" statement in `CLAUDE.md` MUST be updated in the same change. Limitations introduced by demo mode MUST be added to Known limitations in both files, and so MUST the existing local-mode behaviour that replaying an old recording stretches that session's duration to the current time.
 - **FR-022**: No runtime dependency MAY be added without a reason stated in the plan (constitution, principle V).
+
+**Live stream capacity**
+
+- **FR-023**: In demo mode, the server MUST limit the number of simultaneous WebSocket connections, configurable, with a default of 5. A connection beyond the limit MUST be accepted and closed immediately with a close code and a reason specific to the demo ("demo full"), so a browser can tell why; REST MUST keep working for that visitor. In local mode there is no limit, as today. The limit protects against many simultaneous visitors only, not against the volume of each connection.
+- **FR-024**: In demo mode, the server MUST close each WebSocket connection when it reaches a maximum duration, configurable, with a default of 10 minutes, using a close code and a reason specific to the demo ("time limit"), distinct from "demo full". The server MUST NOT reopen it; a new connection is a new visit, subject to FR-023 and to its own time limit. In local mode there is no time limit, as today.
+- **FR-025**: In demo mode, each WebSocket message MUST carry only the player's car in its data array, with `playerCarIndex` set to 0. This is a contract change even though the message shape is the same, and MUST be documented as such in `README.md` wherever it describes the WebSocket payload (today, "all 22 cars per message" under Features, and the contract-ownership note; the README has no dedicated contract section yet) and in the list of FR-020. In local mode the array keeps all 22 cars and the game's `playerCarIndex`, as today.
+
+**REST volume**
+
+- **FR-026**: In demo mode, the read endpoints' responses MUST carry HTTP caching information that lets a browser reuse or revalidate them without downloading the body again, with a cache lifetime documented by the plan that also bounds how long a visitor can see data from a previous deploy. The coach's POST and the health endpoint MUST NOT be cacheable. In local mode, the caching behaviour stays as today (Express's default validators only; see "Current behaviour", item 3).
+- **FR-027**: In demo mode, REST requests MUST be limited per client IP address, answering 429 beyond the limit, under these conditions: the plan MUST confirm how the hosting platform forwards the visitor's real address and MUST configure the server's proxy trust with the exact number of hops, so that a forged `X-Forwarded-For` neither escapes the limit nor makes all visitors count as one; the limit MUST sit well above the number of requests of a normal visit, which the plan measures; the health endpoint is not limited. If the platform's forwarding cannot be confirmed, this requirement is dropped, only FR-026 applies, and the plan records the reason. In local mode there is no limit, as today.
+
+**Observability**
+
+- **FR-028**: In demo mode, the server MUST NOT write the per-packet log lines it writes today, and MUST log these events instead: the start and the time until ready; each new pass of the loop; each WebSocket connection opened and closed, with the reason (normal, "demo full", "time limit"); each 429 response, if FR-027 is adopted; and, every 15 minutes, a summary with the number of active connections, the bytes sent since start over WebSocket, over REST and their sum, and the number of coach 503 responses since start. The byte counts are the application's own count, not the platform's billing figure. No full IP address MAY be written to the log. In local mode, the logs stay as today.
 
 ### Key Entities *(include if feature involves data)*
 
@@ -249,12 +297,13 @@ With demo mode off, which is the default, the maintainer runs the server, the re
 - **Demo session**: the single session the replay produces from the recording; its laps, samples and reported dates are what visitors see.
 - **Coach seed file**: a versioned file holding, for each offered lap pair, the analysis text, the insights it was produced from and the model, plus the identity of the recording it belongs to.
 - **Health status**: whether the demo is ready (data built, seed loaded, replay running), as reported to the hosting platform.
+- **Live connection (demo mode)**: one visitor's WebSocket connection; counts against the limit of simultaneous connections (default 5), lives at most the maximum duration (default 10 minutes), receives only the player's car, and ends with a normal close, "demo full" or "time limit".
 
 ## Success Criteria *(mandatory)*
 
 ### Measurable Outcomes
 
-- **SC-001**: In demo mode, after any start, the history shows exactly 1 session with laps 6, 7 and 8 whose times, sectors and validity match a local `1x` replay of the recording 100% of the time.
+- **SC-001**: In demo mode, from the first request answered after any start, the history shows exactly 1 session with laps 6, 7 and 8 whose times, sectors, validity and per-lap sample counts match a local `1x` replay of the recording (2,411 per-distance samples in total).
 - **SC-002**: After at least 20 consecutive loop passes (about 75 minutes), the session count, lap count, lap times and per-lap sample counts equal those after the first full pass, and the session's reported duration has changed by 0 minutes.
 - **SC-003**: After 3 restarts in a row, each starting with no database, visitors see the same session, laps and dates rule every time.
 - **SC-004**: A scripted battery that hits every route and method, with valid and malformed inputs, cached and non-cached pairs, WebSocket client messages and UDP traffic, changes 0 rows in any table and causes 0 outbound calls to Anthropic.
@@ -263,6 +312,12 @@ With demo mode off, which is the default, the maintainer runs the server, the re
 - **SC-007**: With demo mode off, the test suite and the type check pass, and the spec 001 validation still delivers every lap and all 2,411 predicted samples at `1x`.
 - **SC-008**: The health endpoint reports not ready until the demo can serve visitors, and ready from then on, checked once by probing during and after startup.
 - **SC-009**: The server starts from the compiled output with the documented build and start commands and runs without any TypeScript runtime.
+- **SC-010**: The demo session's start is 2026-10-16 16:30:23 UTC and its displayed duration is 4 min, read after the first pass, after 20 passes and after a restart.
+- **SC-011**: With 5 live connections open, a sixth receives the "demo full" close code and reason within 1 second and can still load the history; after one of the 5 closes, a new connection succeeds.
+- **SC-012**: In demo mode, a live connection receives on average no more than 50 KiB/s over a full pass (47.1 KiB/s measured for the player's car alone, against 791.6 KiB/s today), and is closed with the "time limit" close code and reason 10 minutes after it opened, having received no more than 30 MiB.
+- **SC-013**: In demo mode, a second load of the same pages by the same browser downloads 0 response bodies again for unchanged read endpoints (served from cache or revalidated), while the coach's POST and the health endpoint are answered fresh every time.
+- **SC-014**: If FR-027 is adopted: a scripted normal visit, repeated by the plan's measured margin, never receives 429; a client exceeding the limit receives 429; the same client sending forged `X-Forwarded-For` values keeps one count; and two clients from different addresses are counted separately.
+- **SC-015**: Over one hour of demo mode with visitors, the log holds 0 per-packet lines, one summary every 15 minutes whose WebSocket, REST and total byte counts are each non-zero when traffic occurred, a coach 503 count of 0 while visitors use only the six cached pairs, and no full IP address.
 
 ## Assumptions
 
@@ -271,6 +326,7 @@ With demo mode off, which is the default, the maintainer runs the server, the re
 - **Data.** The published recording has no flashback, and its laps are 6, 7 and 8, so the flashback and Time Trial out-lap limitations do not affect the demo; fixing them is spec 004.
 - **Coach semantics.** An analysis is directional: the pair (8, 7) and the pair (7, 8) are different cache entries, as today.
 - **CI.** The CI keeps its `typecheck` and `test` checks unchanged. Whether the build is also verified in the CI is a plan decision; adding a required check follows the check-names rule in `CLAUDE.md`.
-- **Decided here, open to the clarify step.** Demo mode refuses to start with an API key present (FR-003) rather than ignoring it; the WebSocket handshake follows the same origin rule as CORS (FR-018); the existing 503 body stays unchanged.
-- **Out of scope.** The frontend's production configuration and its "server is waking up" notice (frontend spec 003); the deploy itself and the links in both READMEs (the next step); flashback and out-lap handling (spec 004); changing how local mode reports session dates, unless FR-010's clarification chooses so.
+- **Approved by the maintainer (clarify session 2026-10-21).** Demo mode refuses to start with an API key present (FR-003) rather than ignoring it; the WebSocket handshake follows the same origin rule as CORS (FR-018); the existing 503 body stays unchanged.
+- **Suggestions for frontend spec 003** (recorded here, decided there): show the "demo full" and "time limit" closes to the visitor; reconnect only by the visitor's action; close the connection when the tab is hidden.
+- **Out of scope.** The frontend's production configuration and its "server is waking up" notice (frontend spec 003); the deploy itself and the links in both READMEs (the next step); flashback and out-lap handling (spec 004); changing how local mode reports session dates (only documented as a known limitation); the game's session time as a time base (spec 004).
 - Commits follow the project rule: spec, plan and tasks are committed (`docs:`) before any implementation, with Conventional Commits and no `Co-Authored-By` trailer.
