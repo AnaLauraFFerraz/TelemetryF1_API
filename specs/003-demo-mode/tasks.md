@@ -129,15 +129,15 @@ description: "Task list for spec 003, demo mode for a public demonstration"
 
 ### The single-car message (FR-025; T-3; research.md point 6)
 
-- [ ] T031 [P] [US1] Stub `src/demo/playerOnly.ts`: `export function toPlayerOnlyMessage<T>(message: TelemetryWsMessage<T>): TelemetryWsMessage<T>` returning `message` unchanged.
-- [ ] T032 [US1] Red: write `src/demo/playerOnly.test.ts`: for a message with 22 cars and `playerCarIndex` 7, the result has `data` of length 1 equal to car 7 and `playerCarIndex` 0; `type`, `sessionUID`, `sessionTime`, `frameIdentifier` unchanged; the input object and its array are not mutated. Run; confirm `assert` failures.
-- [ ] T033 [US1] Green: implement `toPlayerOnlyMessage`.
+- [x] T031 [P] [US1] Stub `src/demo/playerOnly.ts`: `export function toPlayerOnlyMessage<T>(message: TelemetryWsMessage<T>): TelemetryWsMessage<T>` returning `message` unchanged.
+- [x] T032 [US1] Red: write `src/demo/playerOnly.test.ts`: for a message with 22 cars and `playerCarIndex` 7, the result has `data` of length 1 equal to car 7 and `playerCarIndex` 0; `type`, `sessionUID`, `sessionTime`, `frameIdentifier` unchanged; the input object and its array are not mutated. Run; confirm `assert` failures.
+- [x] T033 [US1] Green: implement `toPlayerOnlyMessage`.
 
 ### Origin and capacity decisions (FR-018, FR-023; research.md point 5)
 
-- [ ] T034 [P] [US1] Stub `src/demo/liveConnections.ts`: `decideOrigin(origin: string | undefined, allowedOrigin: string): "accept" | "refuse"` and `decideCapacity(openConnections: number, maxConnections: number): "accept" | "full"`, both returning `"accept"`.
-- [ ] T035 [US1] Red: write `src/demo/liveConnections.test.ts`: `decideOrigin` accepts the exact origin and an absent `Origin`; refuses another origin, the allowed origin with a trailing slash, and a different case of the host; `decideCapacity` accepts 0…max−1 open and returns `"full"` at max, for max 1 and 5. Run; confirm `assert` failures.
-- [ ] T036 [US1] Green: implement both. Commit T031–T036: `feat: add the single-car message and the live-connection decisions`.
+- [x] T034 [P] [US1] Stub `src/demo/liveConnections.ts`: `decideOrigin(origin: string | undefined, allowedOrigin: string): "accept" | "refuse"` and `decideCapacity(openConnections: number, maxConnections: number): "accept" | "full"`, both returning `"accept"`.
+- [x] T035 [US1] Red: write `src/demo/liveConnections.test.ts`: `decideOrigin` accepts the exact origin and an absent `Origin`; refuses another origin, the allowed origin with a trailing slash, and a different case of the host; `decideCapacity` accepts 0…max−1 open and returns `"full"` at max, for max 1 and 5. Run; confirm `assert` failures.
+- [x] T036 [US1] Green: implement both. Commit T031–T036: `feat: add the single-car message and the live-connection decisions`.
 
 ### The demo WebSocket server (FR-016, FR-018, FR-023, FR-024, FR-025, FR-028 counters; T-3; contracts/websocket.md)
 
