@@ -22,6 +22,8 @@ after(() => {
 
 const PURE_MODULES = [
   "./captureTimes",
+  "./coachSeed",
+  "./insightsMatch",
   "./playerOnly",
   "./liveConnections",
   "./recording",
