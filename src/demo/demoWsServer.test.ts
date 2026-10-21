@@ -54,6 +54,16 @@ function waitFor<T>(register: (resolve: (value: T) => void, fail: (reason: strin
   });
 }
 
+// O close do cliente pode chegar antes do evento "closed" do servidor (o ws
+// só emite o close do lado do servidor quando o fechamento termina): espera
+// o evento aparecer, com prazo, em vez de conferir na hora.
+function eventSeen(events: DemoWsEvent[], match: (e: DemoWsEvent) => boolean, what: string): Promise<void> {
+  return waitFor<void>((resolve) => {
+    const poll = () => (events.some(match) ? resolve() : setTimeout(poll, 10));
+    poll();
+  }, what);
+}
+
 function connect(url: string, origin?: string): WebSocket {
   const client = new WebSocket(url, origin ? { origin } : {});
   cleanups.push(() => client.terminate());
@@ -108,7 +118,7 @@ test("no tempo máximo a conexão é fechada com 4002 time limit", async () => {
   await opened(client);
   const result = await closed(client);
   assert.deepEqual(result, { code: 4002, reason: "time limit" });
-  assert.ok(events.some((e) => e.type === "closed" && e.code === 4002), JSON.stringify(events));
+  await eventSeen(events, (e) => e.type === "closed" && e.code === 4002, "o evento closed 4002 no servidor");
 });
 
 test("fechada antes do tempo máximo, a conexão não recebe o 4002 depois", async () => {
@@ -117,9 +127,9 @@ test("fechada antes do tempo máximo, a conexão não recebe o 4002 depois", asy
   await opened(client);
   client.close(1000, "tchau");
   await closed(client);
+  await eventSeen(events, (e) => e.type === "closed", "o evento closed no servidor");
   await new Promise((resolve) => setTimeout(resolve, 500));
   assert.ok(!events.some((e) => e.type === "closed" && e.code === 4002), JSON.stringify(events));
-  assert.ok(events.some((e) => e.type === "closed"), JSON.stringify(events));
 });
 
 test("com compressão ligada, o cliente que oferece negocia permessage-deflate", async () => {
