@@ -21,7 +21,7 @@ Owner: this repository (constitution, principle VI). The frontend mirrors it in 
 | Address | Same host and port as REST (`PORT`), any path: `wss://<service host>/` behind the platform's TLS | FR-016 |
 | `data` | **Only the player's car**: an array of length 1 | FR-025 |
 | `playerCarIndex` | **Always `0`**, the index of that single car | FR-025 |
-| Compression | `permessage-deflate` (RFC 7692) negotiated whenever the client offers it, as every current browser does; server and client context takeover, the library's defaults. A client that does not offer it receives the same messages uncompressed. Measured on the wire: 6.7 KiB/s instead of 47.3 KiB/s. | FR-025 |
+| Compression | `permessage-deflate` (RFC 7692) negotiated whenever the client offers it, as every current browser does; server and client context takeover, the library's defaults. A client that does not offer it receives the same messages uncompressed. Measured on the wire: 6.7 KiB/s instead of 47.3 KiB/s. On by default; `DEMO_WS_COMPRESSION=false` turns it off without a code deploy ([configuration.md](configuration.md)), and the server then declines the extension. | FR-025 |
 | Rate | The recording's own 20 Hz per packet type, unchanged. | FR-025 |
 | Origin | Handshake with an `Origin` header different from the configured frontend origin: refused with HTTP `403 Forbidden` before the upgrade. No `Origin` header (non-browser client): accepted. This limits browsers only; it is not access control. | FR-018 |
 | Capacity | At most `DEMO_MAX_CONNECTIONS` (default 5) open connections. One more is accepted and closed at once with **code `4001`, reason `"demo full"`**. | FR-023 |

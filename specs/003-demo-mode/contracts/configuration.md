@@ -13,6 +13,7 @@ Unchanged: `WS_PORT`, `UDP_PORT`, `HTTP_PORT` required (1–65535) with today's 
 | `DEMO_ALLOWED_ORIGIN` | yes | A single origin, `scheme://host[:port]`, with no path and no trailing slash (`new URL(value).origin === value`). | — |
 | `DEMO_MAX_CONNECTIONS` | no | Integer ≥ 1. | `5` |
 | `DEMO_MAX_CONNECTION_MINUTES` | no | Integer ≥ 1. | `5` |
+| `DEMO_WS_COMPRESSION` | no | `true` or `false`. Unset or empty: `true`. Any other value: the server stops with a message, as for `DEMO_MODE`. `false` turns off the WebSocket's per-message deflate, the operational way out, with no code deploy, if the process CPU time in the 15-minute summary shows the instance saturated; the messages are then sent uncompressed (47.3 KiB/s instead of 6.7 KiB/s per connection, research.md point 6). | `true` |
 | `DEMO_RECORDING_PATH` | no | Path to the recording. | `recordings/demo-interlagos-tt-20hz-laps6-8.jsonl` at the project root |
 | `DEMO_SEED_PATH` | no | Path to the seed file. | `demo/coach-seed.json` at the project root |
 | `ANTHROPIC_API_KEY` | **forbidden** | If non-empty, the server stops with a message saying demo mode does not accept it. | — |

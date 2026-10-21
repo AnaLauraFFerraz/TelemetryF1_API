@@ -122,13 +122,13 @@ README.md, CLAUDE.md            # CHANGED with each behaviour (see Documentation
 
 ### Start sequence in demo mode (`src/demo/demoServer.ts`)
 
-1. `parseDemoConfig(process.env)`: `DEMO_MODE`, `PORT`, `DEMO_ALLOWED_ORIGIN`, limits (5 connections, 5 minutes), paths; refuse `ANTHROPIC_API_KEY` and `DB_PATH` ([contracts/configuration.md](contracts/configuration.md)). Nothing opened yet.
+1. `parseDemoConfig(process.env)`: `DEMO_MODE`, `PORT`, `DEMO_ALLOWED_ORIGIN`, limits (5 connections, 5 minutes), `DEMO_WS_COMPRESSION` (default `true`), paths; refuse `ANTHROPIC_API_KEY` and `DB_PATH` ([contracts/configuration.md](contracts/configuration.md)). Nothing opened yet.
 2. Read the recording, compute its SHA-256, compare with the seed file's `recordingSha256`; in production that value equals `PUBLISHED_RECORDING_SHA256`, which a unit test ties to the README. A missing recording stops the start (T-4).
 3. Open the database (`:memory:`), then `buildDemoSession(packets)`: every packet through `dispatchPacket` + `persistTelemetry`, collecting the completed laps' `receivedAt`.
 4. `buildCaptureTimes(...)` → `applyCaptureTimes(sessionId, times)`.
 5. Validate the seed ([contracts/coach-seed-file.md](contracts/coach-seed-file.md)), including `insightsMatch(entry.insights, buildInsights(pair))` for every entry (research.md, point 7); insert the entries.
 6. `PRAGMA query_only = ON`.
-7. Create the HTTP server from `createApp({ demo })`; `attachDemoWsServer(server, { allowedOrigin, maxConnections, maxConnectionMs, perMessageDeflate: {}, onEvent })`; `listen(PORT, "0.0.0.0")`.
+7. Create the HTTP server from `createApp({ demo })`; `attachDemoWsServer(server, { allowedOrigin, maxConnections, maxConnectionMs, perMessageDeflate: config.wsCompression ? {} : false, onEvent })`; `listen(PORT, "0.0.0.0")`. `DEMO_WS_COMPRESSION=false` is the way out, without a code deploy, if the summary's process CPU time shows the instance saturated; the start log states whether compression is on.
 8. `runReplay(packets, { speed: "1x", loop: true }, { send })`, where `send` dispatches the buffer and broadcasts `toPlayerOnlyMessage(buildWsMessage(...))` for motion, lap data and car telemetry, without persisting. `onPass` logs each pass.
 9. Log "pronto" with the elapsed time; start the 15-minute summary (connections, WebSocket and REST socket bytes, coach 503s, process CPU time).
 10. `SIGTERM`/`SIGINT`: abort the replay, close the connections with `1001`, close the server and the database.
@@ -147,7 +147,7 @@ For each pure function, the order is: create the module with the final signature
 | `buildCaptureTimes` | `src/demo/captureTimes.ts` | ISO strings for start, last seen and each lap; throws when a `receivedAt` is missing; last ≥ first |
 | `decideOrigin` | `src/demo/liveConnections.ts` | exact match accepted; other origin refused; absent `Origin` accepted; trailing-slash and case variants refused |
 | `decideCapacity` | `src/demo/liveConnections.ts` | below the limit accepted; at the limit "full" (4001); the limit configurable |
-| `parseDemoConfig` | `src/config/demoEnv.ts` | refuses a non-empty `ANTHROPIC_API_KEY` and `DB_PATH` with the exact messages; requires `PORT` and `DEMO_ALLOWED_ORIGIN`; rejects an origin with a path; defaults 5 connections and 5 minutes; rejects `DEMO_MODE=yes` |
+| `parseDemoConfig` | `src/config/demoEnv.ts` | refuses a non-empty `ANTHROPIC_API_KEY` and `DB_PATH` with the exact messages; requires `PORT` and `DEMO_ALLOWED_ORIGIN`; rejects an origin with a path; defaults 5 connections and 5 minutes; rejects `DEMO_MODE=yes`; `DEMO_WS_COMPRESSION` unset or empty → on, `false` → off, `no` → refused |
 | `insightsMatch` | `src/demo/insightsMatch.ts` | equal objects match; 0.35 vs 0.36 matches; 0.35 vs 0.37 does not; a one-ulp difference in a copied distance matches; a corner more or less, a changed boolean or `severity`, `null` vs a number, a missing or extra key do not; the result names the first differing path |
 | `validateCoachSeed` | `src/demo/coachSeed.ts` | accepts a valid file; refuses another recording's hash, another session UID, an unknown lap, a duplicate pair, `lapA = lapB`, an unknown `formatVersion`, insights beyond the tolerance |
 | `findProjectRoot` | `src/config/projectRoot.ts` | from source, the folder holding this repository's `package.json` |
@@ -156,7 +156,7 @@ For each pure function, the order is: create the module with the final signature
 
 The request-limit function is not built, because FR-027 is not adopted.
 
-**In-process tests with an isolated database** (`testDb.ts`): `persistTelemetry` returns the completed lap; `applyCaptureTimes` rewrites the rows; after `query_only`, an insert fails; `attachDemoWsServer` on an ephemeral port with `maxConnectionMs` of a few hundred milliseconds closes with 4002, the second connection with a limit of 1 closes with 4001, a foreign origin gets 403, and a client that offers per-message deflate gets `permessage-deflate` in `extensions`.
+**In-process tests with an isolated database** (`testDb.ts`): `persistTelemetry` returns the completed lap; `applyCaptureTimes` rewrites the rows; after `query_only`, an insert fails; `attachDemoWsServer` on an ephemeral port with `maxConnectionMs` of a few hundred milliseconds closes with 4002, the second connection with a limit of 1 closes with 4001, a foreign origin gets 403, a client that offers per-message deflate gets `permessage-deflate` in `extensions`, and with compression turned off the same client gets no extension.
 
 **Demo integration test** (spawned, like `serverFailFast.test.ts`): a synthetic recording with `receivedAt` and a matching synthetic seed (its insights computed by the test from the same synthetic laps), both written by the test to a temporary folder; the server in demo mode on a free port; asserts one session with the synthetic capture dates, the laps and samples, `Cache-Control` and a `304` on revalidation, the seeded pair cached and another 503, CORS for the allowed origin only, single-car compressed WebSocket messages, and that no file named `telemetry.db` appears anywhere it can see. Plus spawned refusals: the key present, `DB_PATH` present, the recording missing or altered, the seed for another recording, a seed whose insights differ by more than the tolerance; each exits non-zero with its message and binds no port.
 

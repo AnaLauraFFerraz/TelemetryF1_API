@@ -223,7 +223,7 @@ ws perMessageDeflate default threshold (1024 B): ... 1.46 MiB on the wire per pa
 - **CPU**: 1.1–1.2% of a local core per client for the server, about ten times the uncompressed send. Level 1 saves little (1.0–1.15%): the cost is mostly the library's per-message asynchronous zlib work, not the compression level. On the 0.1-CPU instance this is roughly 11–12% per client (estimate). The summary log reports the process CPU time so the estimate can be checked after the deploy (point 10).
 - **Memory**: with context takeover each connection keeps its own zlib state (about 256 KiB for the default window and memory level, from zlib's documented formula), so about 1.3 MiB for 5 connections.
 
-**Decision**: `perMessageDeflate` with the library's defaults (context takeover, default level) on the demo's WebSocket server only; 20 Hz kept; the maximum connection time is 5 minutes (FR-024). A client that does not offer the extension receives the same messages uncompressed.
+**Decision**: `perMessageDeflate` with the library's defaults (context takeover, default level) on the demo's WebSocket server only; 20 Hz kept; the maximum connection time is 5 minutes (FR-024). A client that does not offer the extension receives the same messages uncompressed. Because the CPU figure on 0.1 CPU is an estimate, `DEMO_WS_COMPRESSION=false` (default `true`) turns compression off without a code deploy if the summary's process CPU time shows the instance saturated (added after the plan review, at the maintainer's request).
 
 ---
 

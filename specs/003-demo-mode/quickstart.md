@@ -35,12 +35,12 @@ DEMO_MODE=true PORT=10000 DEMO_ALLOWED_ORIGIN=http://localhost:5173 npm start
 | CORS other | same with `Origin: https://example.com` | no `Access-Control-Allow-Origin` |
 | WS origin | open a WebSocket to `ws://localhost:10000/` with `Origin: https://example.com` | handshake refused, `403` |
 | WS single car | open one with the allowed origin | messages with `data.length === 1`, `playerCarIndex === 0` |
-| WS compression | the same connection, from a browser or a client that offers it | `permessage-deflate` negotiated (the browser's network panel shows it in `Sec-WebSocket-Extensions`) |
+| WS compression | the same connection, from a browser or a client that offers it | `permessage-deflate` negotiated (the browser's network panel shows it in `Sec-WebSocket-Extensions`); restarted with `DEMO_WS_COMPRESSION=false`, no extension is negotiated and the start log says compression is off |
 | WS capacity | open 6 | the sixth closes with `4001` `"demo full"`; after closing one, a new one opens |
 | WS time limit | keep one open 5 minutes (or start with `DEMO_MAX_CONNECTION_MINUTES=1`) | closed with `4002` `"time limit"` |
 | Summary | wait 15 minutes | one `[demo]` summary with connections, WS/REST/total socket bytes, coach 503s and process CPU time |
 
-Refusals at start, each with a clear message and no port bound: `ANTHROPIC_API_KEY` set; `DB_PATH` set; `DEMO_ALLOWED_ORIGIN` missing or with a path; `DEMO_MODE=yes`; the recording missing or altered; the seed file missing, malformed or for another recording; a seed entry whose insights differ beyond the tolerance (edit one number in a copy of the seed by 0.05 and point `DEMO_SEED_PATH` at it).
+Refusals at start, each with a clear message and no port bound: `ANTHROPIC_API_KEY` set; `DB_PATH` set; `DEMO_ALLOWED_ORIGIN` missing or with a path; `DEMO_MODE=yes`; `DEMO_WS_COMPRESSION=no`; the recording missing or altered; the seed file missing, malformed or for another recording; a seed entry whose insights differ beyond the tolerance (edit one number in a copy of the seed by 0.05 and point `DEMO_SEED_PATH` at it).
 
 ## C. Local mode unchanged (SC-007)
 
