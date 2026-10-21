@@ -75,7 +75,8 @@ npm run dev
 To run the compiled server instead of `ts-node-dev`:
 
 ```bash
-npm run build           # compiles src/ and tools/ to dist/ with tsconfig.build.json (tests excluded)
+npm run build           # compiles src/ and tools/ to dist/ with tsconfig.build.json (tests excluded),
+                        # then downloads and verifies the demo recording (see "Demo mode")
 npm start               # runs dist/src/server.js, with the same .env
 ```
 
@@ -130,7 +131,9 @@ npm run analyze -- <sessionId> <lapA> <lapB>
 
 ## Demo mode
 
-> **Partial: being built on this branch (spec 003).** At this point only the configuration exists: with `DEMO_MODE=true` the server validates the settings below and then stops with `[demo] modo demo ainda não disponível nesta versão: só a configuração é validada.` Nothing else of the demo runs yet.
+> **Partial: being built on this branch (spec 003).** At this point only the configuration and the recording download exist: with `DEMO_MODE=true` the server validates the settings below and then stops with `[demo] modo demo ainda não disponível nesta versão: só a configuração é validada.` Nothing else of the demo runs yet.
+
+**The recording.** `npm run build` ends by downloading the published recording ([sample-recording-v1](https://github.com/AnaLauraFFerraz/TelemetryF1_API/releases/tag/sample-recording-v1)) to `recordings/demo-interlagos-tt-20hz-laps6-8.jsonl` (or `DEMO_RECORDING_PATH`) and checking its SHA-256 against the one published in "Running without the game". If a verified copy is already there, nothing is downloaded. The download goes to a temporary file next to the destination and replaces it only after the check; a failed download or a mismatch fails the build and leaves any existing file as it was. An existing file with the wrong hash is replaced by a verified download, with a log line.
 
 Demo mode is selected with `DEMO_MODE=true` and is off by default. With it on, the three local ports are not read, and the database is always in memory (`data/telemetry.db` is never opened).
 
