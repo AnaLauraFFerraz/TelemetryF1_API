@@ -20,6 +20,7 @@ export interface ExportCoachSeedInput {
   existing: CoachSeedFile | undefined;
   generate: GenerateCoaching;
   currentModel: string;
+  onProgress?: (partial: CoachSeedFile) => void;
 }
 
 /**
@@ -51,16 +52,32 @@ export async function exportCoachSeed(input: ExportCoachSeedInput): Promise<Coac
       : [];
 
   const pairs = [...input.pairs].sort(([a1, b1], [a2, b2]) => a1 - a2 || b1 - b2);
+  const findPrevious = (lapA: number, lapB: number) => reusable.find((entry) => entry.lapA === lapA && entry.lapB === lapB);
   const entries: CoachSeedEntry[] = [];
+
+  // O progresso leva os pares já processados mais as entradas anteriores dos
+  // que ainda faltam: uma falha no meio não pode apagar um par já pago, nem
+  // um par válido que esta rodada ainda nem conferiu.
+  const progress = (): CoachSeedFile => ({
+    formatVersion: 1,
+    recordingSha256: input.recordingSha256,
+    sessionUid: build.sessionUid,
+    entries: pairs.flatMap(([lapA, lapB], i) => {
+      const entry = i < entries.length ? entries[i] : findPrevious(lapA, lapB);
+      return entry ? [entry] : [];
+    }),
+  });
+
   for (const [lapA, lapB] of pairs) {
     const insights = computeInsights(lapA, lapB);
-    const previous = reusable.find((entry) => entry.lapA === lapA && entry.lapB === lapB);
+    const previous = findPrevious(lapA, lapB);
     if (previous && previous.model === input.currentModel && insightsMatch(previous.insights, insights).match) {
       entries.push(previous);
       continue;
     }
     const { text, model } = await input.generate(insights, benchmark);
     entries.push({ lapA, lapB, model, analysisText: text, insights });
+    input.onProgress?.(progress());
   }
 
   const seed: CoachSeedFile = { formatVersion: 1, recordingSha256: input.recordingSha256, sessionUid: build.sessionUid, entries };

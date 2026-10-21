@@ -103,6 +103,64 @@ test("um par gerado por outro modelo é pedido de novo", async () => {
   assert.deepEqual(second.seed.entries[0], first.seed.entries[0]);
 });
 
+test("a cada par pedido, o progresso parcial é entregue, e uma falha no meio não perde os pares já pagos", async () => {
+  const partials: CoachSeedFile[] = [];
+  let calls = 0;
+  const failingOnSecond = async () => {
+    calls += 1;
+    if (calls === 2) throw new Error("falha simulada da API");
+    return { text: `análise ${calls}`, model: "modelo-falso" };
+  };
+
+  await assert.rejects(
+    exportCoachSeed({
+      packets: recording.packets,
+      recordingSha256: HASH,
+      pairs: PAIRS,
+      existing: undefined,
+      generate: failingOnSecond,
+      currentModel: "modelo-falso",
+      onProgress: (partial) => partials.push(structuredClone(partial)),
+    }),
+    { message: "falha simulada da API" },
+  );
+  assert.equal(partials.length, 1, "o par pago antes da falha não foi entregue como progresso");
+  assert.deepEqual(
+    partials[0].entries.map((e) => [e.lapA, e.lapB]),
+    [[1, 2]],
+  );
+
+  // Um arquivo parcial válido (menos pares que o pedido) é lido pela rodada
+  // seguinte, que só pede o que falta.
+  const resumed = await run(partials[0]);
+  assert.equal(resumed.calls, 1);
+  assert.deepEqual(resumed.seed.entries[0], partials[0].entries[0]);
+  assert.equal(resumed.seed.entries.length, 2);
+});
+
+test("o progresso parcial mantém as entradas anteriores dos pares ainda não processados", async () => {
+  const first = await firstRun();
+  const stale: CoachSeedFile = structuredClone(first.seed);
+  stale.entries[0].insights.totalDeltaS += 1;
+
+  const partials: CoachSeedFile[] = [];
+  const coach = fakeCoach();
+  await exportCoachSeed({
+    packets: recording.packets,
+    recordingSha256: HASH,
+    pairs: PAIRS,
+    existing: stale,
+    generate: coach.generate,
+    currentModel: "modelo-falso",
+    onProgress: (partial) => partials.push(structuredClone(partial)),
+  });
+
+  assert.equal(coach.calls.length, 1);
+  assert.equal(partials.length, 1);
+  assert.equal(partials[0].entries.length, 2, "o par ainda não processado sumiu do progresso parcial");
+  assert.deepEqual(partials[0].entries[1], first.seed.entries[1]);
+});
+
 test("um cache de outra gravação não é reaproveitado", async () => {
   const first = await firstRun();
   const otherRecording: CoachSeedFile = { ...structuredClone(first.seed), recordingSha256: "d".repeat(64) };

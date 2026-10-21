@@ -40,7 +40,7 @@ flowchart LR
 | `src/http/` | Express REST API |
 | `src/replay/` | Pure replay pacing (`computeDelayMs`) and the orchestration loop (`runReplay`): speed, loop, absolute-deadline scheduling so error does not accumulate over a long recording |
 | `src/tooling/` | Tests of the project's own tooling: the test of the empty-discovery guard |
-| `tools/` | Recorder, an offline `analyze` CLI, a thin replayer CLI over `src/replay/`, `fetchDemoRecording.ts` (the last step of `npm run build`: downloads and verifies the demo recording), and `assertTestFiles.ts`, the guard that runs as the `pretest` of `npm test` |
+| `tools/` | Recorder, an offline `analyze` CLI, a thin replayer CLI over `src/replay/`, `fetchDemoRecording.ts` (the last step of `npm run build`: downloads and verifies the demo recording), `exportCoachSeed.ts` (the maintainer's paid, one-off export of `demo/coach-seed.json`), and `assertTestFiles.ts`, the guard that runs as the `pretest` of `npm test` |
 
 ## Features
 
@@ -160,7 +160,8 @@ DB_PATH=:memory: ANTHROPIC_API_KEY=<your key> npm run export-coach-seed
 
 - builds the session from the published recording in a disposable database (it refuses an unset `DB_PATH` and any spelling of `data/telemetry.db`, and refuses to run without a key);
 - asks the coach for the six ordered pairs of laps 6, 7 and 8, printing each call's token usage;
-- reuses a pair already in the file when the recording, the model and the insights still match, so a second run makes no call. Insights are compared structurally, with numbers equal within 0.01 + 1e-9, because the file is made on one machine and checked on another, possibly with another engine version.
+- rewrites the file after each paid pair, atomically (a temporary file in `demo/` renamed over `coach-seed.json`), so an interrupted run keeps every pair it paid for and never leaves half a JSON;
+- reuses a pair already in the file when the recording, the model and the insights still match, so a second run makes no call, and a run after an interrupted one asks only for the missing pairs. Insights are compared structurally, with numbers equal within 0.01 + 1e-9, because the file is made on one machine and checked on another, possibly with another engine version.
 
 Run it only on your own machine, with a spending limit set in the Anthropic Console, and never set the key where the demo runs. The step-by-step is in `specs/003-demo-mode/quickstart.md`, section D. Until the file exists, nothing of the demo uses it.
 

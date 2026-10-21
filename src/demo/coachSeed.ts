@@ -1,3 +1,4 @@
+import fs from "node:fs";
 import path from "node:path";
 import type { LapInsights } from "../analysis/types";
 import { insightsMatch } from "./insightsMatch";
@@ -115,4 +116,14 @@ export function validateCoachSeed(raw: unknown, context: CoachSeedContext): Coac
   });
 
   return raw as unknown as CoachSeedFile;
+}
+
+// Grava num temporário na mesma pasta e renomeia por cima: um processo
+// interrompido no meio da escrita nunca deixa um JSON pela metade no lugar
+// do cache (a exportação chama isto a cada par pago).
+export function writeCoachSeedFile(filePath: string, seed: CoachSeedFile): void {
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  const tempPath = `${filePath}.tmp`;
+  fs.writeFileSync(tempPath, `${JSON.stringify(seed, null, 2)}\n`);
+  fs.renameSync(tempPath, filePath);
 }

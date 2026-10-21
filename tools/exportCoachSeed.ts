@@ -2,7 +2,7 @@ import "dotenv/config";
 import fs from "node:fs";
 import path from "node:path";
 import { findProjectRoot } from "../src/config/projectRoot";
-import { assertExportEnvironment, type CoachSeedFile } from "../src/demo/coachSeed";
+import { assertExportEnvironment, writeCoachSeedFile, type CoachSeedFile } from "../src/demo/coachSeed";
 import { PUBLISHED_RECORDING_SHA256, parseRecording, verifyRecording } from "../src/demo/recording";
 
 /**
@@ -46,6 +46,9 @@ async function main(): Promise<void> {
     existing,
     generate: (insights, benchmark) => generateCoaching(insights, benchmark),
     currentModel: MODEL,
+    // A cada par pago, o arquivo é regravado (atomicamente): uma falha no
+    // meio deixa os pares já pagos, e a próxima rodada só pede os que faltam.
+    onProgress: (partial) => writeCoachSeedFile(seedPath, partial),
   });
 
   for (const entry of seed.entries) {
@@ -53,8 +56,7 @@ async function main(): Promise<void> {
     console.log(`[exportCoachSeed] par (${entry.lapA}, ${entry.lapB}): ${reused ? "reutilizado" : "pedido ao coach"}`);
   }
 
-  fs.mkdirSync(path.dirname(seedPath), { recursive: true });
-  fs.writeFileSync(seedPath, `${JSON.stringify(seed, null, 2)}\n`);
+  writeCoachSeedFile(seedPath, seed);
   console.log(`[exportCoachSeed] ${seed.entries.length} pares gravados em ${seedPath}`);
 }
 
