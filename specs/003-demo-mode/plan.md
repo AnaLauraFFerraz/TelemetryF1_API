@@ -92,9 +92,10 @@ src/
 │   ├── coachSeed.ts            # pure parse/validate of the seed file + seeding + the export core
 │   ├── playerOnly.ts           # pure toPlayerOnlyMessage
 │   ├── liveConnections.ts      # pure origin and capacity decisions
+│   ├── demoWsServer.ts         # attachDemoWsServer(httpServer, options): origin, capacity, time limit, compression, socket bytes
 │   ├── demoLog.ts              # counters (socket bytes, 503s, CPU) and the 15-minute summary line
 │   └── demoServer.ts           # wiring: start order, HTTP + WS on PORT, 1x loop, shutdown
-├── network/wsBroadcaster.ts    # CHANGED: adds attachDemoWsServer(httpServer, options); standalone path unchanged
+├── network/wsBroadcaster.ts    # CHANGED: only exports its heartbeat helper (startHeartbeat); standalone path unchanged; no import from src/demo/
 ├── http/
 │   ├── httpServer.ts           # CHANGED: createApp(options) shared by both modes; startHttpServer(port) unchanged
 │   └── routes/healthRouter.ts  # NEW: GET /health
@@ -116,7 +117,7 @@ package.json                    # CHANGED: build, start, export-coach-seed scrip
 README.md, CLAUDE.md            # CHANGED with each behaviour (see Documentation)
 ```
 
-**Structure decision**: the existing single-project layout, with one new folder, `src/demo/`, holding every module that only demo mode runs, so local mode's files change only where a shared seam is needed (configuration, the HTTP app factory, the WebSocket attach function, the lap-completion return value).
+**Structure decision**: the existing single-project layout, with one new folder, `src/demo/`, holding every module that only demo mode runs, so local mode's files change only where a shared seam is needed (configuration, the HTTP app factory, the WebSocket heartbeat helper, the lap-completion return value). The generic network layer (`src/network/`) never imports from `src/demo/`: the demo's WebSocket server lives in `src/demo/demoWsServer.ts` and takes only the shared heartbeat helper from `src/network/wsBroadcaster.ts` (decided before the push of Phase 3, 2026-10-21).
 
 ## Design
 
@@ -156,7 +157,7 @@ For each pure function, the order is: create the module with the final signature
 
 The request-limit function is not built, because FR-027 is not adopted.
 
-**In-process tests with an isolated database** (`testDb.ts`): `persistTelemetry` returns the completed lap; `applyCaptureTimes` rewrites the rows; after `query_only`, an insert fails; `attachDemoWsServer` on an ephemeral port with `maxConnectionMs` of a few hundred milliseconds closes with 4002, the second connection with a limit of 1 closes with 4001, a foreign origin gets 403, a client that offers per-message deflate gets `permessage-deflate` in `extensions`, and with compression turned off the same client gets no extension.
+**In-process tests with an isolated database** (`testDb.ts`): `persistTelemetry` returns the completed lap; `applyCaptureTimes` rewrites the rows; after `query_only`, an insert fails; `attachDemoWsServer` (`src/demo/demoWsServer.ts`) on an ephemeral port with `maxConnectionMs` of a few hundred milliseconds closes with 4002, the second connection with a limit of 1 closes with 4001, a foreign origin gets 403, a client that offers per-message deflate gets `permessage-deflate` in `extensions`, and with compression turned off the same client gets no extension.
 
 **Demo integration test** (spawned, like `serverFailFast.test.ts`): a synthetic recording with `receivedAt` and a matching synthetic seed (its insights computed by the test from the same synthetic laps), both written by the test to a temporary folder; the server in demo mode on a free port; asserts one session with the synthetic capture dates, the laps and samples, `Cache-Control` and a `304` on revalidation, the seeded pair cached and another 503, CORS for the allowed origin only, single-car compressed WebSocket messages, and that no file named `telemetry.db` appears anywhere it can see. Plus spawned refusals: the key present, `DB_PATH` present, the recording missing or altered, the seed for another recording, a seed whose insights differ by more than the tolerance; each exits non-zero with its message and binds no port.
 

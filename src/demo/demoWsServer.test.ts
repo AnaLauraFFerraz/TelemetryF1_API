@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import http from "node:http";
 import type { AddressInfo } from "node:net";
 import { WebSocket } from "ws";
-import { attachDemoWsServer, type DemoWsEvent, type DemoWsOptions, type DemoWsServer } from "./wsBroadcaster";
+import { attachDemoWsServer, type DemoWsEvent, type DemoWsOptions, type DemoWsServer } from "./demoWsServer";
 
 const ALLOWED = "http://localhost:5173";
 const WAIT_MS = 2000;
