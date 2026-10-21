@@ -34,7 +34,7 @@ Built by the pure function `buildCaptureTimes`; a missing `receivedAt` makes it 
 
 ### `DemoConfig`
 
-The validated demo settings: port, allowed origin, connection limit, connection duration, recording path, seed path. Rules in [contracts/configuration.md](contracts/configuration.md).
+The validated demo settings: port, allowed origin, connection limit, connection duration, WebSocket compression on or off, recording path, seed path. Rules in [contracts/configuration.md](contracts/configuration.md).
 
 ### `CoachSeedFile`
 

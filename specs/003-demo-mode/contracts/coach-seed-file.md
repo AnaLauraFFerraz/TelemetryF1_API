@@ -18,7 +18,6 @@ Internal to this repository (not consumed by the frontend). Produced by `tools/e
       "lapA": 8,
       "lapB": 7,
       "model": "claude-opus-4-8",
-      "createdAt": "2026-10-2xT..:..:..Z",
       "analysisText": "…",
       "insights": { "…": "the LapInsights object, as buildInsights returns it" }
     }
@@ -33,9 +32,12 @@ Internal to this repository (not consumed by the frontend). Produced by `tools/e
 | `sessionUid` | Decimal string of the recording's `sessionUID`. |
 | `entries` | One per ordered pair `(lapA, lapB)`, `lapA ≠ lapB`, no duplicate pair. For the published recording: the six ordered pairs of laps 6, 7 and 8. |
 | `entries[].model` | The model that produced `analysisText`, as `generateCoaching` returns it. |
-| `entries[].createdAt` | ISO time the call was made; informational. |
 | `entries[].analysisText` | The coach's text, served as `analysis`. |
 | `entries[].insights` | The exact insights sent to the coach, served as `insights`. |
+
+## What the file never holds
+
+The file is public once committed. Besides the recording's identity (`recordingSha256`, `sessionUid`), it holds only, per pair, the insights, the coach's text and the model name. It never holds anything about the account, the request or the usage: no key or key identifier, no request or message id, no timestamp of the call, no token counts, no cost. The token `usage` of each call is printed to the maintainer's console by the export and recorded, as counts only, in research.md (tasks.md T062).
 
 ## Validation at start (demo mode)
 

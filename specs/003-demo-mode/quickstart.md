@@ -65,5 +65,5 @@ Also, with demo mode off, `npm run build && npm start` resolves the database to 
    ```
    The tool refuses to run without `DB_PATH`, or with `DB_PATH` pointing at `data/telemetry.db`. It prints, for each of the six pairs, either "reused" or the call's token `usage`, and writes `demo/coach-seed.json`.
 3. Run it a second time: it must report six "reused" and make no call.
-4. Review the six texts, then commit `demo/coach-seed.json` (`docs:` or `chore:`, per the tasks).
+4. Read the six texts: the file is public once committed, so each text must cite only numbers found in its own entry's `insights` and hold nothing but coaching about the two laps. If one fails, delete that entry and run step 2 again (only that pair is called). Then hand the file to the agent, which commits it (tasks.md T064, `feat:`).
 5. Remove the key from the shell. It is never set on the hosting platform: demo mode refuses to start with it.
