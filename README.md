@@ -40,7 +40,7 @@ flowchart LR
 | `src/http/` | Express REST API |
 | `src/replay/` | Pure replay pacing (`computeDelayMs`) and the orchestration loop (`runReplay`): speed, loop, absolute-deadline scheduling so error does not accumulate over a long recording |
 | `src/tooling/` | Tests of the project's own tooling: the test of the empty-discovery guard |
-| `tools/` | Recorder, an offline `analyze` CLI, a thin replayer CLI over `src/replay/`, and `assertTestFiles.ts`, the guard that runs as the `pretest` of `npm test` |
+| `tools/` | Recorder, an offline `analyze` CLI, a thin replayer CLI over `src/replay/`, `fetchDemoRecording.ts` (the last step of `npm run build`: downloads and verifies the demo recording), and `assertTestFiles.ts`, the guard that runs as the `pretest` of `npm test` |
 
 ## Features
 

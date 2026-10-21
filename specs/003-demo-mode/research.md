@@ -149,7 +149,7 @@ first [ 0, 1792168223797 ] last [ 222839, 1792168446755 ] timestamp span 222839 
 
 - `persistTelemetry` returns the lap that a lap data packet completed (`CompletedLap | null`, today discarded inside `handleLapDataPacket`). `server.ts` ignores the return value, so local mode is unchanged; the demo build records `lapNumber → receivedAt` of the completing packet.
 - A pure function `buildCaptureTimes(firstReceivedAt, lastReceivedAt, completions)` returns the session's start and last-seen times and each lap's recorded time as ISO strings; it throws when any of them is missing (FR-010: refuse rather than invent). "First" and "last" are the first and last packets carrying the session's UID.
-- A new repository function, `applyCaptureTimes(sessionId, times)`, writes them with two prepared statements (`UPDATE sessions SET started_at, last_seen_at`; `UPDATE laps SET recorded_at`), called once by the demo build before seeding. No existing statement changes, so local mode keeps SQLite's wall-clock defaults.
+- Two new repository functions write them with two prepared statements (`UPDATE sessions SET started_at, last_seen_at`; `UPDATE laps SET recorded_at`), combined by `applyCaptureTimes(sessionId, times)` in `src/demo/applyCaptureTimes.ts` and called once by the demo build before seeding. No existing statement changes, so local mode keeps SQLite's wall-clock defaults.
 
 ### Alternatives considered
 
@@ -391,6 +391,22 @@ $ (same command again)
 
 Decided at the stop before T025 (2026-10-21): `ensureRecording` takes an optional third parameter `{ url, expectedSha256 }` defaulting to the Release URL and `PUBLISHED_RECORDING_SHA256` (a test calls it without the parameter and checks both defaults); an existing file with a wrong hash is replaced by a verified download, with a log line, and stays untouched if the download fails; the destination folder is created when missing.
 
+### Stop before T044 — pure modules and the database opened at import (2026-10-21)
+
+`src/persistence/db.ts` opens the SQLite connection, creates the schema and runs its migrations **at import** (`new Database(dbPath)` at module level). Any module that imports a repository therefore opens a database as soon as it is loaded: in a pure test, which does not call `setupIsolatedTestDb()`, that database would be the one `DB_PATH` names, or `data/telemetry.db`. T044 as first written put `applyCaptureTimes` (which imports the repositories) inside the pure `src/demo/captureTimes.ts`, and T052/T053 did the same in `src/demo/coachSeed.ts`.
+
+Decided by the maintainer: the writing functions live in their own modules (`src/demo/applyCaptureTimes.ts`, `src/demo/applyCoachSeed.ts`, `src/demo/exportCoachSeed.ts`), loaded in tests only after `setupIsolatedTestDb()`; `captureTimes.ts` and `coachSeed.ts` import nothing from persistence. A boundary test, `src/demo/purityBoundary.test.ts`, requires the pure modules and asserts through `require.cache` that `persistence/db` was not loaded; it sets a temporary `DB_PATH` first, so even a broken boundary cannot open the real database. It was seen failing on its own assertion with a temporary `import "../persistence/sessionRepository"` in `src/demo/liveConnections.ts`, reverted with `git checkout`:
+
+```text
+not ok 1 - os módulos puros do modo demo não carregam persistence/db
+  error: './liveConnections carregou persistence/db'
+  code: 'ERR_ASSERTION'
+(after git checkout -- src/demo/liveConnections.ts)
+ok 1 - os módulos puros do modo demo não carregam persistence/db
+```
+
+The root cause, `db.ts` opening the connection at import, is a known debt and stays outside this spec (a lazily opened connection, or dependency injection of the database, was already recorded as a future improvement in spec 002).
+
 ---
 
 ## CI runs
@@ -400,3 +416,5 @@ Pull request [#12](https://github.com/AnaLauraFFerraz/TelemetryF1_API/pull/12) (
 | Push | Head SHA | Run | Event | `typecheck` | `test` | Note |
 |---|---|---|---|---|---|---|
 | T020, first push (foundational phase) | `84879db` | 39678700345 | `pull_request` | completed, success (21:25:45–21:25:56 UTC) | completed, success (21:25:45–21:26:36 UTC) | — |
+| T040, Phase 3 | `cd0f772` | 39682631564 | `pull_request` | completed, success (21:55:36–21:55:46 UTC) | completed, **failure** (21:55:37–21:56:32 UTC) | Real failure, not infrastructure: `not ok 78 - no tempo máximo a conexão é fechada com 4002 time limit`, `error: '[{"type":"opened","openConnections":1}]'`. A race in the test: on Linux the client's close (4002) arrived before the server emitted its own `closed` event (`ws` emits the server-side close only when the closing handshake ends), and the test checked the events at once. Fixed in the test (wait for the event with a deadline), 10 of 10 local runs green; no re-run. |
+| Fix push (`test:` commit) | `68150ac` | 39683194366 | `pull_request` | completed, success (22:00:07–22:00:18 UTC) | completed, success (22:00:07–22:00:47 UTC) | — |

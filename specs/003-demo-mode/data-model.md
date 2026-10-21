@@ -18,7 +18,7 @@ Counts measured in research.md, point 3.
 
 ## New repository function
 
-- `applyCaptureTimes(sessionId, times: CaptureTimes): void` in `sessionRepository` (session row) and `lapRepository` (lap rows), each with a prepared statement created at module load, as the project's repositories do. Used only by the demo build and by the export tool. No existing statement changes.
+- `applySessionCaptureTimes(id, startedAt, lastSeenAt)` in `sessionRepository` and `applyLapCaptureTimes(sessionId, lapNumber, recordedAt)` in `lapRepository`, each with a prepared statement created at module load, as the project's repositories do; `applyCaptureTimes(sessionId, times: CaptureTimes)` in `src/demo/applyCaptureTimes.ts` calls both. Used only by the demo build and by the export tool. No existing statement changes.
 
 ## New in-process values (not stored as such)
 

@@ -86,10 +86,14 @@ src/
 │   └── dbPath.ts               # CHANGED: project root; ':memory:' in demo mode
 ├── demo/                       # NEW: everything only demo mode runs
 │   ├── recording.ts            # read .jsonl with receivedAt, SHA-256 check, PUBLISHED_RECORDING_SHA256
-│   ├── captureTimes.ts         # pure buildCaptureTimes
+│   ├── captureTimes.ts         # pure buildCaptureTimes (no persistence import)
+│   ├── applyCaptureTimes.ts    # writes the capture times through the repositories (loads persistence/db)
 │   ├── buildDemoSession.ts     # in-process build of the whole session (shared with the export tool)
 │   ├── insightsMatch.ts        # pure structural comparison with the numeric tolerance (T-5)
-│   ├── coachSeed.ts            # pure parse/validate of the seed file + seeding + the export core
+│   ├── coachSeed.ts            # pure: the seed file's types and validateCoachSeed (no persistence import)
+│   ├── applyCoachSeed.ts       # inserts the seed entries (loads persistence/db)
+│   ├── exportCoachSeed.ts      # the export core, with an injected coach (loads persistence/db)
+│   ├── purityBoundary.test.ts  # the pure modules never load persistence/db
 │   ├── playerOnly.ts           # pure toPlayerOnlyMessage
 │   ├── liveConnections.ts      # pure origin and capacity decisions
 │   ├── demoWsServer.ts         # attachDemoWsServer(httpServer, options): origin, capacity, time limit, compression, socket bytes
@@ -117,7 +121,7 @@ package.json                    # CHANGED: build, start, export-coach-seed scrip
 README.md, CLAUDE.md            # CHANGED with each behaviour (see Documentation)
 ```
 
-**Structure decision**: the existing single-project layout, with one new folder, `src/demo/`, holding every module that only demo mode runs, so local mode's files change only where a shared seam is needed (configuration, the HTTP app factory, the WebSocket heartbeat helper, the lap-completion return value). The generic network layer (`src/network/`) never imports from `src/demo/`: the demo's WebSocket server lives in `src/demo/demoWsServer.ts` and takes only the shared heartbeat helper from `src/network/wsBroadcaster.ts` (decided before the push of Phase 3, 2026-10-21).
+**Structure decision**: the existing single-project layout, with one new folder, `src/demo/`, holding every module that only demo mode runs, so local mode's files change only where a shared seam is needed (configuration, the HTTP app factory, the WebSocket heartbeat helper, the lap-completion return value). The pure demo modules (`captureTimes`, `coachSeed`, `insightsMatch`, `playerOnly`, `liveConnections`, `recording`, `demoLog`'s summary, and `config/demoEnv`, `config/mode`, `config/projectRoot`) never import persistence, because `persistence/db.ts` opens its connection at import; everything that writes lives in its own module (`applyCaptureTimes.ts`, `applyCoachSeed.ts`, `exportCoachSeed.ts`), loaded by tests only after `setupIsolatedTestDb()`, and `src/demo/purityBoundary.test.ts` checks the rule through `require.cache` (decided at the stop before T044, 2026-10-21). The generic network layer (`src/network/`) never imports from `src/demo/`: the demo's WebSocket server lives in `src/demo/demoWsServer.ts` and takes only the shared heartbeat helper from `src/network/wsBroadcaster.ts` (decided before the push of Phase 3, 2026-10-21).
 
 ## Design
 
@@ -153,7 +157,7 @@ For each pure function, the order is: create the module with the final signature
 | `validateCoachSeed` | `src/demo/coachSeed.ts` | accepts a valid file; refuses another recording's hash, another session UID, an unknown lap, a duplicate pair, `lapA = lapB`, an unknown `formatVersion`, insights beyond the tolerance |
 | `findProjectRoot` | `src/config/projectRoot.ts` | from source, the folder holding this repository's `package.json` |
 | README hash | `src/demo/recording.test.ts` | `README.md` contains `PUBLISHED_RECORDING_SHA256`; the committed `demo/coach-seed.json` names it (added once the maintainer has produced the file, so the test is never skipped); a mismatching file is refused |
-| Seed export core | `src/demo/coachSeed.ts` | with a fake coach: six calls on an empty seed, zero on a second run, one after one entry is made stale; refuses an unset `DB_PATH` and `data/telemetry.db` |
+| Seed export core | `src/demo/exportCoachSeed.ts` | with a fake coach: six calls on an empty seed, zero on a second run, one after one entry is made stale; refuses an unset `DB_PATH` and `data/telemetry.db` |
 
 The request-limit function is not built, because FR-027 is not adopted.
 
