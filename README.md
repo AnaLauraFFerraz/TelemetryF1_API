@@ -30,7 +30,7 @@ flowchart LR
 
 | Path | Responsibility |
 |---|---|
-| `src/config/` | `env.ts` loads and validates the ports and fails fast; `dbPath.ts` resolves the database path (including `DB_PATH`) and is the only config file the persistence layer imports, so persistence does not depend on the ports |
+| `src/config/` | `env.ts` loads and validates the ports and fails fast (local mode only); `dbPath.ts` resolves the database path (including `DB_PATH`, and an in-memory database in demo mode) and is the only config file the persistence layer imports, so persistence does not depend on the ports; `mode.ts` reads `DEMO_MODE`; `demoEnv.ts` validates the demo settings; `projectRoot.ts` finds the folder holding `package.json` |
 | `src/network/` | UDP socket; WebSocket server with a ping/pong heartbeat every 15 s |
 | `src/ws/` | WebSocket message envelope |
 | `src/telemetry/` | Binary parsers for packet ids 0 (motion), 1 (session, partial), 2 (lap data) and 6 (car telemetry), over a little-endian `BufferCursor`; each full parser asserts the exact byte count |
@@ -127,6 +127,27 @@ To inspect the analysis for two laps without calling the AI:
 ```bash
 npm run analyze -- <sessionId> <lapA> <lapB>
 ```
+
+## Demo mode
+
+> **Partial: being built on this branch (spec 003).** At this point only the configuration exists: with `DEMO_MODE=true` the server validates the settings below and then stops with `[demo] modo demo ainda não disponível nesta versão: só a configuração é validada.` Nothing else of the demo runs yet.
+
+Demo mode is selected with `DEMO_MODE=true` and is off by default. With it on, the three local ports are not read, and the database is always in memory (`data/telemetry.db` is never opened).
+
+| Variable | Required | Rule | Default |
+|---|---|---|---|
+| `DEMO_MODE` | to enable | `true` turns demo mode on; unset or empty is local mode; any other value stops the server | — |
+| `PORT` | yes | integer 1–65535 | — |
+| `DEMO_ALLOWED_ORIGIN` | yes | one origin, `scheme://host[:port]`, no path, no trailing slash | — |
+| `DEMO_MAX_CONNECTIONS` | no | integer ≥ 1 | `5` |
+| `DEMO_MAX_CONNECTION_MINUTES` | no | integer ≥ 1 | `5` |
+| `DEMO_WS_COMPRESSION` | no | `true` or `false`; unset or empty is `true`; any other value stops the server | `true` |
+| `DEMO_RECORDING_PATH` | no | path to the recording | `recordings/demo-interlagos-tt-20hz-laps6-8.jsonl` |
+| `DEMO_SEED_PATH` | no | path to the coach seed file | `demo/coach-seed.json` |
+| `ANTHROPIC_API_KEY` | **must not be set** | the server stops: demo mode never makes a paid call | — |
+| `DB_PATH` | **must not be set** | the server stops: the demo database is always in memory | — |
+
+Every check runs at startup, before any port is bound, and stops the server with a message naming the variable.
 
 ## Tests
 

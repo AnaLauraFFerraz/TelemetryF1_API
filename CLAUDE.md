@@ -26,7 +26,7 @@ npm start                                     # runs the compiled server, dist/s
 
 There is no `lint` script and no ESLint config yet. The CI runs `typecheck` and `test`, not `build`: `tsconfig.build.json` is not checked by it.
 
-Configuration comes from `.env` (copy `.env.example`): `WS_PORT`, `UDP_PORT`, `HTTP_PORT` are required and validated at startup by the server, `record` and `replay`; `analyze` and the tests do not need them, only the database path (below); `ANTHROPIC_API_KEY` is optional. The database path is fixed in production: `data/telemetry.db`, resolved from the project root (the folder holding `package.json`, `src/config/projectRoot.ts`), so the compiled server under `dist/` uses the same file. An optional `DB_PATH` environment variable overrides it — tests and manual verification use this to point at a temporary database, never at the real one (see Rules).
+Configuration comes from `.env` (copy `.env.example`): `WS_PORT`, `UDP_PORT`, `HTTP_PORT` are required and validated at startup by the server, `record` and `replay`; `analyze` and the tests do not need them, only the database path (below); `ANTHROPIC_API_KEY` is optional. Demo mode (`DEMO_MODE=true`, spec 003, partial on its branch) does not read the three ports: it validates `PORT`, `DEMO_ALLOWED_ORIGIN` and its optional settings (`src/config/demoEnv.ts`, table in README "Demo mode") and refuses to start with `ANTHROPIC_API_KEY` or `DB_PATH` set; any `DEMO_MODE` value other than `true` or empty stops the server. The database path is fixed in production: `data/telemetry.db`, resolved from the project root (the folder holding `package.json`, `src/config/projectRoot.ts`), so the compiled server under `dist/` uses the same file. An optional `DB_PATH` environment variable overrides it — tests and manual verification use this to point at a temporary database, never at the real one (see Rules). In demo mode the database is always `:memory:` (`src/config/dbPath.ts`).
 
 ## Architecture
 
@@ -35,7 +35,7 @@ Flow: `network/udpListener` → `telemetry/dispatcher` (parse) → `persistence/
 | Path | Responsibility |
 |---|---|
 | `src/server.ts` | Entry point: wires UDP, WS and HTTP; per-packet try/catch so a malformed packet never kills the process |
-| `src/config/` | `env.ts` loads and validates the ports with fail-fast; `dbPath.ts` resolves the database path (including `DB_PATH`) and is the only config file the persistence layer imports, so persistence does not depend on the ports |
+| `src/config/` | `env.ts` loads and validates the ports with fail-fast (local mode only); `dbPath.ts` resolves the database path (including `DB_PATH`, and `:memory:` in demo mode) and is the only config file the persistence layer imports, so persistence does not depend on the ports; `mode.ts` reads `DEMO_MODE`; `demoEnv.ts` validates the demo settings; `projectRoot.ts` finds the folder holding `package.json` |
 | `src/network/` | Transport only: UDP socket, WebSocket server with ping/pong heartbeat |
 | `src/telemetry/` | Binary parsing of the F1 24 protocol, one folder per packet type (`header`, `motion`, `lapData`, `carTelemetry`, `session`), shared `BufferCursor`, sizes and `assertBytesRead` in `shared/` |
 | `src/ws/` | WebSocket message envelope |

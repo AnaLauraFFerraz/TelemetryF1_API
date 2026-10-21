@@ -35,3 +35,7 @@ function printDbPath(extraEnv: Record<string, string>): string {
 test("sem DB_PATH, o caminho do banco é data/telemetry.db na raiz do repositório", () => {
   assert.equal(printDbPath({}), path.join(REPO_ROOT, "data", "telemetry.db"));
 });
+
+test("no modo demo, o banco é sempre em memória", () => {
+  assert.equal(printDbPath({ DEMO_MODE: "true" }), ":memory:");
+});
