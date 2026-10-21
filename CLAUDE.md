@@ -19,6 +19,7 @@ npm test                                      # all src/**/*.test.ts, found by N
 npm run record                                # writes recordings/session-<timestamp>.jsonl
 npm run replay -- recordings/<file>.jsonl [--speed=1x|2x|max] [--loop]  # re-sends a recording to 127.0.0.1:UDP_PORT; default 1x, no loop
 npm run analyze -- <sessionId> <lapA> <lapB>  # prints the LapInsights JSON for two laps, no AI call
+npm run export-coach-seed                     # PAID, the maintainer's only: writes demo/coach-seed.json; needs DB_PATH=:memory: (or a temp path) and her key; the agent never runs it
 npm run typecheck                             # type-check, covers src/ and tools/ (same as npx tsc --noEmit)
 npm run build                                 # compiles src/ and tools/ to dist/ (tsconfig.build.json, tests excluded), then downloads and verifies the demo recording (tools/fetchDemoRecording.ts)
 npm start                                     # runs the compiled server, dist/src/server.js
@@ -96,6 +97,7 @@ These are also listed under "Known limitations" in the README. When a limitation
 - `.env` is read only at startup; `ts-node-dev` does not restart on `.env` changes.
 - Replaying an old recording writes into the session it came from, if that session is already in the database (same `sessionUID`), and moves its `last_seen_at` to now, so the history shows its duration stretched from the original capture to the replay.
 - Without `ANTHROPIC_API_KEY`, `POST /sessions/:id/analysis` returns 503 (cached analyses are still served).
+- The demo's coach seed covers the six ordered pairs of laps 6, 7 and 8, but today's frontend fixes the primary lap to the latest one, so only (8, 6) and (8, 7) are requested.
 - The coach's system prompt (1,378 tokens for `claude-opus-4-8`, measured with the token-counting endpoint) is below the model's minimum cacheable length, so `cache_control` has no effect. Each call logs its token `usage` (`[coachService] usage ...`). Re-measure if the prompt changes.
 
 ## How to work in this repo

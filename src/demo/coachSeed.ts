@@ -1,5 +1,34 @@
+import path from "node:path";
 import type { LapInsights } from "../analysis/types";
 import { insightsMatch } from "./insightsMatch";
+
+// A exportação é a única etapa paga e só roda na máquina da mantenedora:
+// DB_PATH tem que ser :memory: ou um temporário, nunca o banco real. O
+// caminho é resolvido a partir da raiz e, no Windows, comparado sem caixa e
+// com os dois separadores, para nenhuma grafia do mesmo arquivo escapar.
+// platform é parâmetro para os testes cobrirem o Windows também na CI.
+export function assertExportEnvironment(
+  env: NodeJS.ProcessEnv,
+  projectRoot: string,
+  platform: NodeJS.Platform = process.platform
+): void {
+  const raw = env.DB_PATH?.trim();
+  if (!raw) {
+    throw new Error("[exportCoachSeed] defina DB_PATH=:memory: ou um caminho temporário; o data/telemetry.db nunca é usado.");
+  }
+  if (raw !== ":memory:") {
+    const paths = platform === "win32" ? path.win32 : path.posix;
+    const normalize = (p: string) => (platform === "win32" ? p.toLowerCase() : p);
+    const resolved = paths.resolve(projectRoot, raw);
+    const realDb = paths.resolve(projectRoot, "data", "telemetry.db");
+    if (normalize(resolved) === normalize(realDb)) {
+      throw new Error("[exportCoachSeed] DB_PATH aponta para o data/telemetry.db do repositório: use :memory: ou um caminho temporário.");
+    }
+  }
+  if (!env.ANTHROPIC_API_KEY) {
+    throw new Error("[exportCoachSeed] defina ANTHROPIC_API_KEY no seu shell: a exportação é a única etapa paga e só roda com a sua chave.");
+  }
+}
 
 const PREFIX = "[demo] cache do coach inválido:";
 const FILE_KEYS = ["formatVersion", "recordingSha256", "sessionUid", "entries"];

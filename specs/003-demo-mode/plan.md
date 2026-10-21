@@ -90,7 +90,8 @@ src/
 │   ├── applyCaptureTimes.ts    # writes the capture times through the repositories (loads persistence/db)
 │   ├── buildDemoSession.ts     # in-process build of the whole session (shared with the export tool)
 │   ├── insightsMatch.ts        # pure structural comparison with the numeric tolerance (T-5)
-│   ├── coachSeed.ts            # pure: the seed file's types and validateCoachSeed (no persistence import)
+│   ├── coachSeed.ts            # pure: the seed file's types, validateCoachSeed and assertExportEnvironment (no persistence import)
+│   ├── testFixtures.ts         # synthetic demo recordings (N laps, receivedAt) from the packet builders src/replay/testFixtures.ts exports
 │   ├── applyCoachSeed.ts       # inserts the seed entries (loads persistence/db)
 │   ├── exportCoachSeed.ts      # the export core, with an injected coach (loads persistence/db)
 │   ├── purityBoundary.test.ts  # the pure modules never load persistence/db
@@ -157,7 +158,10 @@ For each pure function, the order is: create the module with the final signature
 | `validateCoachSeed` | `src/demo/coachSeed.ts` | accepts a valid file; refuses another recording's hash, another session UID, an unknown lap, a duplicate pair, `lapA = lapB`, an unknown `formatVersion`, insights beyond the tolerance |
 | `findProjectRoot` | `src/config/projectRoot.ts` | from source, the folder holding this repository's `package.json` |
 | README hash | `src/demo/recording.test.ts` | `README.md` contains `PUBLISHED_RECORDING_SHA256`; the committed `demo/coach-seed.json` names it (added once the maintainer has produced the file, so the test is never skipped); a mismatching file is refused |
-| Seed export core | `src/demo/exportCoachSeed.ts` | with a fake coach: six calls on an empty seed, zero on a second run, one after one entry is made stale; refuses an unset `DB_PATH` and `data/telemetry.db` |
+| Seed export core | `src/demo/exportCoachSeed.ts` | with a fake coach, on a two-lap synthetic recording: one call per pair on an empty seed, zero on a second run, one after one entry is made stale or another model, all again for another recording |
+| `assertExportEnvironment` | `src/demo/coachSeed.ts` | with fake roots (`C:\projeto`, `/projeto`) and an explicit `platform`, so the Windows cases also run on the Linux CI: refuses an unset `DB_PATH`, every spelling of `data/telemetry.db` (resolved from the root; on Windows case-insensitive and with both separators: `./data/…`, `data\…`, a `..` that comes back), and a missing key; accepts `:memory:` and a temporary path |
+
+**What the synthetic tests do not cover.** The export and seed tests run on synthetic recordings of a few samples per lap, so `buildInsights` returns nearly empty insights: they exercise the reuse logic, the fake coach's calls and the validation rules, not the real analysis. The real analysis, and the insight tolerance against it, are exercised only by the maintainer's export on the published recording (tasks.md T061) and by demo mode checking that seed at start (T084). The tool's refusal of `data/telemetry.db` is tested only through `assertExportEnvironment` with a fake root; the spawned test of the tool covers only the refusals that need no real path (no `DB_PATH`; a temporary `DB_PATH` with no key), so no test ever puts the real database's path in an environment.
 
 The request-limit function is not built, because FR-027 is not adopted.
 

@@ -131,7 +131,7 @@ npm run analyze -- <sessionId> <lapA> <lapB>
 
 ## Demo mode
 
-> **Partial: being built on this branch (spec 003).** At this point only the configuration and the recording download exist: with `DEMO_MODE=true` the server validates the settings below and then stops with `[demo] modo demo ainda não disponível nesta versão: só a configuração é validada.` Nothing else of the demo runs yet.
+> **Partial: being built on this branch (spec 003).** At this point only the configuration, the recording download and the coach seed export exist: with `DEMO_MODE=true` the server validates the settings below and then stops with `[demo] modo demo ainda não disponível nesta versão: só a configuração é validada.` Nothing else of the demo runs yet.
 
 **The recording.** `npm run build` ends by downloading the published recording ([sample-recording-v1](https://github.com/AnaLauraFFerraz/TelemetryF1_API/releases/tag/sample-recording-v1)) to `recordings/demo-interlagos-tt-20hz-laps6-8.jsonl` (or `DEMO_RECORDING_PATH`) and checking its SHA-256 against the one published in "Running without the game". If a verified copy is already there, nothing is downloaded. The download goes to a temporary file next to the destination and replaces it only after the check; a failed download or a mismatch fails the build and leaves any existing file as it was. An existing file with the wrong hash is replaced by a verified download, with a log line.
 
@@ -151,6 +151,18 @@ Demo mode is selected with `DEMO_MODE=true` and is off by default. With it on, t
 | `DB_PATH` | **must not be set** | the server stops: the demo database is always in memory | — |
 
 Every check runs at startup, before any port is bound, and stops the server with a message naming the variable.
+
+**The coach seed.** Demo mode never calls the AI coach; its comparisons come from a versioned file, `demo/coach-seed.json`, which the maintainer produces once with a paid export. The file is public once committed, so it holds only the recording's identity (its SHA-256 and session UID) and, for each ordered pair of laps, the insights, the coach's text and the model name: nothing about the account, the request or the usage. The export:
+
+```bash
+DB_PATH=:memory: ANTHROPIC_API_KEY=<your key> npm run export-coach-seed
+```
+
+- builds the session from the published recording in a disposable database (it refuses an unset `DB_PATH` and any spelling of `data/telemetry.db`, and refuses to run without a key);
+- asks the coach for the six ordered pairs of laps 6, 7 and 8, printing each call's token usage;
+- reuses a pair already in the file when the recording, the model and the insights still match, so a second run makes no call. Insights are compared structurally, with numbers equal within 0.01 + 1e-9, because the file is made on one machine and checked on another, possibly with another engine version.
+
+Run it only on your own machine, with a spending limit set in the Anthropic Console, and never set the key where the demo runs. The step-by-step is in `specs/003-demo-mode/quickstart.md`, section D. Until the file exists, nothing of the demo uses it.
 
 ## Tests
 
@@ -213,6 +225,7 @@ The game's send rate sets the other limit. The recording used for validation was
 - **Error responses** are plain strings in mixed languages, and the frontend matches some of them literally.
 - **Switching the Node major without running `npm ci` again** makes `better-sqlite3` fail to load with `ERR_DLOPEN_FAILED`: its native binary is built for one major's ABI.
 - **Replaying an old recording stretches its session's duration.** A replay re-sends the original packets, so it writes into the session the recording came from, if that session is already in the database, and moves its last-seen time to now: the history then shows a duration from the original capture to the time of the replay.
+- **The demo seeds six lap pairs, but the frontend reaches only two.** The coach seed covers the six ordered pairs of laps 6, 7 and 8; today's frontend fixes the primary lap to the latest one (lap 8), so only (8, 6) and (8, 7) can be requested. The other four are ready for a frontend that lets the visitor change the primary lap.
 - No lint script yet.
 
 ## Next steps

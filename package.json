@@ -12,6 +12,7 @@
     "record": "ts-node-dev tools/recorder.ts",
     "replay": "ts-node-dev tools/replayer.ts",
     "analyze": "ts-node-dev tools/analyze.ts",
+    "export-coach-seed": "ts-node-dev tools/exportCoachSeed.ts",
     "typecheck": "tsc --noEmit",
     "pretest": "node -r ts-node/register tools/assertTestFiles.ts",
     "test": "node -r ts-node/register --test \"src/**/*.test.ts\""
