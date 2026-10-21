@@ -4,6 +4,14 @@ Validation scenarios for the finished feature. None of them makes a paid call, a
 
 Prerequisites: `npm ci` done; Node from `.nvmrc`; the published recording downloaded and verified by `npm run build` (or already in `recordings/`); for section D only, the maintainer's own `ANTHROPIC_API_KEY`.
 
+**Keeping the key out of sections B and C.** `dotenv` loads `.env` from the working directory, or from `DOTENV_CONFIG_PATH`. Setting `ANTHROPIC_API_KEY=` empty is not enough: `cmd` and Windows PowerShell 5.1 remove an empty variable, and `dotenv` then loads the key from `.env`. So in sections B and C, point `DOTENV_CONFIG_PATH` at a scratch `.env` with no key (for C, a copy holding only `WS_PORT`, `UDP_PORT` and `HTTP_PORT`; for B, an empty file), or run from a working directory outside the repository, and first check, in the same shell:
+
+```bash
+node -e "require('dotenv/config'); console.log(Boolean(process.env.ANTHROPIC_API_KEY))"   # must print false
+```
+
+If it prints `true`, start nothing. Never print the key or the content of a `.env`. Section D is the only one that runs with the key.
+
 ## A. Automated checks
 
 ```bash
@@ -17,6 +25,8 @@ Expected: both pass. The suite includes the new unit tests (configuration, origi
 
 ```bash
 npm run build
+export DOTENV_CONFIG_PATH="<scratch>/empty.env"      # an empty file
+node -e "require('dotenv/config'); console.log(Boolean(process.env.ANTHROPIC_API_KEY))"   # false
 DEMO_MODE=true PORT=10000 DEMO_ALLOWED_ORIGIN=http://localhost:5173 npm start
 ```
 
@@ -47,14 +57,16 @@ Refusals at start, each with a clear message and no port bound: `ANTHROPIC_API_K
 Same method as spec 001's [baseline-measurement.md](../001-realtime-replay/baseline-measurement.md), with a temporary database:
 
 ```bash
-DB_PATH="<temp dir>/telemetry.db" npm run dev        # demo mode off: WS_PORT/UDP_PORT/HTTP_PORT from .env
-npm run replay -- recordings/demo-interlagos-tt-20hz-laps6-8.jsonl
+export DOTENV_CONFIG_PATH="<temp dir>/ports.env"   # only WS_PORT, UDP_PORT, HTTP_PORT
+node -e "require('dotenv/config'); console.log(Boolean(process.env.ANTHROPIC_API_KEY))"   # false
+DB_PATH="<temp dir>/telemetry.db" npm run dev        # demo mode off
+npm run replay -- recordings/demo-interlagos-tt-20hz-laps6-8.jsonl   # same shell settings, another terminal
 # then count rows in the temporary database
 ```
 
 Expected: the startup log names the temporary database; 3 laps with the README's times; **2,411 of 2,411** car telemetry samples and **2,411 of 2,411** motion samples; per-packet log lines as today; the WebSocket on `WS_PORT` with 22 cars per message. `data/telemetry.db` is not opened.
 
-Also, with demo mode off, `npm run build && npm start` resolves the database to `data/telemetry.db` at the repository root (startup log), not `dist/data/`; run it with a temporary `DB_PATH` to check without opening the real one, and confirm the log names that path.
+Also, with demo mode off, `npm run build && npm start` resolves the database to `data/telemetry.db` at the repository root (startup log), not `dist/data/`; run it with a temporary `DB_PATH` and the same `DOTENV_CONFIG_PATH` and key check as above, to check without opening the real one, and confirm the log names that path.
 
 ## D. The maintainer's one-off coach seed (paid; never run by the agent)
 
@@ -65,5 +77,5 @@ Also, with demo mode off, `npm run build && npm start` resolves the database to 
    ```
    The tool refuses to run without `DB_PATH`, or with `DB_PATH` pointing at `data/telemetry.db`. It prints, for each of the six pairs, either "reused" or the call's token `usage`, and writes `demo/coach-seed.json`.
 3. Run it a second time: it must report six "reused" and make no call.
-4. Read the six texts: the file is public once committed, so each text must cite only numbers found in its own entry's `insights` and hold nothing but coaching about the two laps. If one fails, delete that entry and run step 2 again (only that pair is called). Then hand the file to the agent, which commits it (tasks.md T064, `feat:`).
+4. Read the six texts: the file is public once committed, so each text must cite only numbers found in its own entry's `insights` or in the two benchmark lines the coach receives (personal best and theoretical best), and hold nothing but coaching about the two laps. A cited personal best must be 1:13.372 and a cited theoretical best 1:13.208, the recording's own (the export builds its database from the recording alone), never a time from another session. If one fails, delete that entry and run step 2 again (only that pair is called). Then hand the file to the agent, which commits it (tasks.md T064, `feat:`).
 5. Remove the key from the shell. It is never set on the hosting platform: demo mode refuses to start with it.
