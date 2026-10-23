@@ -121,14 +121,18 @@ function startLocalServer(): void {
 }
 
 function startDemoMode(): void {
-  try {
-    parseDemoConfig(process.env, findProjectRoot());
-  } catch (err) {
+  const fail = (err: unknown) => {
     console.error(err instanceof Error ? err.message : err);
     process.exit(1);
+  };
+  try {
+    const config = parseDemoConfig(process.env, findProjectRoot());
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { startDemoServer } = require("./demo/demoServer") as typeof import("./demo/demoServer");
+    startDemoServer(config).catch(fail);
+  } catch (err) {
+    fail(err);
   }
-  console.error("[demo] modo demo ainda não disponível nesta versão: só a configuração é validada.");
-  process.exit(1);
 }
 
 if (parseRunMode(process.env.DEMO_MODE) === "demo") {

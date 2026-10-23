@@ -141,6 +141,31 @@ test("modo demo: o POST do coach é no-store, serve o par semeado e dá 503 sem 
   assert.equal(analysisCount(), before);
 });
 
+test("modo demo: /health responde sem depender da origem e nunca é cacheável", async () => {
+  let healthy = true;
+  const base = await listen(createApp({ demo: { allowedOrigin: ALLOWED }, isHealthy: () => healthy }));
+
+  const variants: Array<Record<string, string>> = [{}, { Origin: "https://example.com" }];
+  for (const headers of variants) {
+    const response = await fetch(`${base}/health`, { headers });
+    assert.equal(response.status, 200);
+    assert.equal(response.headers.get("cache-control"), "no-store");
+    assert.deepEqual(await response.json(), { status: "ok" });
+  }
+
+  healthy = false;
+  const stopped = await fetch(`${base}/health`);
+  assert.equal(stopped.status, 503);
+  assert.equal(stopped.headers.get("cache-control"), "no-store");
+});
+
+test("modo local: /health existe e responde 200", async () => {
+  const base = await listen(createApp());
+  const response = await fetch(`${base}/health`);
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), { status: "ok" });
+});
+
 test("modo local: createApp() sem opções mantém os cabeçalhos de hoje", async () => {
   const base = await listen(createApp());
 

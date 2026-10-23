@@ -27,7 +27,7 @@ npm start                                     # runs the compiled server, dist/s
 
 There is no `lint` script and no ESLint config yet. The CI runs `typecheck` and `test`, not `build`: `tsconfig.build.json` is not checked by it.
 
-Configuration comes from `.env` (copy `.env.example`): `WS_PORT`, `UDP_PORT`, `HTTP_PORT` are required and validated at startup by the server, `record` and `replay`; `analyze` and the tests do not need them, only the database path (below); `ANTHROPIC_API_KEY` is optional. Demo mode (`DEMO_MODE=true`, spec 003, partial on its branch) does not read the three ports: it validates `PORT`, `DEMO_ALLOWED_ORIGIN` and its optional settings (`src/config/demoEnv.ts`, table in README "Demo mode") and refuses to start with `ANTHROPIC_API_KEY` or `DB_PATH` set; any `DEMO_MODE` value other than `true` or empty stops the server. The database path is fixed in production: `data/telemetry.db`, resolved from the project root (the folder holding `package.json`, `src/config/projectRoot.ts`), so the compiled server under `dist/` uses the same file. An optional `DB_PATH` environment variable overrides it — tests and manual verification use this to point at a temporary database, never at the real one (see Rules). In demo mode the database is always `:memory:` (`src/config/dbPath.ts`).
+Configuration comes from `.env` (copy `.env.example`): `WS_PORT`, `UDP_PORT`, `HTTP_PORT` are required and validated at startup by the server, `record` and `replay`; `analyze` and the tests do not need them, only the database path (below); `ANTHROPIC_API_KEY` is optional. Demo mode (`DEMO_MODE=true`, spec 003, partial on its branch: the server runs end to end, but no coach seed is committed yet, so it refuses to start without `DEMO_SEED_PATH`; README "Demo mode") does not read the three ports: it validates `PORT`, `DEMO_ALLOWED_ORIGIN` and its optional settings (`src/config/demoEnv.ts`, table in README "Demo mode") and refuses to start with `ANTHROPIC_API_KEY` or `DB_PATH` set; any `DEMO_MODE` value other than `true` or empty stops the server. The database path is fixed in production: `data/telemetry.db`, resolved from the project root (the folder holding `package.json`, `src/config/projectRoot.ts`), so the compiled server under `dist/` uses the same file. An optional `DB_PATH` environment variable overrides it — tests and manual verification use this to point at a temporary database, never at the real one (see Rules). In demo mode the database is always `:memory:` (`src/config/dbPath.ts`).
 
 ## Architecture
 
@@ -43,12 +43,13 @@ Flow: `network/udpListener` → `telemetry/dispatcher` (parse) → `persistence/
 | `src/persistence/` | SQLite schema, per-session in-memory context, decimation, lap completion detection, repositories (one per table); sample tables deduplicate on `(session_id, overall_frame_identifier)` — that field never resets or regresses within a session, including across a flashback, unlike session time or lap distance |
 | `src/analysis/` | Pure functions, no I/O: corner detection, braking/throttle, delta, line deviation, tyre windows → `buildInsights` |
 | `src/coaching/` | Static system prompt, user-message builder, Anthropic call with typed errors |
-| `src/http/` | Express app and routers (`sessionsRouter`, `analysisRouter`) |
+| `src/http/` | Express app and routers (`sessionsRouter`, `analysisRouter`, `healthRouter`); `createApp(options)` builds the same app for both modes, adding the demo's CORS to one origin and cache headers in demo mode |
+| `src/demo/` | Everything only demo mode runs: recording check, in-process session build, capture times, coach seed validation and export, single-car message, the demo WebSocket server (origin, capacity, time limit, compression) and its log, and `demoServer.ts`, the start sequence. Pure modules here never load `persistence/db` (`purityBoundary.test.ts`); the writing ones live in their own modules |
 | `src/replay/` | Pure replay pacing (`computeDelayMs`) and orchestration (`runReplay`): speed, loop, absolute-deadline scheduling |
 | `src/tooling/` | Tests of the project's own tooling: the test of the empty-discovery guard |
 | `tools/` | CLI scripts: recorder, analyze, a thin replayer CLI over `src/replay/`, `fetchDemoRecording.ts` (the last step of `npm run build`: downloads and verifies the demo recording), `exportCoachSeed.ts` (the maintainer's paid, one-off export of `demo/coach-seed.json`; the agent never runs it), and `assertTestFiles.ts`, the guard that runs as the `pretest` of `npm test` |
 
-The REST and WebSocket payloads are a contract consumed by the frontend, which mirrors the types by hand. This repo owns that contract: any change to `src/ws/messageFormat.ts`, the routers or the repository row types must be flagged so the frontend's `src/types/` can be updated.
+The REST and WebSocket payloads are a contract consumed by the frontend, which mirrors the types by hand. This repo owns that contract: any change to `src/ws/messageFormat.ts`, the routers or the repository row types must be flagged so the frontend's `src/types/` can be updated. Demo mode changes content, not shapes: WebSocket `data` holds only the player's car with `playerCarIndex` 0, compressed with per-message deflate, close codes `4001` "demo full" and `4002` "time limit", `403` for a foreign origin, CORS to one origin, `Cache-Control` on reads; `GET /health` exists in both modes.
 
 ## Conventions
 
@@ -98,6 +99,11 @@ These are also listed under "Known limitations" in the README. When a limitation
 - Replaying an old recording writes into the session it came from, if that session is already in the database (same `sessionUID`), and moves its `last_seen_at` to now, so the history shows its duration stretched from the original capture to the replay.
 - Without `ANTHROPIC_API_KEY`, `POST /sessions/:id/analysis` returns 503 (cached analyses are still served).
 - The demo's coach seed covers the six ordered pairs of laps 6, 7 and 8, but today's frontend fixes the primary lap to the latest one, so only (8, 6) and (8, 7) are requested.
+- The demo's hosting includes 5 GB of outbound bandwidth a month, about 1,330–2,410 full visits; without a payment method the service is suspended until the next month when it runs out.
+- Demo mode has no per-IP request limit (the platform's client-IP forwarding is undocumented), so one client can spend the allowance.
+- Whether the browser's pong frames count as activity that keeps the demo awake is undocumented; the 5-minute connection limit bounds it.
+- The demo's live stream shows only the player's car.
+- WebSocket compression costs an estimated 11–12% of the free instance's CPU per connection (measured locally, not on the platform); `DEMO_WS_COMPRESSION=false` turns it off.
 - The coach's system prompt (1,378 tokens for `claude-opus-4-8`, measured with the token-counting endpoint) is below the model's minimum cacheable length, so `cache_control` has no effect. Each call logs its token `usage` (`[coachService] usage ...`). Re-measure if the prompt changes.
 
 ## How to work in this repo

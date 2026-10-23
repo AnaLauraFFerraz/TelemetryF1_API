@@ -2,9 +2,12 @@ import express from "express";
 import cors from "cors";
 import { sessionsRouter } from "./routes/sessionsRouter";
 import { analysisRouter } from "./routes/analysisRouter";
+import { createHealthRouter } from "./routes/healthRouter";
+import type { RestCounter } from "../demo/demoLog";
 
 export interface CreateAppOptions {
-  demo?: { allowedOrigin: string };
+  demo?: { allowedOrigin: string; restCounter?: RestCounter };
+  isHealthy?: () => boolean;
 }
 
 const READ_ROUTES = ["/sessions", "/sessions/:id", "/sessions/:id/benchmark", "/sessions/:id/laps/:lapNumber/telemetry"];
@@ -20,6 +23,7 @@ export function createApp(options: CreateAppOptions = {}): express.Express {
   const app = express();
 
   if (options.demo) {
+    if (options.demo.restCounter) app.use(options.demo.restCounter.middleware);
     // Lista, não string: com uma string o cors manda sempre a origem
     // configurada, para qualquer Origin; com a lista, só quando ela bate.
     app.use(cors({ origin: [options.demo.allowedOrigin] }));
@@ -31,6 +35,7 @@ export function createApp(options: CreateAppOptions = {}): express.Express {
     app.use(cors({ origin: true }));
   }
   app.use(express.json());
+  app.use(createHealthRouter(options.isHealthy ?? (() => true)));
   app.use(sessionsRouter);
   app.use(analysisRouter);
 
