@@ -164,12 +164,14 @@ None. Every module this feature adds is used by a single story and is created in
 
 **Goal**: `npm run analyze` prints the insights, the exact coach message and the prompt version (contracts/analyze-cli.md).
 
-**Independent test**: `src/tooling/analyzeCli.test.ts`.
+**Independent test**: `src/coaching/analyzeOutput.test.ts` (the pure function that assembles the output). `tools/analyze.ts` stays thin (arguments, reads, one call, print) and is exercised by the agent's V2 run (T057) on a temporary database, not by a spawned-process test (amendment of 2026-10-23, plan.md "Amendments").
 
-- [ ] T052 [US1] Red: `src/tooling/analyzeCli.test.ts`: the test prepares a database file under `os.tmpdir()` (session, laps 1 and 2 with times and validity through `upsertCompletedLap`, car telemetry and motion samples for laps 1, 2 and 3 through the sample repositories, loaded after `setupIsolatedTestDb()`; lap 3 has no `laps` row), closes it, and spawns `tools/analyze.ts` with `process.execPath -r ts-node/register`, `cwd` a temporary folder (so no `.env` is loaded) and an environment with `DB_PATH` set and without `ANTHROPIC_API_KEY`, `WS_PORT`, `UDP_PORT`, `HTTP_PORT`: for `1 2 1`, exit code 0, stdout has the three headers `=== insights ===`, `=== mensagem do coach ===`, `=== versão do prompt ===` in order, the message names `volta 2` and `volta 1`, and the version line equals `PROMPT_VERSION`; for `1 3 1`, the message says `tempo oficial desconhecido`. Run; confirm `assert` failures. (FR-016a; contracts/analyze-cli.md; TO-5)
-- [ ] T053 [US1] Green: `tools/analyze.ts` reads both laps with `getLapForSession`, prints the three sections (insights as today with `JSON.stringify(insights, null, 2)`, then `buildCoachUserMessage(insights, primary, comparison)`, then `PROMPT_VERSION`); imports neither `coachService` nor `config/env`; errors and exit codes unchanged. (FR-016a; D8)
+- [ ] T052a [US1] Stub `src/coaching/analyzeOutput.ts`: `export function formatAnalyzeOutput(insights: LapInsights, coachMessage: string, promptVersion: string): string` returning `""`. Pure: imports only the `LapInsights` type. (FR-016a; D8; contracts/analyze-cli.md)
+- [ ] T052b [US1] Red: `src/coaching/analyzeOutput.test.ts` (flat `test()` calls, Portuguese names, synthetic insights built in the file): the output has the three headers `=== insights ===`, `=== mensagem do coach ===`, `=== versão do prompt ===` once each and in that order; the first section is exactly `JSON.stringify(insights, null, 2)`; the second is the given message verbatim (multi-line, with a blank line inside it, unchanged); the third is the given version; sections separated by one empty line, no trailing line break (the CLI's `console.log` adds it). One more case composes it with the real `buildCoachUserMessage` for a comparison lap without a row (`toComparedLap(3, undefined)`) and checks the output contains `tempo oficial desconhecido`. Run; confirm `assert` failures. (FR-016a; contracts/analyze-cli.md; TO-5)
+- [ ] T052c [US1] Green: implement `formatAnalyzeOutput` (the three sections joined as the test pins). (FR-016a; D8)
+- [ ] T053 [US1] `tools/analyze.ts`, thin: reads both laps with `getLapForSession` and builds `primary`/`comparison` with `toComparedLap`; calls `buildCoachUserMessage(insights, primary, comparison)` and prints `formatAnalyzeOutput(insights, message, PROMPT_VERSION)`; imports neither `coachService` nor `config/env`; the usage message, the integer check, the missing-samples message and every exit code unchanged. No test of its own (there is no logic in it beyond the calls); checked by T057 and by a keyless, temporary-database run before the commit. (FR-016a; D8)
 - [ ] T054 [US1] Docs, same commit: `README.md` "Running without the game"/commands: `npm run analyze` prints the insights, the coach's message and the prompt version, no AI call, and its output is no longer a single JSON document; `CLAUDE.md` Commands line for `analyze` the same; the `tools/` rows unchanged except "analyze (insights, coach message, prompt version)". The "CI runs" row of T051. (FR-016a)
-- [ ] T055 Commit 8 (T052–T054), after the key check, `npm test` and `npm run typecheck`: `feat: print the coach message and prompt version in analyze`.
+- [ ] T055 Commit 8 (T052a–T054), after the key check, `npm test` and `npm run typecheck`: `feat: print the coach message and prompt version in analyze`.
 
 ---
 
@@ -181,7 +183,7 @@ None. Every module this feature adds is used by a single story and is created in
 - [ ] T059 **[MANUAL] [PARADA] M3 — reading the six messages.** The maintainer reads `<scratch>/m3/analyze-*.txt` (T057) against the six messages approved in R§4 and the comparison result. Hands back: "approved", or the changes she wants (which become new tasks before T064, each with its own commit and, if it changes the prompt or the message, a new `PROMPT_VERSION` recorded).
 - [ ] T060 **[MANUAL] [PARADA] M2 — token count of the new prompt.** With her own key, in her own shell, the maintainer measures `COACH_SYSTEM_PROMPT` for `claude-opus-4-8` with Anthropic's token-counting endpoint, the same way as the 1,378-token figure (quickstart.md M2). Hands back: the token count, the method used, and whether it reaches the model's minimum cacheable length. The agent never runs it.
 - [ ] T061 Docs with M2's result: `README.md` "Static system prompt" and `CLAUDE.md` Known pitfalls get the new figure and whether `cache_control` now applies (if it does, the pitfall line changes accordingly); commit `docs: record the token count of the new coach prompt`. (FR-017)
-- [ ] T062 Documentation review (constitution IV): `grep -n "1,378\|benchmark changes\|responsible for prioritising\|keyed only by" README.md CLAUDE.md` finds nothing stale; the README "Tests" paragraph lists the new covered areas (the coach's reading and message, the prompt and its version, the cache migration and policy, the `analyze` CLI); FR-016's sentence is present. Fix anything stale here.
+- [ ] T062 Documentation review (constitution IV): `grep -n "1,378\|benchmark changes\|responsible for prioritising\|keyed only by" README.md CLAUDE.md` finds nothing stale; the README "Tests" paragraph lists the new covered areas (the coach's reading and message, the prompt and its version, the cache migration and policy, the `analyze` output); FR-016's sentence is present. Fix anything stale here.
 - [ ] T063 Recheck FR coverage against the code (every row of the table below) and record the result in research.md.
 - [ ] T064 Set `specs/004-coach-input/spec.md` **Status** to "Implemented; pull request #<n>" (n from T021), mark the done tasks in this file, and commit T056–T063 with the pending "CI runs" row: `docs: record the validation of spec 004` (any fix from T062 that changes code goes in its own commit with the matching type).
 - [ ] T065 **[PARADA] [MANUAL] the maintainer approves the push of Phases 8–9.** Hands back: "go".
@@ -260,7 +262,7 @@ Phases 3–5 (US1 and US2, commit 4): the coach already receives the laps, the o
 
 | Requirement | Tasks |
 |---|---|
-| FR-001 laps, times, validity | T008–T010, T012–T013, T015–T017, T052–T053 |
+| FR-001 laps, times, validity | T008–T010, T012–T013, T015–T017, T052a–T053 |
 | FR-001a "not a target" warning | T008–T010, T016–T017 |
 | FR-002 official difference in words | T008–T010, T016–T017 |
 | FR-003 every delta against the comparison lap | T008–T010, T016–T017 |
@@ -277,8 +279,8 @@ Phases 3–5 (US1 and US2, commit 4): the coach already receives the laps, the o
 | FR-014 staleness, regenerate, 503 | T033–T034, T038–T048, T058 |
 | FR-014a migration, backup, limitation removed | T030–T032, T035, T037, T048 |
 | FR-015 no theoretical best | T015–T017 |
-| FR-016 tests; human reading documented | T003–T053 (tests), T028, T059, T062 |
-| FR-016a `analyze` prints message and version | T052–T055, T057 |
+| FR-016 tests; human reading documented | T003–T052c (tests), T028, T059, T062 |
+| FR-016a `analyze` prints message and version | T052a–T055, T057 |
 | FR-017 no paid call; token figure withdrawn; M2 | header rules, T028, T060–T061 |
 | FR-018 keyless dotenv; never `data/telemetry.db` | header rules, T001, T057–T058 |
 
