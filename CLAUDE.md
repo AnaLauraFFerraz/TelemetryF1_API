@@ -39,7 +39,7 @@ Flow: `network/udpListener` → `telemetry/dispatcher` (parse) → `persistence/
 | `src/ws/` | WebSocket message envelope |
 | `src/persistence/` | SQLite schema, per-session in-memory context, decimation, lap completion detection, repositories (one per table); sample tables deduplicate on `(session_id, overall_frame_identifier)` — that field never resets or regresses within a session, including across a flashback, unlike session time or lap distance |
 | `src/analysis/` | Pure functions, no I/O: corner detection, braking/throttle, delta, line deviation, tyre windows → `buildInsights` |
-| `src/coaching/` | Static system prompt, user-message builder, the code's reading of the compared laps and the opportunities (opportunity rule and labels, direction phrases), Anthropic call with typed errors |
+| `src/coaching/` | Static system prompt, user-message builder, the code's reading of the compared laps and the opportunities (opportunity rule and labels, direction phrases), prompt version, analysis resolver (staleness rule, one call per pair), Anthropic call with typed errors |
 | `src/http/` | Express app and routers (`sessionsRouter`, `analysisRouter`) |
 | `src/replay/` | Pure replay pacing (`computeDelayMs`) and orchestration (`runReplay`): speed, loop, absolute-deadline scheduling |
 | `src/tooling/` | Tests of the project's own tooling: the test of the empty-discovery guard |
@@ -84,7 +84,6 @@ Spec Kit 1.2.0 (Claude Code integration, PowerShell scripts). The constitution i
 These are also listed under "Known limitations" in the README. When a limitation is fixed, remove it from both this file and the README in the same PR.
 
 - `npm run record` and `npm run dev` both bind the UDP port; stop the server before recording.
-- The `lap_analyses` cache is keyed only by `(session_id, lap_a, lap_b)`; it ignores the model and the prompt version.
 - A lap with more than one pass over the same distance gets wrong per-distance analysis: a flashback (event `FLBK`, `sessionTime` going back, `frameIdentifier` diverging from `overallFrameIdentifier`), or the Time Trial out-lap, which shares its `lap_number` with the first flying lap. Lap times and sectors are still correct (they come from `lastLapTimeInMS`).
 - The `max` replay speed overflows the UDP receive buffer by design: laps, times and sectors arrive intact, but a large share of the per-distance samples is lost. `1x` and `2x` do not lose samples.
 - `--speed=max` combined with `--loop` delivers practically no samples (measured: effectively zero) — the flood never lets up between passes. Use `1x` or `2x` for a continuous demo.
@@ -93,7 +92,7 @@ These are also listed under "Known limitations" in the README. When a limitation
 - `sessionType` 18 is Time Trial in F1 24 (the numbering differs from F1 23).
 - `.env` is read only at startup; `ts-node-dev` does not restart on `.env` changes.
 - The first start of a version with a schema change migrates `data/telemetry.db` in place (this version adds `lap_analyses.prompt_version`); back it up first to a folder outside the repository, with the `VACUUM INTO` command in the README ("Upgrading an existing database").
-- Without `ANTHROPIC_API_KEY`, `POST /sessions/:id/analysis` returns 503 (cached analyses are still served).
+- Without `ANTHROPIC_API_KEY`, `POST /sessions/:id/analysis` returns 503; analyses cached with the current prompt version and model are still served, older ones answer 503.
 - The current coach system prompt's token count is not measured yet and must be re-measured (the previous prompt, 1,378 tokens for `claude-opus-4-8`, was below the model's minimum cacheable length); until then it is unconfirmed whether `cache_control` has any effect. Each call logs its token `usage` (`[coachService] usage ...`). Re-measure if the prompt changes.
 
 ## How to work in this repo

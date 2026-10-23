@@ -5,7 +5,8 @@ import { listCarTelemetrySamplesForLap } from "../../persistence/carTelemetrySam
 import { listMotionSamplesForLap } from "../../persistence/motionSampleRepository";
 import { getCachedAnalysis, saveAnalysis } from "../../persistence/analysisRepository";
 import { buildInsights } from "../../analysis/buildInsights";
-import { LapInsights } from "../../analysis/types";
+import { createAnalysisResolver } from "../../coaching/analysisResolver";
+import { COACH_MODEL } from "../../coaching/coachModel";
 import { toComparedLap } from "../../coaching/coachReading";
 import { PROMPT_VERSION } from "../../coaching/promptVersion";
 import {
@@ -17,6 +18,28 @@ import {
 } from "../../coaching/coachService";
 
 export const analysisRouter = Router();
+
+const resolver = createAnalysisResolver({
+  getCached: getCachedAnalysis,
+  isConfigured: isCoachingConfigured,
+  buildInputs: (sessionId, lapA, lapB) => {
+    const primaryTelemetry = listCarTelemetrySamplesForLap(sessionId, lapA);
+    const comparisonTelemetry = listCarTelemetrySamplesForLap(sessionId, lapB);
+    if (primaryTelemetry.length === 0 || comparisonTelemetry.length === 0) return null;
+
+    const primaryMotion = listMotionSamplesForLap(sessionId, lapA);
+    const comparisonMotion = listMotionSamplesForLap(sessionId, lapB);
+    return {
+      insights: buildInsights({ primaryTelemetry, comparisonTelemetry, primaryMotion, comparisonMotion }),
+      primary: toComparedLap(lapA, getLapForSession(sessionId, lapA)),
+      comparison: toComparedLap(lapB, getLapForSession(sessionId, lapB)),
+    };
+  },
+  generate: generateCoaching,
+  save: saveAnalysis,
+  currentModel: COACH_MODEL,
+  currentPromptVersion: PROMPT_VERSION,
+});
 
 // POST, não GET: dispara um efeito colateral caro (chamada paga à API da
 // Anthropic) na primeira vez que um par de voltas é analisado - mesmo
@@ -42,42 +65,18 @@ analysisRouter.post("/sessions/:id/analysis", async (req, res) => {
     return;
   }
 
-  const cached = getCachedAnalysis(sessionId, lapA, lapB);
-  if (cached) {
-    res.json({
-      analysis: cached.analysisText,
-      insights: JSON.parse(cached.insightsJson) as LapInsights,
-      cached: true,
-    });
-    return;
-  }
-
-  // Checa a key ANTES de gastar tempo montando os insights - não faz
-  // sentido processar telemetria só pra descobrir depois que não dá pra
-  // chamar a IA.
-  if (!isCoachingConfigured()) {
-    res.status(503).json({ error: "coaching indisponível: configure ANTHROPIC_API_KEY" });
-    return;
-  }
-
-  const primaryTelemetry = listCarTelemetrySamplesForLap(sessionId, lapA);
-  const comparisonTelemetry = listCarTelemetrySamplesForLap(sessionId, lapB);
-  if (primaryTelemetry.length === 0 || comparisonTelemetry.length === 0) {
-    res.status(400).json({ error: "uma das voltas não tem amostras de telemetria" });
-    return;
-  }
-
-  const primaryMotion = listMotionSamplesForLap(sessionId, lapA);
-  const comparisonMotion = listMotionSamplesForLap(sessionId, lapB);
-  const insights = buildInsights({ primaryTelemetry, comparisonTelemetry, primaryMotion, comparisonMotion });
-
-  const primary = toComparedLap(lapA, getLapForSession(sessionId, lapA));
-  const comparison = toComparedLap(lapB, getLapForSession(sessionId, lapB));
-
   try {
-    const { text, model } = await generateCoaching(insights, primary, comparison);
-    saveAnalysis(sessionId, lapA, lapB, JSON.stringify(insights), text, model, PROMPT_VERSION);
-    res.json({ analysis: text, insights, cached: false });
+    const outcome = await resolver.resolve(sessionId, lapA, lapB);
+
+    if (outcome.kind === "unavailable") {
+      res.status(503).json({ error: "coaching indisponível: configure ANTHROPIC_API_KEY" });
+      return;
+    }
+    if (outcome.kind === "no-samples") {
+      res.status(400).json({ error: "uma das voltas não tem amostras de telemetria" });
+      return;
+    }
+    res.json({ analysis: outcome.analysis, insights: outcome.insights, cached: outcome.kind === "cached" });
   } catch (err) {
     if (err instanceof CoachingUnavailableError) {
       res.status(503).json({ error: err.message });
