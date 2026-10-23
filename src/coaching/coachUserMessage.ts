@@ -1,9 +1,8 @@
 import { LapInsights } from "../analysis/types";
-import { ComparedLap, comparedLapsBlock, invalidComparisonWarning, opportunityBlock } from "./coachReading";
+import { ComparedLap, PHRASE_TEMPLATES, comparedLapsBlock, invalidComparisonWarning, opportunityBlock } from "./coachReading";
 import { topOpportunities } from "./opportunities";
 
 const OPPORTUNITIES_HEADER = "Oportunidades (já escolhidas e ordenadas pelo sistema; use exatamente estes rótulos, nesta ordem):";
-const NO_OPPORTUNITIES = "Oportunidades: nenhuma curva teve perda de tempo contra a volta de comparação.";
 
 /**
  * Monta a mensagem do usuário enviada ao Claude: as duas voltas comparadas, o
@@ -16,7 +15,7 @@ export function buildCoachUserMessage(insights: LapInsights, primary: ComparedLa
   const opportunities = topOpportunities(insights);
   const opportunitiesBlock =
     opportunities.length === 0
-      ? NO_OPPORTUNITIES
+      ? PHRASE_TEMPLATES.noOpportunities
       : [OPPORTUNITIES_HEADER, ...opportunities.map((c, i) => opportunityBlock(i + 1, c))].join("\n");
 
   const blocks = [
