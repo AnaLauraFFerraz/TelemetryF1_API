@@ -37,6 +37,15 @@ export function upsertCompletedLap(sessionId: number, lap: CompletedLap): void {
   });
 }
 
+const applyLapCaptureTimeStmt = db.prepare<{ sessionId: number; lapNumber: number; recordedAt: string }>(
+  `UPDATE laps SET recorded_at = @recordedAt WHERE session_id = @sessionId AND lap_number = @lapNumber`
+);
+
+// Par de sessionRepository.applySessionCaptureTimes: só o modo demo chama.
+export function applyLapCaptureTimes(sessionId: number, lapNumber: number, recordedAt: string): void {
+  applyLapCaptureTimeStmt.run({ sessionId, lapNumber, recordedAt });
+}
+
 export interface LapRow {
   lapNumber: number;
   lapTimeMs: number;

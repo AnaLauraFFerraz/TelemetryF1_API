@@ -56,7 +56,7 @@ class WriteCursor {
 
 const PLAYER_CAR_INDEX = 0;
 
-interface HeaderFields {
+export interface HeaderFields {
   packetId: number;
   sessionTime: number;
   frameIdentifier: number;
@@ -79,7 +79,7 @@ function writeHeader(cursor: WriteCursor, fields: HeaderFields): void {
   cursor.writeUInt8(255); // secondaryPlayerCarIndex: nenhum segundo jogador
 }
 
-interface SyntheticLapDataTick {
+export interface SyntheticLapDataTick {
   header: HeaderFields;
   currentLapNum: number;
   lapDistance: number;
@@ -93,7 +93,7 @@ interface SyntheticLapDataTick {
   lastLapTimeInMS: number;
 }
 
-function buildLapDataPacket(tick: SyntheticLapDataTick): Buffer {
+export function buildLapDataPacket(tick: SyntheticLapDataTick): Buffer {
   const buffer = Buffer.alloc(LAP_DATA_PACKET_SIZE);
   const cursor = new WriteCursor(buffer);
   writeHeader(cursor, tick.header);
@@ -144,7 +144,7 @@ function buildLapDataPacket(tick: SyntheticLapDataTick): Buffer {
   return buffer;
 }
 
-function buildMotionPacket(header: HeaderFields, lapDistance: number): Buffer {
+export function buildMotionPacket(header: HeaderFields, lapDistance: number): Buffer {
   const buffer = Buffer.alloc(MOTION_PACKET_SIZE);
   const cursor = new WriteCursor(buffer);
   writeHeader(cursor, header);
@@ -177,7 +177,7 @@ function buildMotionPacket(header: HeaderFields, lapDistance: number): Buffer {
   return buffer;
 }
 
-function buildCarTelemetryPacket(header: HeaderFields): Buffer {
+export function buildCarTelemetryPacket(header: HeaderFields): Buffer {
   const buffer = Buffer.alloc(CAR_TELEMETRY_PACKET_SIZE);
   const cursor = new WriteCursor(buffer);
   writeHeader(cursor, header);

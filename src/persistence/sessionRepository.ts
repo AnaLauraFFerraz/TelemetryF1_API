@@ -53,6 +53,16 @@ export function setSessionTrackId(id: number, trackId: number): void {
   setTrackIdStmt.run({ id, trackId });
 }
 
+const applyCaptureTimesStmt = db.prepare<{ id: number; startedAt: string; lastSeenAt: string }>(
+  `UPDATE sessions SET started_at = @startedAt, last_seen_at = @lastSeenAt WHERE id = @id`
+);
+
+// Só o modo demo chama isto, uma vez, depois de montar a sessão: as datas
+// passam a ser as da captura (receivedAt), não as do relógio do servidor.
+export function applySessionCaptureTimes(id: number, startedAt: string, lastSeenAt: string): void {
+  applyCaptureTimesStmt.run({ id, startedAt, lastSeenAt });
+}
+
 export interface SessionSummary {
   id: number;
   sessionUid: string;

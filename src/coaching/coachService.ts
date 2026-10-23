@@ -5,7 +5,7 @@ import { TrackBenchmark } from "../persistence/lapRepository";
 import { COACH_SYSTEM_PROMPT } from "./coachPrompt";
 import { buildCoachUserMessage } from "./coachUserMessage";
 
-const MODEL = "claude-opus-4-8";
+export const MODEL = "claude-opus-4-8";
 const MAX_TOKENS = 2048;
 
 export class CoachingUnavailableError extends Error {}

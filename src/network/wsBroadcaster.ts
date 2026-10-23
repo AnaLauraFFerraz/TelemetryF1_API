@@ -6,6 +6,28 @@ export interface WsBroadcaster {
 
 const HEARTBEAT_INTERVAL_MS = 15_000;
 
+// Marca o socket como "vivo" a cada pong recebido - se não responder a
+// dois ciclos de heartbeat seguidos, é considerado morto e derrubado
+// (ex: PC suspendeu, rede caiu sem um close/FIN limpo). Devolve a função
+// que para o heartbeat, chamada no close.
+export function startHeartbeat(socket: WebSocket): () => void {
+  let isAlive = true;
+  socket.on("pong", () => {
+    isAlive = true;
+  });
+
+  const heartbeat = setInterval(() => {
+    if (!isAlive) {
+      socket.terminate();
+      return;
+    }
+    isAlive = false;
+    socket.ping();
+  }, HEARTBEAT_INTERVAL_MS);
+
+  return () => clearInterval(heartbeat);
+}
+
 /**
  * Mantém a lista de clientes WebSocket conectados e expõe um único método
  * `broadcast` para mandar a mesma mensagem (JSON) para todos eles.
@@ -18,25 +40,10 @@ export function startWsBroadcaster(port: number): WsBroadcaster {
     clients.add(socket);
     console.log(`[wsBroadcaster] cliente conectado (${clients.size} no total)`);
 
-    // Marca o socket como "vivo" a cada pong recebido - se não responder a
-    // dois ciclos de heartbeat seguidos, é considerado morto e derrubado
-    // (ex: PC suspendeu, rede caiu sem um close/FIN limpo).
-    let isAlive = true;
-    socket.on("pong", () => {
-      isAlive = true;
-    });
-
-    const heartbeat = setInterval(() => {
-      if (!isAlive) {
-        socket.terminate();
-        return;
-      }
-      isAlive = false;
-      socket.ping();
-    }, HEARTBEAT_INTERVAL_MS);
+    const stopHeartbeat = startHeartbeat(socket);
 
     socket.on("close", () => {
-      clearInterval(heartbeat);
+      stopHeartbeat();
       clients.delete(socket);
       console.log(`[wsBroadcaster] cliente desconectado (${clients.size} no total)`);
     });

@@ -9,7 +9,7 @@ import { insertCarTelemetrySample } from "./carTelemetrySampleRepository";
 import { insertMotionSample } from "./motionSampleRepository";
 import { createLapCompletionDetector, LapCompletionDetector } from "./lapCompletionDetector";
 import { shouldPersistSample, DecimationState } from "./decimation";
-import { LapProgressSnapshot } from "./types";
+import { CompletedLap, LapProgressSnapshot } from "./types";
 
 interface ActiveSession {
   sessionId: number;
@@ -104,7 +104,7 @@ export function handleSessionPacket(header: PacketHeader, session: PacketSession
   active.trackId = session.trackId;
 }
 
-export function handleLapDataPacket(header: PacketHeader, player: LapData): void {
+export function handleLapDataPacket(header: PacketHeader, player: LapData): CompletedLap | null {
   const active = getActiveSession(header);
 
   const completed = active.lapDetector.process(player);
@@ -117,6 +117,8 @@ export function handleLapDataPacket(header: PacketHeader, player: LapData): void
     lapDistance: player.lapDistance,
     sessionTime: header.sessionTime,
   };
+
+  return completed;
 }
 
 export function handleMotionPacket(header: PacketHeader, player: CarMotionData): void {
