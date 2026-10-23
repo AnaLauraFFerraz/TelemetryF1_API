@@ -76,6 +76,12 @@ In the game, enable UDP telemetry under *Settings → Telemetry*: IP `127.0.0.1`
 
 Without `ANTHROPIC_API_KEY` everything works except new coach analyses, which return HTTP 503.
 
+**Upgrading an existing database.** The first start of this version adds the column `lap_analyses.prompt_version` to `data/telemetry.db` in place. Before it, with the API stopped, back the database up and keep the copy until the change is merged:
+
+```bash
+node -e "const D=require('better-sqlite3'); const db=new D('data/telemetry.db',{readonly:true}); db.exec(\"VACUUM INTO 'data/telemetry-before-004.db'\"); db.close()"
+```
+
 ### Running without the game
 
 A sample recording is published as a release asset (not committed to git): [sample-recording-v1](https://github.com/AnaLauraFFerraz/TelemetryF1_API/releases/tag/sample-recording-v1).
