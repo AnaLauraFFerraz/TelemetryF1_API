@@ -1,12 +1,6 @@
 import { LapInsights } from "../analysis/types";
 import { TrackBenchmark } from "../persistence/lapRepository";
-
-function formatLapTime(ms: number): string {
-  const totalSeconds = ms / 1000;
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = (totalSeconds - minutes * 60).toFixed(3);
-  return `${minutes}:${seconds.padStart(6, "0")}`;
-}
+import { formatLapTime } from "./coachReading";
 
 /**
  * Monta a mensagem do usuário enviada ao Claude: contexto de benchmark (se
