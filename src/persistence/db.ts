@@ -57,6 +57,12 @@ db.exec(`
     ON motion_samples(session_id, overall_frame_identifier);
 `);
 
+// Modo demo: depois de montar a sessão e semear o cache, qualquer escrita
+// falha dentro do próprio SQLite, sem depender de revisar cada rota.
+export function setReadOnly(): void {
+  db.pragma("query_only = ON");
+}
+
 export function closeDb(): void {
   db.close();
 }
