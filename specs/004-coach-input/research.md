@@ -600,6 +600,7 @@ Confirmed through the jobs API (`status` completed and `conclusion` success on e
 | Push | Head commit | Run | `typecheck` | `test` |
 |---|---|---|---|---|
 | First push (commits 1–4) | `a48ba2c` | [40013161554](https://github.com/AnaLauraFFerraz/TelemetryF1_API/actions/runs/40013161554) | success | success |
+| Second push (commits 5–7 and the backup docs) | `38ac1e9` | [40030469003](https://github.com/AnaLauraFFerraz/TelemetryF1_API/actions/runs/40030469003) | success | success |
 
 ---
 
