@@ -1,11 +1,11 @@
 import Anthropic, { RateLimitError, APIConnectionError, APIError } from "@anthropic-ai/sdk";
 import { env } from "../config/env";
 import { LapInsights } from "../analysis/types";
-import { TrackBenchmark } from "../persistence/lapRepository";
+import { ComparedLap } from "./coachReading";
 import { COACH_SYSTEM_PROMPT } from "./coachPrompt";
 import { buildCoachUserMessage } from "./coachUserMessage";
+import { COACH_MODEL } from "./coachModel";
 
-const MODEL = "claude-opus-4-8";
 const MAX_TOKENS = 2048;
 
 export class CoachingUnavailableError extends Error {}
@@ -38,7 +38,8 @@ export function isCoachingConfigured(): boolean {
  */
 export async function generateCoaching(
   insights: LapInsights,
-  benchmark?: TrackBenchmark | null
+  primary: ComparedLap,
+  comparison: ComparedLap
 ): Promise<{ text: string; model: string }> {
   if (!isCoachingConfigured()) {
     throw new CoachingUnavailableError("ANTHROPIC_API_KEY não configurada");
@@ -47,7 +48,7 @@ export async function generateCoaching(
   let response;
   try {
     response = await getClient().messages.create({
-      model: MODEL,
+      model: COACH_MODEL,
       max_tokens: MAX_TOKENS,
       system: [
         {
@@ -59,7 +60,7 @@ export async function generateCoaching(
       messages: [
         {
           role: "user",
-          content: buildCoachUserMessage(insights, benchmark),
+          content: buildCoachUserMessage(insights, primary, comparison),
         },
       ],
     });
@@ -78,7 +79,7 @@ export async function generateCoaching(
 
   const { usage } = response;
   console.log(
-    `[coachService] usage model=${MODEL} input=${usage.input_tokens} output=${usage.output_tokens} ` +
+    `[coachService] usage model=${COACH_MODEL} input=${usage.input_tokens} output=${usage.output_tokens} ` +
       `cache_write=${usage.cache_creation_input_tokens ?? 0} cache_read=${usage.cache_read_input_tokens ?? 0}`
   );
 
@@ -87,5 +88,5 @@ export async function generateCoaching(
     throw new CoachingApiError("Resposta do Claude não trouxe um bloco de texto.");
   }
 
-  return { text: textBlock.text, model: MODEL };
+  return { text: textBlock.text, model: COACH_MODEL };
 }

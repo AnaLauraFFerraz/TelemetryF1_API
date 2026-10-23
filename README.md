@@ -36,7 +36,7 @@ flowchart LR
 | `src/telemetry/` | Binary parsers for packet ids 0 (motion), 1 (session, partial), 2 (lap data) and 6 (car telemetry), over a little-endian `BufferCursor`; each full parser asserts the exact byte count |
 | `src/persistence/` | SQLite schema, per-session in-memory state, decimation, lap completion detection, one repository per table; samples are deduplicated by `(session_id, overall_frame_identifier)`, since a packet's frame identifier survives a flashback and a looped or repeated replay unscathed, unlike session time or lap distance |
 | `src/analysis/` | Pure, deterministic lap analysis producing a compact `LapInsights` JSON |
-| `src/coaching/` | Static system prompt, user-message builder, Anthropic call with typed errors |
+| `src/coaching/` | Static system prompt, user-message builder, the code's reading of the compared laps and the opportunities (opportunity rule and labels, direction phrases), prompt version, analysis resolver (staleness rule, one call per pair), Anthropic call with typed errors |
 | `src/http/` | Express REST API |
 | `src/replay/` | Pure replay pacing (`computeDelayMs`) and the orchestration loop (`runReplay`): speed, loop, absolute-deadline scheduling so error does not accumulate over a long recording |
 | `src/tooling/` | Tests of the project's own tooling: the test of the empty-discovery guard |
@@ -59,7 +59,7 @@ flowchart LR
   | POST | `/sessions/:id/analysis` | Body `{ lapA, lapB }`; returns `{ analysis, insights, cached }` |
 
 - **Lap analysis engine** (`npm run analyze`, also used by the coach): corner detection from the speed trace, braking point and trail braking, throttle pick-up, coasting and throttle oscillation, per-corner time loss, lateral line deviation between laps, and tyre surface temperature excursions.
-- **AI coach**: turns the insights of two laps into pit-engineer style advice in Portuguese, with results cached per lap pair.
+- **AI coach**: turns the insights of two laps into pit-engineer style advice in Portuguese (the code picks the opportunities), with results cached per lap pair.
 - **Recorder and replayer** to capture a real session once and work without the game afterwards, replaying at the original pace by default, with `1x`/`2x`/`max` speed options and an optional loop for a continuous demo.
 
 ## Getting started
@@ -74,7 +74,13 @@ npm run dev
 
 In the game, enable UDP telemetry under *Settings → Telemetry*: IP `127.0.0.1`, port `20777`, UDP format `2024`.
 
-Without `ANTHROPIC_API_KEY` everything works except new coach analyses, which return HTTP 503.
+Without `ANTHROPIC_API_KEY` everything works except new coach analyses, which return HTTP 503. Analyses cached with the current prompt version and model are still served; older ones answer 503.
+
+**Upgrading an existing database.** The first start of this version adds the column `lap_analyses.prompt_version` to `data/telemetry.db` in place. Before it, with the API stopped, back the database up to a folder outside the repository (the command creates it) and keep the copy until the change is merged:
+
+```bash
+node -e "require('fs').mkdirSync('C:/Telemetry/backups',{recursive:true}); const D=require('better-sqlite3'); const db=new D('data/telemetry.db',{readonly:true}); db.exec(\"VACUUM INTO 'C:/Telemetry/backups/telemetry-before-004.db'\"); db.close()"
+```
 
 ### Running without the game
 
@@ -164,9 +170,9 @@ Last resort, if GitHub Actions itself is down: wait first. Only if it stays down
 
 The game's send rate sets the other limit. The recording used for validation was made at **20 Hz**. At 300 km/h the car covers about 4.2 m between packets, so at high speed the send rate, not the decimation, is the bottleneck; in slower sections decimation keeps one sample per 4 m. Either way the stored resolution is roughly one point every 4 m along the lap, and braking points, throttle pick-up and line deviation cannot be located more precisely than that. A 60 Hz recording would give about three times the raw density at the same speed, with decimation then capping it at 4 m.
 
-**The coach receives insights, never raw samples.** The deterministic engine extracts the facts (where, how much, which input differed) and only that JSON goes to the model, which is responsible for prioritising and explaining. Raw samples would cost far more tokens, invite numerical hallucination and make the analysis impossible to test. All the arithmetic lives in `src/analysis/`, covered by unit tests.
+**The coach receives insights, never raw samples.** The deterministic engine extracts the facts (where, how much, which input differed) and only that JSON goes to the model, together with the compared laps' number, official time and validity and the official difference between them. The model no longer prioritises: the code ranks and labels up to three opportunities with the frontend's rule (corners that lost time, largest first) and writes the direction of each difference in words, so the model only explains them. No benchmark (personal or theoretical best) is sent. Raw samples would cost far more tokens, invite numerical hallucination and make the analysis impossible to test. All the arithmetic lives in `src/analysis/`, covered by unit tests.
 
-**Static system prompt.** The coach's system prompt is a constant, never interpolated, and all variable content goes in the user message. This is the precondition for Anthropic prompt caching, and the request marks the system block with `cache_control`. **What happens today:** Anthropic only caches a prefix above a model-specific minimum length ([prompt caching docs](https://platform.claude.com/docs/en/build-with-claude/prompt-caching)); a shorter one is processed normally, with no cache entry and no error. The coach's system prompt measures 1,378 tokens for `claude-opus-4-8` (Anthropic's token-counting endpoint), which is below that minimum, so it is not cached today. Each call logs its token usage (`[coachService] usage ... cache_write=… cache_read=…`) to confirm this at runtime. What actually avoids repeated cost is the `lap_analyses` table: an analysed lap pair is never sent to the API again.
+**Static system prompt.** The coach's system prompt is a constant, never interpolated, and all variable content goes in the user message. This is the precondition for Anthropic prompt caching, and the request marks the system block with `cache_control`. **What happens today:** Anthropic only caches a prefix above a model-specific minimum length ([prompt caching docs](https://platform.claude.com/docs/en/build-with-claude/prompt-caching)); a shorter one is processed normally, with no cache entry and no error. The current prompt's token count is not measured yet (pending re-measurement by the maintainer, with Anthropic's token-counting endpoint for `claude-opus-4-8`); the previous, shorter prompt was below that minimum, so whether this one is cached is unconfirmed. Each call logs its token usage (`[coachService] usage ... cache_write=… cache_read=…`) to confirm this at runtime. What actually avoids repeated cost is the `lap_analyses` table: an analysed lap pair is sent again only when the prompt version or the model changes, and concurrent requests for the same pair share one call. (Before, two simultaneous requests for a new pair made two paid calls and the second ended in a 500 on `SQLITE_CONSTRAINT_UNIQUE`, discarding its paid text.) The coach's texts follow the prompt only as far as the model obeys it, which no test can check, so generated texts are read by a person before they are published.
 
 **Partial session-packet parser.** Only `sessionType` and `trackId` are read. The full struct contains large variable-length arrays the project does not use yet, so this parser is the only one that does not assert the total byte count.
 
@@ -178,7 +184,6 @@ The game's send rate sets the other limit. The recording used for validation was
 - **The `max` replay speed loses most samples by design** — it exists to reach the end of a long recording quickly when fidelity does not matter. `1x` and `2x` do not lose samples.
 - **`--speed=max` combined with `--loop` delivers practically no samples**: with no gap between an already-fast pass and the next, the flood is continuous rather than a one-off burst, and measured delivery dropped to effectively zero. For a continuous public demo, use `1x` or `2x`.
 - **A looped replay of a very short recording** does not reset its in-memory lap/decimation state at the loop boundary: if a recording's own `overallFrameIdentifier` span is 100 frames or less (roughly 5 seconds), the next pass carries over stale state instead of starting fresh. Recordings of a lap or more are unaffected — the published Interlagos recording spans about 4,500 frames.
-- **The analysis cache** is keyed only by session and lap pair. It ignores the model, the prompt version and later benchmark changes.
 - **Error responses** are plain strings in mixed languages, and the frontend matches some of them literally.
 - **Switching the Node major without running `npm ci` again** makes `better-sqlite3` fail to load with `ERR_DLOPEN_FAILED`: its native binary is built for one major's ABI.
 - No build or lint scripts yet.

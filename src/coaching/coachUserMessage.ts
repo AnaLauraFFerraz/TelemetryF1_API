@@ -1,33 +1,29 @@
 import { LapInsights } from "../analysis/types";
-import { TrackBenchmark } from "../persistence/lapRepository";
+import { ComparedLap, PHRASE_TEMPLATES, comparedLapsBlock, invalidComparisonWarning, opportunityBlock } from "./coachReading";
+import { topOpportunities } from "./opportunities";
 
-function formatLapTime(ms: number): string {
-  const totalSeconds = ms / 1000;
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = (totalSeconds - minutes * 60).toFixed(3);
-  return `${minutes}:${seconds.padStart(6, "0")}`;
-}
+const OPPORTUNITIES_HEADER = "Oportunidades (já escolhidas e ordenadas pelo sistema; use exatamente estes rótulos, nesta ordem):";
 
 /**
- * Monta a mensagem do usuário enviada ao Claude: contexto de benchmark (se
- * disponível) em texto legível + o JSON de insights bruto. Função pura -
- * separada do coachService pra ser testável sem tocar a API/rede.
- *
- * benchmark é opcional: a sessão pode não ter trackId ainda (Fase 2 exige
- * um PacketSession recebido) ou não haver voltas válidas suficientes na
- * pista pra calcular um benchmark histórico.
+ * Monta a mensagem do usuário enviada ao Claude: as duas voltas comparadas, o
+ * aviso de comparação inválida, a leitura das oportunidades feita pelo código
+ * e o JSON de insights bruto. Função pura - separada do coachService pra ser
+ * testável sem tocar a API/rede. Depende só das duas voltas e dos insights:
+ * nenhum recorde nem benchmark entra aqui.
  */
-export function buildCoachUserMessage(insights: LapInsights, benchmark?: TrackBenchmark | null): string {
-  const contextLines: string[] = [];
+export function buildCoachUserMessage(insights: LapInsights, primary: ComparedLap, comparison: ComparedLap): string {
+  const opportunities = topOpportunities(insights);
+  const opportunitiesBlock =
+    opportunities.length === 0
+      ? PHRASE_TEMPLATES.noOpportunities
+      : [OPPORTUNITIES_HEADER, ...opportunities.map((c, i) => opportunityBlock(i + 1, c))].join("\n");
 
-  if (benchmark?.bestLapTimeMs != null) {
-    contextLines.push(`Recorde pessoal do piloto nesta pista: ${formatLapTime(benchmark.bestLapTimeMs)}.`);
-  }
-  if (benchmark?.theoreticalBestMs != null) {
-    contextLines.push(`Volta teórica na pista (melhores setores combinados, podem ser de voltas diferentes): ${formatLapTime(benchmark.theoreticalBestMs)}.`);
-  }
+  const blocks = [
+    comparedLapsBlock(primary, comparison),
+    invalidComparisonWarning(comparison),
+    opportunitiesBlock,
+    `Dados completos (JSON):\n${JSON.stringify(insights)}`,
+  ].filter((block): block is string => block !== null);
 
-  const header = contextLines.length > 0 ? `${contextLines.join(" ")}\n\n` : "";
-
-  return `${header}${JSON.stringify(insights)}`;
+  return blocks.join("\n\n");
 }

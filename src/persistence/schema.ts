@@ -96,7 +96,8 @@ CREATE TABLE IF NOT EXISTS lap_analyses (
   insights_json  TEXT NOT NULL,
   analysis_text  TEXT NOT NULL,
   model          TEXT NOT NULL,
-  created_at     TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  prompt_version TEXT,
+  created_at    TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
   UNIQUE (session_id, lap_a, lap_b)
 );
 `;
