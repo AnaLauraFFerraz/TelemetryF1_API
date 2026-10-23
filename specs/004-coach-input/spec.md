@@ -43,22 +43,35 @@ Facts this spec builds on. The rejected file and its analysis are in `003-demo-m
 - **What the visitor sees** (frontend, read-only): coach chips labelled `<rank>. <round(apexDistance)>m · +<deltaLossS with 2 decimals>s` (`Telemetry-F1/src/components/coach/CoachPanel.tsx:65`), the rank coming from `topOpportunities` (`Telemetry-F1/src/utils/coachInsights.ts`: corners with `deltaLossS > 0`, sorted by `deltaLossS` descending with a stable sort, first three). The frontend never shows a corner number or a sector attributed to a corner.
 - **The local cache** (`lap_analyses`) is unique on `(session_id, lap_a, lap_b)`; it stores the model but ignores it on read, and stores nothing about the prompt. A text produced by an old prompt keeps being served (Known limitation in `CLAUDE.md` and `README.md`).
 
+## Clarifications
+
+### Session 2026-10-23
+
+- Q: Do the prompt version and the model become part of the `lap_analyses` key? → A: Option B. The key stays `(session_id, lap_a, lap_b)`; each row records the prompt version and the model that produced it. A row whose prompt version or model differs from the current ones is stale: with the API key configured, it is generated again and replaced; without it, the request answers 503 instead of serving the old text. Rows that already exist, with no prompt version, are stale. It is the same rule as the export of the demo's seed file. The migration runs on the real database at the first start of the new version, so a backup with `VACUUM INTO` comes before it, as a documented manual task of the maintainer.
+- Q: Does the theoretical-best line ("Volta teórica na pista (melhores setores combinados…)") stay in the coach's message? → A: Option B. It is removed from the coach's message; the calculation stays in the code for its other uses.
+- Maintainer addition to FR-013: the prompt version must be the same whatever the checkout's line endings. The repository is cloned on Windows with `core.autocrlf`, so the prompt text in a `.ts` file can arrive with CRLF on the maintainer's machine (where the export runs) and with LF on the hosting platform (where demo mode checks it); a hash over raw line breaks would make demo mode refuse its own seed file. Line breaks are normalized before the version is computed, with a success criterion checking the same result for CRLF and LF text.
+- Q: When the track's personal best changes after a text was cached, does that text become stale? → A: The question no longer applies: the personal best is removed from the coach's message, like the theoretical best. It was the source of the main error of the rejected seed (the comparison lap confused with the personal best), it would add one more dimension of cache staleness, and the coach's job is to compare two laps. The text depends only on the two compared laps. The personal best's calculation and its display stay in the code and on screen.
+- Q: Does the coach's message say whether each of the two compared laps is valid or invalid in the game? → A: Option A, yes. Added: when the comparison lap is invalid, the deterministic reading written by the code says that the time it gains over the primary lap is not a target, because it may come from a stretch where the track was cut; the model is not left to conclude this on its own. The prompt forbids stating where or why a lap was invalidated.
+- Q: Should there be a no-cost way to print, for a pair of laps, the exact message the coach would receive and the prompt version, so the maintainer reads the input before paying for the export? → A: Option A. `npm run analyze` also prints the coach's message and the prompt version, with no paid call. When the agent runs it, it uses a temporary database; against the real database, the maintainer runs it. Recorded as work for spec 003 when it resumes, not for this spec: a `--dry-run` in the export tool that prints the six exact messages the coach would receive and the prompt version, built from the recording as the real export does, with no call; it becomes a mandatory step before T061, so the maintainer reads the input before paying.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - The coach compares the right laps (Priority: P1)
 
-A driver (or a demo visitor) asks for the analysis of lap A against lap B. The text opens with the official difference between those two laps, names them, and never presents a delta as a difference against the personal best. When the personal best is mentioned, it is clearly context, and when the best is one of the compared laps, the text does not contradict that.
+A driver (or a demo visitor) asks for the analysis of lap A against lap B. The text opens with the official difference between those two laps, names them, and never presents a delta as a difference against anything but the comparison lap. The coach is not told the personal best or any other benchmark, so it cannot confuse one with the comparison lap.
 
 **Why this priority**: four of the six rejected texts failed here, and the opening sentence is the first thing the reader sees; a wrong reference lap makes every number after it suspect.
 
-**Independent Test**: build the coach message for a synthetic pair of laps with known official times and a benchmark, with no API call, and check that it names both laps, gives both official times and their difference with its direction in words, states that every delta is against the comparison lap, and labels the benchmark as context.
+**Independent Test**: build the coach message for a synthetic pair of laps with known official times, with a track benchmark present in the database, with no API call, and check that it names both laps, gives both official times and their difference with its direction in words, states that every delta is against the comparison lap, and contains neither the personal best nor the theoretical best.
 
 **Acceptance Scenarios**:
 
 1. **Given** lap 7 (1:14.144) as primary and lap 6 (1:14.306) as comparison, **When** the message is built, **Then** it names lap 7 as the primary and lap 6 as the comparison, gives both times, and states the official difference as 0.162 s with the primary faster, in words.
-2. **Given** the track's personal best is lap 8 of the same session and the pair is (8, 6), **When** the message is built, **Then** the personal best appears labelled as context and the message says that it is the primary lap itself.
-3. **Given** no benchmark is available, **When** the message is built, **Then** the comparison of the two laps is complete and no benchmark line appears.
-4. **Given** the prompt and message of this spec, **When** the maintainer reads a generated text, **Then** the opening sentence states the official difference between the two compared laps (human check, see FR-016).
+2. **Given** the track's personal best is lap 8 of the same session and the pair is (8, 6), **When** the message is built, **Then** it is the same message as with no benchmark at all: neither the personal best nor the theoretical best appears in it.
+3. **Given** two databases holding the same two laps but different track benchmarks, **When** the message is built for that pair in each, **Then** the two messages are identical.
+4. **Given** the pair (7, 6), where lap 6 (the comparison lap) is invalid, **When** the message is built, **Then** it says lap 6 is invalid and lap 7 valid, and the reading says that the time lap 6 gains over lap 7 is not a target, because it may come from a stretch where the track was cut.
+5. **Given** the pair (6, 7), where only the primary lap is invalid, **When** the message is built, **Then** it says lap 6 is invalid and carries no "not a target" statement.
+6. **Given** the prompt and message of this spec, **When** the maintainer reads a generated text, **Then** the opening sentence states the official difference between the two compared laps (human check, see FR-016).
 
 ---
 
@@ -118,26 +131,30 @@ The demo's coach seed (spec 003) must be refused when it was produced by a diffe
 
 A driver who analysed a pair before this change asks for it again. Today the old text, written from the old prompt, comes back as `cached: true`.
 
-**Why this priority**: it affects only local databases that already hold analyses; the decision has a trade-off and a migration on the real database, so it is left to the clarification (FR-014).
+**Why this priority**: it affects only local databases that already hold analyses, and it brings a migration on the real database (FR-014).
 
-**Independent Test**: depends on the answer to FR-014.
+**Independent Test**: on a disposable database, insert cached rows with the current prompt version and model, with another prompt version, with another model and with no prompt version, then request each pair with a fake coaching function (no paid call), with and without the key configured.
 
 **Acceptance Scenarios**:
 
-1. Defined after the clarification of FR-014.
+1. **Given** a cached row with the current prompt version and model, **When** the pair is requested, **Then** the stored text is served with `cached: true`, with or without the key.
+2. **Given** a cached row with a different prompt version, a different model, or no prompt version, and the key configured, **When** the pair is requested, **Then** a new text is generated, replaces the row (recording the current prompt version and model), and is served with `cached: false`.
+3. **Given** the same stale row and no key configured, **When** the pair is requested, **Then** the request answers 503 and the old text is not served.
+4. **Given** a real database created before this feature, **When** the new version starts for the first time, **Then** the migration adds what the rows need to record the prompt version, keeps every existing row (now stale), and the maintainer's backup with `VACUUM INTO`, taken beforehand as documented, still holds the original database.
 
 ---
 
 ### Edge Cases
 
 - One of the compared laps has telemetry samples but no row in the laps table (for example a lap not completed): the message states that its official time is unknown and gives no official difference; the prompt tells the coach not to state one. No time is estimated from samples (constitution, principle IV).
+- The comparison lap has no row in the laps table: its validity is unknown, the message says so, and no "not a target" statement is made (it is made only when the game marked the lap invalid).
+- Both laps are invalid: the message says so for each, and the "not a target" statement applies, since the comparison lap is invalid.
 - The two official times are equal: the difference is stated as zero, in words, with no "faster" or "slower".
 - A difference field (`brakingPointDiffM`, `peakBrakeDiff`, `throttleOnDiffM`) is `null`: the reading omits that aspect for that opportunity; it says neither "unknown" nor a direction.
 - A difference field is exactly zero: the reading says "the same" (no earlier/later, harder/softer).
 - `trailBrakingPrimary` and `trailBrakingComparison` are both `false`: the reading says neither lap trail-braked; the prompt forbids saying otherwise.
 - `lineDeviation` is `null` for an opportunity: omitted, as today.
 - Fewer than three corners with positive `deltaLossS`: only those are read, ranked 1..n.
-- The personal best belongs to another session on the same track: it is labelled as context, with no claim about which lap it is beyond "another session".
 - Insights from today's engine with the observations of research.md (shared ±80 m windows, braking start at the apex): the reading states what the fields say; correcting the fields is the analysis-engine spec's job.
 
 ## Requirements *(mandatory)*
@@ -146,10 +163,11 @@ A driver who analysed a pair before this change asks for it again. Today the old
 
 **The laps being compared**
 
-- **FR-001**: The coach's message MUST name the primary lap and the comparison lap by their lap numbers, and give each one's official lap time (the game's lap time, as stored for the lap), or say that it is unknown.
+- **FR-001**: The coach's message MUST name the primary lap and the comparison lap by their lap numbers, and give each one's official lap time (the game's lap time, as stored for the lap) and whether the game marked it valid or invalid, or say that these are unknown.
+- **FR-001a**: When the comparison lap is invalid, the deterministic reading MUST say, in words written by the code, that the time the comparison lap gains over the primary lap is not a target to chase, because it may come from a stretch where the track was cut. The model is not left to draw this conclusion.
 - **FR-002**: When both official times are known, the message MUST state the official difference (primary − comparison, in seconds with millisecond precision) with its direction written in words (primary slower, faster, or the same time).
 - **FR-003**: The message MUST state that every delta and difference in the data is the primary lap against the comparison lap, and nothing else.
-- **FR-004**: The personal best and any other benchmark MUST appear labelled as context only, not as a reference for any delta; when the personal best is one of the two compared laps, the message MUST say which.
+- **FR-004**: The coach's message MUST NOT contain the personal best or any other track benchmark; it depends only on the two compared laps (their numbers, official times and insights). The personal best's calculation and its display stay in the code and on screen; only the coach stops receiving it.
 - **FR-005**: The coach's opening sentence is instructed to state the official difference from FR-002, never `totalDeltaS`; when the official difference is unknown, the prompt tells the coach not to state a lap-time difference.
 
 **The opportunities, read by the code**
@@ -163,20 +181,22 @@ A driver who analysed a pair before this change asks for it again. Today the old
 **The prompt**
 
 - **FR-011**: The prompt MUST tell the coach to explain the opportunities given, by their labels and in their order, and MUST forbid it to rank, renumber or name corners in any other way (no "Curva N").
-- **FR-012**: The prompt MUST forbid mentioning sectors, and statements that contradict a field (for example trail braking when the field is `false`); MUST define coasting as time with neither brake nor throttle between the apex and the exit, not wheelspin or a slide; MUST state the sign of each difference, including `peakBrakeDiff`; and MUST no longer describe the comparison lap as "normally the best lap".
+- **FR-012**: The prompt MUST forbid mentioning sectors, stating where or why a lap was invalidated (there is no data about it), and statements that contradict a field (for example trail braking when the field is `false`); MUST define coasting as time with neither brake nor throttle between the apex and the exit, not wheelspin or a slide; MUST state the sign of each difference, including `peakBrakeDiff`; and MUST no longer describe the comparison lap as "normally the best lap".
 
 **Prompt version**
 
-- **FR-013**: The coaching module MUST export a prompt version identifier derived automatically from the system prompt and from the message building (any change to the prompt text or to the message produced for the same input changes it), stable across runs and across platforms for the same code, with no manual bump. Spec 003 uses it in the demo's seed file; the seed file's format is changed in spec 003, not here.
+- **FR-013**: The coaching module MUST export a prompt version identifier derived automatically from the system prompt and from the message building (any change to the prompt text or to the message produced for the same input changes it), stable across runs and across platforms for the same code, with no manual bump. Line breaks MUST be normalized before the identifier is computed, so the same prompt gives the same identifier whether the checkout has CRLF (the maintainer's Windows clone with `core.autocrlf`, where the export runs) or LF (the hosting platform, where demo mode checks it). Spec 003 uses it in the demo's seed file; the seed file's format is changed in spec 003, not here.
 
 **Local cache**
 
-- **FR-014**: The local analysis cache MUST [NEEDS CLARIFICATION: do the prompt version and the model become part of the `lap_analyses` key? Options: (A) yes, both in the key: an old row is never served again; a request for that pair makes a new paid call when the key is configured, and returns 503 without it; needs a schema migration that runs on the real database; (B) the key stays `(session_id, lap_a, lap_b)`, the row records the prompt version, and a row whose prompt version or model differs from the current ones is regenerated and replaced on request (503 without the key); also a migration on the real database; (C) no change: the Known limitation stays, and stale rows are removed by hand when needed]. If the answer involves a migration, the real database MUST be backed up before it runs, and the backup kept until this feature merges (`CLAUDE.md`, Rules); the change that fixes the limitation removes it from `CLAUDE.md` and `README.md`.
-- **FR-015**: The benchmark context line "Volta teórica na pista (melhores setores combinados…)" [NEEDS CLARIFICATION: it is the only place the message mentions sectors, which the prompt will forbid the coach to discuss. Options: (A) keep it, labelled as context like the personal best, and forbid only attributing time to sectors; (B) remove it from the message, so the coach sees no sector at all; the theoretical best stays in the code for other uses].
+- **FR-014**: The local analysis cache MUST keep its key `(session_id, lap_a, lap_b)` and MUST record, on each row, the prompt version (FR-013) and the model that produced it. A row whose prompt version or model differs from the current ones, or that has no prompt version (every row written before this feature), is stale: with the API key configured, the request generates a new text and replaces the row; without it, the request answers 503 and the old text is not served. A row with the current prompt version and model is served as today. This is the same staleness rule as the export of the demo's seed file (spec 003).
+- **FR-014a**: The schema change MUST be applied automatically to an existing database at the first start of the new version, keeping the existing rows. Because it runs on the real database, a backup with `VACUUM INTO` comes before it, as a manual task of the maintainer documented in the README; the backup is kept until this feature merges (`CLAUDE.md`, Rules). The agent never runs the migration or the backup against `data/telemetry.db`. Since the message no longer depends on the benchmark (FR-004), the change removes the `lap_analyses` limitation from Known limitations in `CLAUDE.md` and `README.md`.
+- **FR-015**: The theoretical-best line ("Volta teórica na pista (melhores setores combinados…)") MUST be removed from the coach's message, so the coach sees no sector at all; the theoretical-best calculation stays in the code for its other uses.
 
 **What tests cannot prove**
 
 - **FR-016**: Automated tests MUST cover the message building, the deterministic reading, the presence of each instruction in the prompt and the prompt version, with no paid call. Whether the model follows the instructions cannot be tested: the texts generated from this prompt MUST still be read and approved by the maintainer before they are published (the demo seed of spec 003 included), and the documentation MUST say so.
+- **FR-016a**: `npm run analyze -- <sessionId> <lapA> <lapB>` MUST print, besides the insights, the exact message the coach would receive for that pair and the current prompt version, with no paid call and without needing the API key. When the agent runs it, `DB_PATH` points at a temporary database (FR-018); against the real database, the maintainer runs it.
 
 **Constraints of the work**
 
@@ -185,30 +205,32 @@ A driver who analysed a pair before this change asks for it again. Today the old
 
 ### Key Entities
 
-- **Compared pair**: the primary lap and the comparison lap, each with its lap number and official lap time (or unknown), and the official difference between them.
+- **Compared pair**: the primary lap and the comparison lap, each with its lap number, official lap time and validity (or unknown), the official difference between them, and the "not a target" statement when the comparison lap is invalid.
 - **Opportunity reading**: one of up to three corners chosen by the frontend's rule, with its rank, its chip label, and each difference stated in words.
-- **Benchmark context**: the personal best (and possibly the theoretical best, FR-015), labelled as context, with whether it is one of the compared laps.
-- **Prompt version**: an identifier derived from the system prompt and the message building, exported for the demo's seed file.
-- **Cached analysis** (`lap_analyses`): the stored text, insights and model of a pair; whether it also records or is keyed by the prompt version depends on FR-014.
+- **Prompt version**: an identifier derived from the system prompt and the message building, computed after normalizing line breaks, exported for the demo's seed file.
+- **Cached analysis** (`lap_analyses`): the stored text, insights, model and prompt version of a pair, keyed by `(session_id, lap_a, lap_b)`; stale when its prompt version or model differs from the current ones or its prompt version is missing.
 
 ## Success Criteria *(mandatory)*
 
 ### Measurable Outcomes
 
-- **SC-001**: For each of the six ordered pairs of laps 6, 7 and 8 of the demo recording's session, the coach message names both laps, both official times and the official difference matching the lap times (74.306, 74.144, 73.372 s) to the millisecond, checked by a test or a no-cost script.
+- **SC-001**: For each of the six ordered pairs of laps 6, 7 and 8 of the demo recording's session, the coach message names both laps, both official times and the official difference matching the lap times (74.306, 74.144, 73.372 s) to the millisecond, each lap's validity as stored (lap 6 invalid), the "not a target" statement exactly in the pairs whose comparison lap is lap 6, and no benchmark, checked by a test or with `npm run analyze` (FR-016a).
 - **SC-002**: For every set of insights in the tests, the opportunity labels in the message are character-identical to the frontend chip labels computed by the same rule, in the same order.
 - **SC-003**: 100% of the non-null braking and throttle differences in the reading carry a direction phrase consistent with the sign of the field, checked by tests covering positive, negative, zero and `null`.
 - **SC-004**: The prompt version identifier is identical across two runs and changes for every modification in the tests' set (prompt text, message building).
+- **SC-004a**: The prompt version identifier computed from the prompt text with CRLF line breaks equals the one computed from the same text with LF line breaks, checked by a test.
+- **SC-004b**: In the tests, 100% of stale cached rows (other prompt version, other model, no prompt version) are never served: they are replaced when a (fake) coach is available and answer 503 when the key is absent.
 - **SC-005**: No paid call is made by the agent at any step; the tests pass with no API key configured.
 - **SC-006**: When the maintainer reads texts generated with this prompt (in the demo seed, after the analysis-engine spec), none has a delta against the personal best, an inverted sign, a corner number of its own, a sector, a trail-braking claim against a `false` field, or coasting described as wheelspin. This criterion is verified by human reading, not by tests.
 
 ## Assumptions
 
-- The official lap time is the stored lap time (from the game's `lastLapTimeInMS`), which takes precedence over values reconstructed from samples (constitution, principle IV).
+- The official lap time is the stored lap time (from the game's `lastLapTimeInMS`), which takes precedence over values reconstructed from samples (constitution, principle IV); a lap's validity is the stored flag the game reported for it.
 - The reading is written in Brazilian Portuguese, the language the coach answers in; the exact phrasing is a plan decision.
 - The full insights JSON is still sent to the coach alongside the reading; the reading adds an interpretation, it does not replace the data.
 - The frontend rule (`topOpportunities` and the chip label) is the one on the frontend's current `main`; if it changes, the reading must follow it, and the frontend is not changed by this spec.
 - The model (`claude-opus-4-8`) is not changed by this spec.
 - The values themselves (`totalDeltaS`, the shared ±80 m windows, the braking start at the apex, the corner count depending on the primary lap) are the analysis-engine spec's subject; this spec makes the coach read them correctly, not makes them right.
 - The demo's seed file, its `formatVersion` 2 and its check of the prompt version at start are spec 003's work; the seed is generated once, after this spec and the analysis-engine spec are merged.
-- The REST and WebSocket contract does not change (FR-010), so the frontend needs no update; if FR-014 changes what `cached` means in practice, that is called out at the clarification.
+- Recorded for spec 003 when it resumes (not a requirement of this spec): a `--dry-run` in the export tool that prints the six exact coach messages and the prompt version, built from the recording as the real export does, with no call; a mandatory step before T061.
+- The REST and WebSocket contract does not change (FR-010), so the frontend needs no update. With FR-014, a pair that was answered from the cache can now answer 503 without the key (its row is stale); the 503 status and body already exist for uncached pairs, so the frontend sees nothing new.
