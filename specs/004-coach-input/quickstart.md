@@ -8,7 +8,7 @@ Validation of spec 004 after implementation, and the maintainer's manual tasks. 
 - Any command that loads the dotenv configuration runs with `DOTENV_CONFIG_PATH` pointing at a `.env` **without** `ANTHROPIC_API_KEY`, after this check prints `false`:
 
   ```bash
-  node -e "require('dotenv').config({path:process.env.DOTENV_CONFIG_PATH});console.log(Boolean(process.env.ANTHROPIC_API_KEY))"
+  node -e "require('dotenv/config'); console.log(Boolean(process.env.ANTHROPIC_API_KEY))"
   ```
 
 - `DB_PATH` points at a temporary file, never at `data/telemetry.db` (except M1 and the maintainer's own first start).
@@ -24,7 +24,7 @@ Expected: all tests pass, among them the pure tests of the opportunity rule, the
 
 ## V2 — The six demo messages through `analyze`
 
-Prerequisites: the published recording at `recordings/demo-interlagos-tt-20hz-laps6-8.jsonl` (SHA-256 `c41bdfaf…b033`, README), and a keyless `.env` with only the three ports (for example a copy of `.env.example` without the key) in `DOTENV_CONFIG_PATH`.
+Prerequisites: the published recording at `recordings/demo-interlagos-tt-20hz-laps6-8.jsonl` (SHA-256 `c41bdfaf…b033`, README), and two keyless `.env` files outside the repository: one with only the three ports (for example a copy of `.env.example` without the key), in `DOTENV_CONFIG_PATH` for `npm run dev` and `npm run replay` only; one with no variables, for `npm test`, `npm run typecheck` and `npm run analyze` (the ports would make `src/config/serverFailFast.test.ts` fail, see research.md "Debt outside this spec").
 
 1. Start the server on a temporary database and replay the recording into it at `2x` (no sample loss at that speed):
 
