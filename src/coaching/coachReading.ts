@@ -8,6 +8,35 @@ export interface ComparedLap {
   isValid: boolean | null;
 }
 
+// Conjunto fechado dos modelos de frase que o código escreve: toda frase sai de
+// uma entrada daqui ({m} é a magnitude), então um ramo novo precisa de uma
+// entrada nova - e o teste de promptVersion exige que cada uma apareça numa
+// das mensagens de referência.
+export const PHRASE_TEMPLATES = {
+  brakingBefore: "Ponto de frenagem: a volta principal começou a frear {m} m antes da volta de comparação.",
+  brakingAfter: "Ponto de frenagem: a volta principal começou a frear {m} m depois da volta de comparação.",
+  brakingEqual: "Ponto de frenagem: igual nas duas voltas.",
+  peakStronger: "Pressão máxima de freio: a volta principal freou mais forte (diferença de {m} numa escala de 0 a 1).",
+  peakLighter: "Pressão máxima de freio: a volta principal freou mais leve (diferença de {m} numa escala de 0 a 1).",
+  peakEqual: "Pressão máxima de freio: igual nas duas voltas.",
+  throttleBefore: "Retomada do acelerador: a volta principal voltou ao acelerador {m} m antes da volta de comparação.",
+  throttleAfter: "Retomada do acelerador: a volta principal voltou ao acelerador {m} m depois da volta de comparação.",
+  throttleSame: "Retomada do acelerador: no mesmo ponto nas duas voltas.",
+  trailBoth: "Trail braking: as duas voltas fizeram.",
+  trailPrimaryOnly: "Trail braking: só a volta principal fez.",
+  trailComparisonOnly: "Trail braking: só a volta de comparação fez.",
+  trailNone: "Trail braking: nenhuma das duas voltas fez.",
+  invalidComparisonWarning:
+    "Aviso: a volta de comparação é inválida. O tempo que ela ganha da volta principal não serve de meta: pode vir de um trecho em que a pista foi cortada.",
+  lapTimeUnknown: "tempo oficial desconhecido",
+  lapValidityUnknown: "validade desconhecida",
+  noOpportunities: "Oportunidades: nenhuma curva teve perda de tempo contra a volta de comparação.",
+} as const;
+
+function fill(template: string, magnitude: string): string {
+  return template.replace("{m}", magnitude);
+}
+
 export function formatLapTime(ms: number): string {
   const totalSeconds = ms / 1000;
   const minutes = Math.floor(totalSeconds / 60);
@@ -22,8 +51,8 @@ export function toComparedLap(lapNumber: number, row: LapRow | undefined): Compa
 }
 
 function lapDescription(lap: ComparedLap): string {
-  const time = lap.lapTimeMs === null ? "tempo oficial desconhecido" : `tempo oficial ${formatLapTime(lap.lapTimeMs)}`;
-  const validity = lap.isValid === null ? "validade desconhecida" : lap.isValid ? "válida" : "inválida";
+  const time = lap.lapTimeMs === null ? PHRASE_TEMPLATES.lapTimeUnknown : `tempo oficial ${formatLapTime(lap.lapTimeMs)}`;
+  const validity = lap.isValid === null ? PHRASE_TEMPLATES.lapValidityUnknown : lap.isValid ? "válida" : "inválida";
   return `volta ${lap.lapNumber}, ${time}, ${validity}.`;
 }
 
@@ -49,7 +78,7 @@ export function comparedLapsBlock(primary: ComparedLap, comparison: ComparedLap)
 
 export function invalidComparisonWarning(comparison: ComparedLap): string | null {
   if (comparison.isValid !== false) return null;
-  return "Aviso: a volta de comparação é inválida. O tempo que ela ganha da volta principal não serve de meta: pode vir de um trecho em que a pista foi cortada.";
+  return PHRASE_TEMPLATES.invalidComparisonWarning;
 }
 
 // Toda magnitude sai do valor absoluto do campo; nenhum número novo entra aqui.
@@ -59,30 +88,27 @@ function magnitude(value: number): string {
 
 export function brakingPointPhrase(diffM: number | null): string | null {
   if (diffM === null) return null;
-  if (diffM === 0) return "Ponto de frenagem: igual nas duas voltas.";
-  const when = diffM < 0 ? "antes" : "depois";
-  return `Ponto de frenagem: a volta principal começou a frear ${magnitude(diffM)} m ${when} da volta de comparação.`;
+  if (diffM === 0) return PHRASE_TEMPLATES.brakingEqual;
+  return fill(diffM < 0 ? PHRASE_TEMPLATES.brakingBefore : PHRASE_TEMPLATES.brakingAfter, magnitude(diffM));
 }
 
 export function peakBrakePhrase(diff: number | null): string | null {
   if (diff === null) return null;
-  if (diff === 0) return "Pressão máxima de freio: igual nas duas voltas.";
-  const how = diff > 0 ? "mais forte" : "mais leve";
-  return `Pressão máxima de freio: a volta principal freou ${how} (diferença de ${magnitude(diff)} numa escala de 0 a 1).`;
+  if (diff === 0) return PHRASE_TEMPLATES.peakEqual;
+  return fill(diff > 0 ? PHRASE_TEMPLATES.peakStronger : PHRASE_TEMPLATES.peakLighter, magnitude(diff));
 }
 
 export function throttleOnPhrase(diffM: number | null): string | null {
   if (diffM === null) return null;
-  if (diffM === 0) return "Retomada do acelerador: no mesmo ponto nas duas voltas.";
-  const when = diffM < 0 ? "antes" : "depois";
-  return `Retomada do acelerador: a volta principal voltou ao acelerador ${magnitude(diffM)} m ${when} da volta de comparação.`;
+  if (diffM === 0) return PHRASE_TEMPLATES.throttleSame;
+  return fill(diffM < 0 ? PHRASE_TEMPLATES.throttleBefore : PHRASE_TEMPLATES.throttleAfter, magnitude(diffM));
 }
 
 export function trailBrakingPhrase(primary: boolean, comparison: boolean): string {
-  if (primary && comparison) return "Trail braking: as duas voltas fizeram.";
-  if (primary) return "Trail braking: só a volta principal fez.";
-  if (comparison) return "Trail braking: só a volta de comparação fez.";
-  return "Trail braking: nenhuma das duas voltas fez.";
+  if (primary && comparison) return PHRASE_TEMPLATES.trailBoth;
+  if (primary) return PHRASE_TEMPLATES.trailPrimaryOnly;
+  if (comparison) return PHRASE_TEMPLATES.trailComparisonOnly;
+  return PHRASE_TEMPLATES.trailNone;
 }
 
 export function coastingPhrase(primaryS: number, comparisonS: number): string {

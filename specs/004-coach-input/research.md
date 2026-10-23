@@ -470,7 +470,7 @@ The six messages do not change (the builder did not change; their SHA-256 were c
 2. a separator (`"\n\u0000\n"`, which cannot occur in the prompt);
 3. the messages built by the real `buildCoachUserMessage` from **fixed reference inputs** in the code, line breaks normalized the same way.
 
-The reference inputs cover every branch of the message: braking earlier, later and equal; harder, softer and equal; throttle earlier, later, `null`; trail braking in all four combinations; a corner with `deltaLossS ≤ 0` that must be left out; an invalid comparison lap with the warning; and a second pair with unknown times and validity and no opportunity. A test checks that the reference messages contain each of those branches' phrases, so a new branch without a reference fails the test instead of silently not affecting the version.
+The reference inputs cover every branch of the message: braking earlier, later and equal; harder, softer and equal; throttle earlier, later, `null`; trail braking in all four combinations; a corner with `deltaLossS ≤ 0` that must be left out; an invalid comparison lap with the warning; and a last pair with unknown times and validity and no opportunity. A message shows at most three opportunities, so the branches are spread over **three** reference inputs (amended at T025, see plan). `coachReading.ts` exports `PHRASE_TEMPLATES`, the closed set of phrase templates the code writes, and a test requires each template to appear in at least one reference message, so a new branch without a reference fails the test instead of silently not affecting the version, with no hand-written list to keep up to date.
 
 It is computed once, at module load, by a pure function `computePromptVersion(systemPrompt, buildMessage)`; the module imports only the prompt and the builder (no `env`, no database), so `analyze`, the resolver and spec 003's export and start check can import it.
 
@@ -590,6 +590,16 @@ The pure functions are written test-first. For each one, the test is written aga
 | prompt text | contains each instruction of FR-011/FR-012 (labels and order, no "Curva", no sectors, no contradiction, coasting definition, the four signs, the invalidation rule) and the review's rules (no unmeasured driver states, no sum of losses against the official difference, proportion, "retomada do acelerador" as a cause); no "normalmente a melhor volta", no "tração na saída" |
 
 The analysis resolver (orchestration with fakes: current row served, stale with key regenerated and saved once, stale without key → unavailable, two concurrent calls → one generation, a failure not cached), and the migration (temporary database, section 6) are tested after, as integration tests. The `analyze` output is a pure function (`formatAnalyzeOutput`), tested like the others; the command itself stays thin and is checked by the V2 run (plan.md, "Amendments").
+
+---
+
+## CI runs
+
+Confirmed through the jobs API (`status` completed and `conclusion` success on every job).
+
+| Push | Head commit | Run | `typecheck` | `test` |
+|---|---|---|---|---|
+| First push (commits 1–4) | `a48ba2c` | [40013161554](https://github.com/AnaLauraFFerraz/TelemetryF1_API/actions/runs/40013161554) | success | success |
 
 ---
 

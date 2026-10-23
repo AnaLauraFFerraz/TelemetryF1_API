@@ -62,7 +62,7 @@ Magnitudes are the absolute values of the insights' numbers; no other number is 
 
 ### Prompt version
 
-`PROMPT_VERSION: string` — 16 lowercase hex characters; computed at module load from the normalized system prompt and the normalized reference messages (research section 5). Exported for `analyze`, the resolver and spec 003.
+`PROMPT_VERSION: string` — 16 lowercase hex characters; computed at module load from the normalized system prompt and the normalized messages of the three reference inputs (`REFERENCE_INPUTS`; research section 5). Exported for `analyze`, the resolver and spec 003.
 
 ### Single-flight map
 
