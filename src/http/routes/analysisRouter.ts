@@ -3,10 +3,11 @@ import { getSessionById } from "../../persistence/sessionRepository";
 import { getLapForSession } from "../../persistence/lapRepository";
 import { listCarTelemetrySamplesForLap } from "../../persistence/carTelemetrySampleRepository";
 import { listMotionSamplesForLap } from "../../persistence/motionSampleRepository";
-import { getCachedAnalysis, insertAnalysis } from "../../persistence/analysisRepository";
+import { getCachedAnalysis, saveAnalysis } from "../../persistence/analysisRepository";
 import { buildInsights } from "../../analysis/buildInsights";
 import { LapInsights } from "../../analysis/types";
 import { toComparedLap } from "../../coaching/coachReading";
+import { PROMPT_VERSION } from "../../coaching/promptVersion";
 import {
   generateCoaching,
   isCoachingConfigured,
@@ -75,7 +76,7 @@ analysisRouter.post("/sessions/:id/analysis", async (req, res) => {
 
   try {
     const { text, model } = await generateCoaching(insights, primary, comparison);
-    insertAnalysis(sessionId, lapA, lapB, JSON.stringify(insights), text, model);
+    saveAnalysis(sessionId, lapA, lapB, JSON.stringify(insights), text, model, PROMPT_VERSION);
     res.json({ analysis: text, insights, cached: false });
   } catch (err) {
     if (err instanceof CoachingUnavailableError) {
