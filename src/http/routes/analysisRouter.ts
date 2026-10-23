@@ -1,11 +1,12 @@
 import { Router } from "express";
 import { getSessionById } from "../../persistence/sessionRepository";
-import { getTrackBenchmark } from "../../persistence/lapRepository";
+import { getLapForSession } from "../../persistence/lapRepository";
 import { listCarTelemetrySamplesForLap } from "../../persistence/carTelemetrySampleRepository";
 import { listMotionSamplesForLap } from "../../persistence/motionSampleRepository";
 import { getCachedAnalysis, insertAnalysis } from "../../persistence/analysisRepository";
 import { buildInsights } from "../../analysis/buildInsights";
 import { LapInsights } from "../../analysis/types";
+import { toComparedLap } from "../../coaching/coachReading";
 import {
   generateCoaching,
   isCoachingConfigured,
@@ -69,10 +70,11 @@ analysisRouter.post("/sessions/:id/analysis", async (req, res) => {
   const comparisonMotion = listMotionSamplesForLap(sessionId, lapB);
   const insights = buildInsights({ primaryTelemetry, comparisonTelemetry, primaryMotion, comparisonMotion });
 
-  const benchmark = session.trackId !== null ? getTrackBenchmark(session.trackId) : null;
+  const primary = toComparedLap(lapA, getLapForSession(sessionId, lapA));
+  const comparison = toComparedLap(lapB, getLapForSession(sessionId, lapB));
 
   try {
-    const { text, model } = await generateCoaching(insights, benchmark);
+    const { text, model } = await generateCoaching(insights, primary, comparison);
     insertAnalysis(sessionId, lapA, lapB, JSON.stringify(insights), text, model);
     res.json({ analysis: text, insights, cached: false });
   } catch (err) {

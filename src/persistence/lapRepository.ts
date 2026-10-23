@@ -48,26 +48,19 @@ export interface LapRow {
   recordedAt: string;
 }
 
-const listLapsStmt = db.prepare<{ sessionId: number }>(`
-  SELECT lap_number, lap_time_ms, sector1_ms, sector2_ms, sector3_ms, is_valid, car_position, recorded_at
-  FROM laps
-  WHERE session_id = @sessionId
-  ORDER BY lap_number
-`);
+interface LapDbRow {
+  lap_number: number;
+  lap_time_ms: number;
+  sector1_ms: number | null;
+  sector2_ms: number | null;
+  sector3_ms: number | null;
+  is_valid: number;
+  car_position: number | null;
+  recorded_at: string;
+}
 
-export function listLapsForSession(sessionId: number): LapRow[] {
-  const rows = listLapsStmt.all({ sessionId }) as Array<{
-    lap_number: number;
-    lap_time_ms: number;
-    sector1_ms: number | null;
-    sector2_ms: number | null;
-    sector3_ms: number | null;
-    is_valid: number;
-    car_position: number | null;
-    recorded_at: string;
-  }>;
-
-  return rows.map((row) => ({
+function mapLapRow(row: LapDbRow): LapRow {
+  return {
     lapNumber: row.lap_number,
     lapTimeMs: row.lap_time_ms,
     sector1Ms: row.sector1_ms,
@@ -76,7 +69,30 @@ export function listLapsForSession(sessionId: number): LapRow[] {
     isValid: row.is_valid === 1,
     carPosition: row.car_position,
     recordedAt: row.recorded_at,
-  }));
+  };
+}
+
+const getLapStmt = db.prepare<{ sessionId: number; lapNumber: number }>(`
+  SELECT lap_number, lap_time_ms, sector1_ms, sector2_ms, sector3_ms, is_valid, car_position, recorded_at
+  FROM laps
+  WHERE session_id = @sessionId AND lap_number = @lapNumber
+`);
+
+export function getLapForSession(sessionId: number, lapNumber: number): LapRow | undefined {
+  const row = getLapStmt.get({ sessionId, lapNumber }) as LapDbRow | undefined;
+  return row ? mapLapRow(row) : undefined;
+}
+
+const listLapsStmt = db.prepare<{ sessionId: number }>(`
+  SELECT lap_number, lap_time_ms, sector1_ms, sector2_ms, sector3_ms, is_valid, car_position, recorded_at
+  FROM laps
+  WHERE session_id = @sessionId
+  ORDER BY lap_number
+`);
+
+export function listLapsForSession(sessionId: number): LapRow[] {
+  const rows = listLapsStmt.all({ sessionId }) as LapDbRow[];
+  return rows.map(mapLapRow);
 }
 
 export interface TrackBenchmark {
