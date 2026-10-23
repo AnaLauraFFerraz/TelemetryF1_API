@@ -15,14 +15,14 @@ import {
 import { CornerInsight } from "../analysis/types";
 import type { LapRow } from "../persistence/lapRepository";
 
-test("ponto de frenagem negativo: a volta principal frenou antes", () => {
+test("ponto de frenagem negativo: a volta principal freou antes", () => {
   assert.equal(
     brakingPointPhrase(-179.97),
     "Ponto de frenagem: a volta principal começou a frear 179.97 m antes da volta de comparação.",
   );
 });
 
-test("ponto de frenagem positivo: a volta principal frenou depois", () => {
+test("ponto de frenagem positivo: a volta principal freou depois", () => {
   assert.equal(
     brakingPointPhrase(5.2),
     "Ponto de frenagem: a volta principal começou a frear 5.2 m depois da volta de comparação.",

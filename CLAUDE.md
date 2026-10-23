@@ -39,7 +39,7 @@ Flow: `network/udpListener` → `telemetry/dispatcher` (parse) → `persistence/
 | `src/ws/` | WebSocket message envelope |
 | `src/persistence/` | SQLite schema, per-session in-memory context, decimation, lap completion detection, repositories (one per table); sample tables deduplicate on `(session_id, overall_frame_identifier)` — that field never resets or regresses within a session, including across a flashback, unlike session time or lap distance |
 | `src/analysis/` | Pure functions, no I/O: corner detection, braking/throttle, delta, line deviation, tyre windows → `buildInsights` |
-| `src/coaching/` | Static system prompt, user-message builder, Anthropic call with typed errors |
+| `src/coaching/` | Static system prompt, user-message builder, the code's reading of the compared laps and the opportunities (opportunity rule and labels, direction phrases), Anthropic call with typed errors |
 | `src/http/` | Express app and routers (`sessionsRouter`, `analysisRouter`) |
 | `src/replay/` | Pure replay pacing (`computeDelayMs`) and orchestration (`runReplay`): speed, loop, absolute-deadline scheduling |
 | `src/tooling/` | Tests of the project's own tooling: the test of the empty-discovery guard |
@@ -52,7 +52,7 @@ The REST and WebSocket payloads are a contract consumed by the frontend, which m
 - Identifiers, file names and commit messages in **English**. Log messages, test names and comments in **Portuguese**. HTTP error bodies are mixed today (`sessionsRouter` uses English, `analysisRouter` mostly Portuguese); the frontend matches the literal `"session not found"`, so treat existing error strings as part of the contract.
 - **Comments: minimal.** Only where the *why* is not obvious from the code (e.g. why `session_uid` is TEXT). Do not narrate what the code does. Do not rewrite existing comments as a side effect of other work.
 - Every full-packet parser checks the consumed byte count with `assertBytesRead`. The session parser is intentionally partial and documents why.
-- `analysis/` stays pure and deterministic. The AI coach only ever receives the derived `LapInsights` JSON, never raw samples.
+- `analysis/` stays pure and deterministic. The AI coach only ever receives the derived `LapInsights` JSON, never raw samples, plus the compared laps' official number, time and validity and the code's reading of the opportunities.
 - Repositories use prepared statements created at module load and map snake_case rows to camelCase objects.
 - Unknown values are stored as `NULL`, never invented (see `lapCompletionDetector`).
 - Tests: flat `test()` calls, synthetic data from a `testFixtures.ts` per folder (`src/analysis/`, `src/replay/`), mostly pure functions. The handful of tests that need a real SQLite connection (sample repositories, the replay integration test) use `src/persistence/testDb.ts` to open an isolated, disposable database via `DB_PATH` — never `data/telemetry.db`. A new test file under `src/` is picked up by the `test` script with no edit.
@@ -84,7 +84,7 @@ Spec Kit 1.2.0 (Claude Code integration, PowerShell scripts). The constitution i
 These are also listed under "Known limitations" in the README. When a limitation is fixed, remove it from both this file and the README in the same PR.
 
 - `npm run record` and `npm run dev` both bind the UDP port; stop the server before recording.
-- The `lap_analyses` cache is keyed only by `(session_id, lap_a, lap_b)`; it ignores the model, the prompt version and later benchmark changes.
+- The `lap_analyses` cache is keyed only by `(session_id, lap_a, lap_b)`; it ignores the model and the prompt version.
 - A lap with more than one pass over the same distance gets wrong per-distance analysis: a flashback (event `FLBK`, `sessionTime` going back, `frameIdentifier` diverging from `overallFrameIdentifier`), or the Time Trial out-lap, which shares its `lap_number` with the first flying lap. Lap times and sectors are still correct (they come from `lastLapTimeInMS`).
 - The `max` replay speed overflows the UDP receive buffer by design: laps, times and sectors arrive intact, but a large share of the per-distance samples is lost. `1x` and `2x` do not lose samples.
 - `--speed=max` combined with `--loop` delivers practically no samples (measured: effectively zero) — the flood never lets up between passes. Use `1x` or `2x` for a continuous demo.
