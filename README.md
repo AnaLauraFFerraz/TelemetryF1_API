@@ -40,7 +40,7 @@ flowchart LR
 | `src/http/` | Express REST API |
 | `src/replay/` | Pure replay pacing (`computeDelayMs`) and the orchestration loop (`runReplay`): speed, loop, absolute-deadline scheduling so error does not accumulate over a long recording |
 | `src/tooling/` | Tests of the project's own tooling: the test of the empty-discovery guard |
-| `tools/` | Recorder, an offline `analyze` CLI, a thin replayer CLI over `src/replay/`, and `assertTestFiles.ts`, the guard that runs as the `pretest` of `npm test` |
+| `tools/` | Recorder, an offline `analyze` CLI (insights, coach message, prompt version), a thin replayer CLI over `src/replay/`, and `assertTestFiles.ts`, the guard that runs as the `pretest` of `npm test` |
 
 ## Features
 
@@ -126,6 +126,8 @@ To inspect the analysis for two laps without calling the AI:
 ```bash
 npm run analyze -- <sessionId> <lapA> <lapB>
 ```
+
+It prints three sections, each under its own header: the insights (JSON), the exact message the coach would receive, and the prompt version. The output is therefore no longer a single JSON document; a script that parses it needs the first section only.
 
 ## Tests
 

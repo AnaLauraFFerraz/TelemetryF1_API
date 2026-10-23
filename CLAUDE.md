@@ -18,7 +18,7 @@ npm run dev                                   # UDP, WebSocket and REST on the p
 npm test                                      # all src/**/*.test.ts, found by Node itself; a pretest guard fails if none
 npm run record                                # writes recordings/session-<timestamp>.jsonl
 npm run replay -- recordings/<file>.jsonl [--speed=1x|2x|max] [--loop]  # re-sends a recording to 127.0.0.1:UDP_PORT; default 1x, no loop
-npm run analyze -- <sessionId> <lapA> <lapB>  # prints the LapInsights JSON for two laps, no AI call
+npm run analyze -- <sessionId> <lapA> <lapB>  # prints the LapInsights JSON, the coach's message and the prompt version for two laps, no AI call (not a single JSON document)
 npm run typecheck                             # type-check, covers src/ and tools/ (same as npx tsc --noEmit)
 ```
 
@@ -43,7 +43,7 @@ Flow: `network/udpListener` → `telemetry/dispatcher` (parse) → `persistence/
 | `src/http/` | Express app and routers (`sessionsRouter`, `analysisRouter`) |
 | `src/replay/` | Pure replay pacing (`computeDelayMs`) and orchestration (`runReplay`): speed, loop, absolute-deadline scheduling |
 | `src/tooling/` | Tests of the project's own tooling: the test of the empty-discovery guard |
-| `tools/` | CLI scripts: recorder, analyze, a thin replayer CLI over `src/replay/`, and `assertTestFiles.ts`, the guard that runs as the `pretest` of `npm test` |
+| `tools/` | CLI scripts: recorder, analyze (insights, coach message, prompt version), a thin replayer CLI over `src/replay/`, and `assertTestFiles.ts`, the guard that runs as the `pretest` of `npm test` |
 
 The REST and WebSocket payloads are a contract consumed by the frontend, which mirrors the types by hand. This repo owns that contract: any change to `src/ws/messageFormat.ts`, the routers or the repository row types must be flagged so the frontend's `src/types/` can be updated.
 
