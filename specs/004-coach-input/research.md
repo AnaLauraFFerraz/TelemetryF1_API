@@ -590,3 +590,9 @@ The pure functions are written test-first. For each one, the test is written aga
 | prompt text | contains each instruction of FR-011/FR-012 (labels and order, no "Curva", no sectors, no contradiction, coasting definition, the four signs, the invalidation rule) and the review's rules (no unmeasured driver states, no sum of losses against the official difference, proportion, "retomada do acelerador" as a cause); no "normalmente a melhor volta", no "tração na saída" |
 
 The analysis resolver (orchestration with fakes: current row served, stale with key regenerated and saved once, stale without key → unavailable, two concurrent calls → one generation, a failure not cached), and the migration (temporary database, section 6) are tested after, as integration tests. The `analyze` output is a pure function (`formatAnalyzeOutput`), tested like the others; the command itself stays thin and is checked by the V2 run (plan.md, "Amendments").
+
+---
+
+## Debt outside this spec
+
+- **`src/config/serverFailFast.test.ts` is not hermetic.** Its child process inherits the environment of whoever runs the test (`DOTENV_CONFIG_PATH` and the ports; it only deletes `WS_PORT`, `UDP_PORT` and `HTTP_PORT` from the variables it copies, not the path of a `.env` that defines them). Found at T001: with a scratch `.env` holding the three ports, "o servidor para na inicialização quando nenhuma porta está definida" fails (94 of 95; the server starts and the test hits its 30 s timeout); with a `.env` without ports, 95 of 95. The local result therefore depends on the `.env` pointed at, and on CI it passes only because there is no `.env` there. The fix, in a future spec, is for the test to build the child's environment explicitly instead of copying `process.env`. Until then this feature runs `npm test` with a portless keyless `.env` (tasks.md header, T001).
