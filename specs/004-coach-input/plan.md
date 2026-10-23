@@ -16,7 +16,7 @@ The coach misread five of the six texts of the rejected demo seed because its in
 
 **Storage**: SQLite (`data/telemetry.db`, WAL). One new nullable column, `lap_analyses.prompt_version`, added by the existing defensive-`ALTER` migration pattern.
 
-**Testing**: `node:test` + `node:assert/strict` via `ts-node/register`; pure functions test-first; the migration on a temporary database created with the old schema; the resolver with injected fakes; `analyze` through `src/persistence/testDb.ts`.
+**Testing**: `node:test` + `node:assert/strict` via `ts-node/register`; pure functions test-first; the migration on a temporary database created with the old schema; the resolver with injected fakes; the `analyze` output through a pure function (`formatAnalyzeOutput`), with `tools/analyze.ts` left thin (see "Amendments").
 
 **Target Platform**: the local server (Windows, the maintainer's machine) and, through spec 003, the Linux hosting platform (which only imports the prompt version and never generates).
 
@@ -85,6 +85,7 @@ src/
 │   ├── coachReading.ts             # NEW (pure): ComparedLap, compared-laps block, official difference, direction phrases, invalid warning
 │   ├── coachUserMessage.ts         # CHANGED (pure): buildCoachUserMessage(insights, primary, comparison); no benchmark
 │   ├── promptVersion.ts            # NEW (pure + constant): computePromptVersion, reference inputs, PROMPT_VERSION
+│   ├── analyzeOutput.ts            # NEW (pure): formatAnalyzeOutput(insights, coachMessage, promptVersion)
 │   ├── analysisStaleness.ts        # NEW (pure): isCachedAnalysisCurrent
 │   ├── singleFlight.ts             # NEW: per-key in-flight promise map
 │   ├── analysisResolver.ts         # NEW: cache policy + single-flight, dependencies injected
@@ -101,7 +102,7 @@ src/
     └── analysisRouter.ts           # CHANGED: delegates to the resolver; reads the two laps; no benchmark
 
 tools/
-└── analyze.ts                      # CHANGED: also prints the coach message and the prompt version
+└── analyze.ts                      # CHANGED, thin: reads the laps, calls the builder and formatAnalyzeOutput, prints
 ```
 
 **Structure Decision**: single project, the existing layout. The coach-facing logic stays in `src/coaching/` as small pure modules (the reading, the opportunity rule, the version, the staleness rule), so each is tested alone and none imports `env` or the database: `analyze` and spec 003 import them without the ports. Moving the two existing defensive `ALTER`s into `migrations.ts` together with the new one is the smallest change that makes the migration testable on a connection the test opens itself; their behaviour does not change. `analysisResolver.ts` sits in `src/coaching/` because it is the coach's cache policy; it receives the repositories and the coach as parameters, so it does not import the database either.
@@ -151,6 +152,10 @@ Decided at the plan review (2026-10-23): the maintainer approved the chosen opti
 7. **Joiners of an in-flight generation get `cached: false`**, like the request that triggered it. Alternative: `cached: true` for joiners — they did not read the table; the frontend's "Análise em cache" badge would appear for a text produced right now.
 8. **The prompt grows 62%** (3,236 → 5,229 characters, after the maintainer's review of the prompt added three rules) and each message by the reading: higher cost per call until M2 measures it; it may cross the minimum cacheable length, which would make `cache_control` start to work (to be seen in the usage log).
 9. **Moving the two existing `ALTER`s into `migrations.ts`**: touches code that works, to make all migrations testable the same way. Alternative: only the new one in a function, the old ones left inline — two styles side by side.
+
+## Amendments
+
+- **2026-10-23, before the implementation (maintainer's decision): the `analyze` test does not live in `src/tooling/`.** The testable logic of the command (assembling the output from the insights, the coach's message and the prompt version) is a pure function, `formatAnalyzeOutput` in `src/coaching/analyzeOutput.ts`, with its test beside it. `tools/analyze.ts` stays thin: it reads the arguments, fetches the data, calls the function and prints. This replaces the spawned-process test of the first tasks (T052), so no test starts a subprocess or builds a database for `analyze`; the command's wiring is checked by the agent's V2 run (T057) on a temporary database. Tasks: T052 became T052a (stub), T052b (red), T052c (green); T053 is the thin CLI. `src/tooling/` keeps only the test of the empty-discovery guard.
 
 ## Out of scope, recorded
 
