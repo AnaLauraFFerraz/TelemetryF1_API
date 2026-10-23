@@ -407,6 +407,53 @@ ok 1 - os módulos puros do modo demo não carregam persistence/db
 
 The root cause, `db.ts` opening the connection at import, is a known debt and stays outside this spec (a lazily opened connection, or dependency injection of the database, was already recorded as a future improvement in spec 002).
 
+### T061 — the first coach seed, rejected (2026-10-23)
+
+The maintainer ran the export twice on her machine (six paid calls the first time, none the second; the spending limit of T060 was set beforehand). The resulting `demo/coach-seed.json` (`formatVersion` 1, six pairs) was **not approved** and was never committed. It was moved out of the repository, as evidence, to `C:\Telemetry\evidence-003\coach-seed-v1-reprovado.json` (SHA-256 `eae8b746820bc1be85136b62617d97db740ed624279783300dbe079ea981ad80`); it does not come back into the repository. The token counts of that run were not recorded here.
+
+Reasons, from the maintainer's reading of the six texts against each pair's insights:
+
+1. Four texts treat `totalDeltaS` as a difference against the personal best, when it is against the comparison lap: (6,7) "0,28s acima do seu recorde", (7,6) "0.2s mais rápida que o seu recorde", (8,6) "0.92s mais rápido que seu recorde", (8,7) "0.65s mais rápido que seu recorde". The 1:13.372 personal best is lap 8 itself.
+2. Inverted signs in (7,6): corner index 0 has `brakingPointDiffM` +179.97 and the text says "freou 180 metros antes"; corner index 1 has `throttleOnDiffM` −10.6 and the text says "voltou ao acelerador 10 metros tarde demais". The other five texts read the signs correctly.
+3. Inconsistent corner numbers: in most texts "Curva N" is index N−1; in (7,8) "Curva 6" and "Curva 4" are indices 6 and 4 and "Curva 1" is index 2; in (8,6) two different corners are both "Curva 1".
+4. In (7,8), the +0.02 s corner is described as trail braking ("já tá segurando o freio na curva") while `trailBrakingPrimary` is `false`.
+5. Minor: "segundo setor" in (6,8) is not in the data; "patinando" in (6,7) describes as wheelspin what is coasting.
+
+What the code shows (read-only, no paid call):
+
+- **Signs.** All three differences are primary − comparison: `brakingPointDiffM` (`src/analysis/brakingAnalysis.ts:33`; negative = the primary braked earlier, `src/analysis/types.ts:24-25`), `peakBrakeDiff` (`brakingAnalysis.ts:34`; positive = the primary braked harder, documented nowhere: neither `types.ts` nor the prompt states its sign) and `throttleOnDiffM` (`src/analysis/throttleAnalysis.ts:38`; positive = the primary was back on the throttle later, `types.ts:33-34`). The prompt states the first and third correctly (`src/coaching/coachPrompt.ts:13, 16`), so the inversion in (7,6) is the model's.
+- **Reason 1.** The user message names neither lap (`src/coaching/coachUserMessage.ts:20-32`: the benchmark lines, then the JSON), the prompt says the comparison lap is "normalmente a melhor volta do próprio piloto" (`coachPrompt.ts:7`), and the line right before the JSON is "Recorde pessoal do piloto nesta pista". `analysisRouter` and `exportCoachSeed` know `lapA` and `lapB` but do not pass them to the coach.
+- **Reason 3.** The insights carry only the 0-based `corner.index`, and the prompt's example is "Curva 4". The frontend never shows a corner number: its coach chips read `<rank>. <apex>m · +<deltaLossS>s` (`Telemetry-F1/src/components/coach/CoachPanel.tsx:65`) and its chart markers carry the same rank (`Telemetry-F1/src/pages/sessionAnalysis/SessionAnalysisPage.tsx:163-167`), the rank being `topOpportunities` (`Telemetry-F1/src/utils/coachInsights.ts`: `deltaLossS > 0`, descending, first three).
+
+These errors come from the coach's prompt and input, so they exist in local mode too. Decisions of the maintainer (2026-10-23):
+
+- The fix of the coach's input and prompt (the laps compared and their official times, the delta stated as against the comparison lap, the benchmark labelled as context, the sign conventions, each opportunity labelled as the frontend labels it) goes into **its own spec, from `main`, before this one**. The opening sentence uses the official difference of the lap times.
+- Because the insights themselves state differences that may not have happened (see the analysis engine observations below), and the coach explains them as facts even with a corrected prompt, **a second spec, for the analysis engine's artifacts**, also comes before the seed is generated again.
+- The seed is generated **once, after both specs are merged**. Then this branch is updated with `main` and this spec is amended: the seed's `formatVersion` 2 with a `promptVersion` per entry, FR-013 and FR-014, and new tasks before T061; at start, demo mode refuses a seed whose `promptVersion` differs from the current one. T061–T064 and T084 wait for that (tasks.md).
+- To avoid renumbering, this spec refers to the flashback work as "the flashback spec", without a number.
+
+### Analysis engine observations (2026-10-23)
+
+Recorded, not fixed here: they are the subject of the analysis-engine spec above. The numbers come from the insights in the rejected seed (computed by today's `buildInsights` on the published recording); the code references are from `003-demo-mode` at `ef19bf4`. Each cause is consistent with the code and the numbers; none was measured further.
+
+**1. `totalDeltaS` is not symmetric and differs from the official difference.** It is the cumulative delta at the primary lap's last decimated sample (`src/analysis/buildInsights.ts:26`), with each lap normalized by its own first sample's `sessionTime` (`src/analysis/segmentDelta.ts:15-19`) and the comparison lap's time clamped at its own last sample (`segmentDelta.ts:23-24`). The result depends on which lap is primary, and no pair equals the difference of `lastLapTimeInMS` (laps 6, 7, 8: 74.306, 74.144, 73.372 s):
+
+| Pair | `totalDeltaS` | Reverse pair | Official difference |
+|---|---|---|---|
+| (6,7) | +0.28 | (7,6) −0.20 | ±0.162 |
+| (7,8) | +0.72 | (8,7) −0.65 | ±0.772 |
+| (6,8) | +0.93 | (8,6) −0.92 | ±0.934 |
+
+**Visible to the visitor?** The frontend does not display `totalDeltaS`. It shows the official difference in the laps table's "Delta" column (lap time minus the best lap, `Telemetry-F1/src/components/sessions/LapsTable.tsx:26, 45`) and draws its own "Delta acumulado (volta X vs. Y)" chart from its port of the same algorithm (`computeDelta`, `Telemetry-F1/src/pages/sessionAnalysis/SessionAnalysisPage.tsx:152-155, 258`), whose values appear in the chart's hover tooltip (`Telemetry-F1/src/components/chart/Chart.tsx`). So the difference against the official time is visible wherever the chart's end and the table disagree, if the port gives the same series (not checked: the frontend was only read).
+
+**2. Overlapping ±80 m search windows.** Corners are detected on the primary lap only (`buildInsights.ts:24`); for each one, the braking and throttle analyses look for the "equivalent" apex in both laps as the slowest sample within ±80 m (`CORNER_SEARCH_WINDOW_M`, `brakingAnalysis.ts:5`, `throttleAnalysis.ts:5`; `findApexIndexNear`, `src/analysis/sampleSearch.ts:9-23`). Two corners whose apexes are less than 160 m apart share part of the window and can pick the same sample in both laps. In (6,7), the corners of index 0 (apex 334 m) and 1 (apex 399 m) have identical braking and throttle values: `brakingPointDiffM` −179.97, `peakBrakeDiff` 1, `throttleOnDiffM` 19.43; in (6,8) the same two corners share −189.82, 1 and 17.38. This, rather than the out-lap, is what the code points to for the identical −179.97.
+
+**3. The braking start stops at the apex.** `findBrakingStartIndex` (`sampleSearch.ts:28-34`) walks back from the apex only while the previous sample is braking above 0.1, so when the brake was released before the apex, the "braking start" is the apex itself. `brakingStartDistance` equals `apexDistance` (to the metre) in 10 of the 12 corners when lap 6 is primary, 6 of 7 when lap 7 is primary and 4 of 7 when lap 8 is primary. A braking point compared with an apex on the other lap gives differences of 100–190 m that may not have happened: (6,8) index 0 −189.82 and (8,6) index 0 +189.82; (6,8) index 5 −172.47; (6,7) index 5 −156.71; (7,8) index 6 +102.83; (8,6) index 6 −100.7.
+
+**4. The throttle pick-up repeats across neighbouring corners.** `findThrottleOnIndex` (`sampleSearch.ts:38-44`) walks forward from the apex to the first sample at full throttle (0.9); with no full throttle between two corners, both get the same exit point. In (6,7), `throttleOnDiffM` is 19.43 on indices 0–2, 10.6 on 3–4, 112.93 on 5–6 and 10.81 on 7–9; in (7,6) −10.81 on 3–4; in (7,8) 24.46 on 3–4; in (8,6) −35.27 on 3–4.
+
+**5. The number of corners depends on the primary lap.** With lap 6 as primary, 12 corners are detected; with lap 7 or 8, 7 (`detectCorners` runs on the primary lap only, `buildInsights.ts:24`, `src/analysis/cornerDetection.ts:26-36`). So (6,7) and (7,6) do not even describe the same corners. Lap 6 is the invalid lap; whether the difference relates to the Time Trial out-lap sharing lap 6's number (a known limitation) is a hypothesis, not confirmed.
+
 ---
 
 ## CI runs
@@ -419,3 +466,4 @@ Pull request [#12](https://github.com/AnaLauraFFerraz/TelemetryF1_API/pull/12) (
 | T040, Phase 3 | `cd0f772` | 39682631564 | `pull_request` | completed, success (21:55:36–21:55:46 UTC) | completed, **failure** (21:55:37–21:56:32 UTC) | Real failure, not infrastructure: `not ok 78 - no tempo máximo a conexão é fechada com 4002 time limit`, `error: '[{"type":"opened","openConnections":1}]'`. A race in the test: on Linux the client's close (4002) arrived before the server emitted its own `closed` event (`ws` emits the server-side close only when the closing handshake ends), and the test checked the events at once. Fixed in the test (wait for the event with a deadline), 10 of 10 local runs green; no re-run. |
 | Fix push (`test:` commit) | `68150ac` | 39683194366 | `pull_request` | completed, success (22:00:07–22:00:18 UTC) | completed, success (22:00:07–22:00:47 UTC) | — |
 | T059, Phases 4–5 | `2c33817` | 39687290016 | `pull_request` | completed, success (22:33:01–22:33:15 UTC) | completed, success (22:33:01–22:34:09 UTC) | — |
+| Atomic save after each paid pair | `ef19bf4` | 39688868014 | `pull_request` | completed, success (22:46:14–22:46:26 UTC) | completed, success (22:46:14–22:47:23 UTC) | — |
