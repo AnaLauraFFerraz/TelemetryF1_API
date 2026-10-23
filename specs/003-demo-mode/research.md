@@ -454,6 +454,74 @@ Recorded, not fixed here: they are the subject of the analysis-engine spec above
 
 **5. The number of corners depends on the primary lap.** With lap 6 as primary, 12 corners are detected; with lap 7 or 8, 7 (`detectCorners` runs on the primary lap only, `buildInsights.ts:24`, `src/analysis/cornerDetection.ts:26-36`). So (6,7) and (7,6) do not even describe the same corners. Lap 6 is the invalid lap; whether the difference relates to the Time Trial out-lap sharing lap 6's number (a known limitation) is a hypothesis, not confirmed.
 
+### Implementation evidence — SC-007, local mode unchanged (T080, 2026-10-23)
+
+Run from the repository at `3b7385e`, following quickstart.md section C. `DOTENV_CONFIG_PATH` pointed at a scratch `ports.env` holding only the three port lines copied from the repository's `.env` (`WS_PORT`, `UDP_PORT`, `HTTP_PORT`; nothing else read or printed); the key check printed `false` in that environment before each process; `DB_PATH` pointed at a scratch `telemetry.db`; `DEMO_MODE` unset.
+
+```text
+$ DB_PATH=<scratch>/sc007/telemetry.db npm run dev
+[db] usando banco em <scratch>\sc007\telemetry.db
+[wsBroadcaster] servidor WebSocket em ws://localhost:8080
+[httpServer] servidor REST em http://localhost:3001
+[udpListener] escutando pacotes UDP em 0.0.0.0:20777
+
+$ npm run replay -- recordings/demo-interlagos-tt-20hz-laps6-8.jsonl        # default 1x, same environment
+[replayer] recordings/demo-interlagos-tt-20hz-laps6-8.jsonl - velocidade=1x loop=false 13960 pacotes, duração original 222839ms
+[replayer] 13960 pacotes reenviados, 1 passada(s)
+
+# during the replay, a ws client on ws://localhost:8080
+{"lapData":{"cars":22,"playerCarIndex":0},"motion":{"cars":22,"playerCarIndex":0},"carTelemetry":{"cars":22,"playerCarIndex":0}} extensions: ""
+
+# server stopped; the temporary database opened read-only with better-sqlite3
+sessions [{"id":1,"session_uid":"1026725433292396341","track_id":16}]
+laps [{"lap_number":6,"lap_time_ms":74306,"sector1_ms":19307,"sector2_ms":38182,"sector3_ms":16817,"is_valid":0},
+      {"lap_number":7,"lap_time_ms":74144,"sector1_ms":18310,"sector2_ms":37654,"sector3_ms":18180,"is_valid":1},
+      {"lap_number":8,"lap_time_ms":73372,"sector1_ms":18474,"sector2_ms":37573,"sector3_ms":17325,"is_valid":1}]
+car    [{"lap_number":6,"n":797},{"lap_number":7,"n":801},{"lap_number":8,"n":793},{"lap_number":9,"n":20}] total 2411
+motion [{"lap_number":6,"n":797},{"lap_number":7,"n":801},{"lap_number":8,"n":793},{"lap_number":9,"n":20}] total 2411
+```
+
+Result: 1 session, the README's three laps (times, sectors, validity), **2,411 of 2,411** car telemetry and **2,411 of 2,411** motion samples, the same per-lap split as the in-process build (point 3); the per-packet log lines as before (662 lines in the server log for the pass); 22 cars per WebSocket message, uncompressed. The only database named in the log is the temporary one.
+
+### Compiled local mode (T081, 2026-10-23)
+
+Same `DOTENV_CONFIG_PATH`, key check `false`.
+
+```text
+$ npm run build
+[fetchDemoRecording] gravação já presente e conferida em C:\Telemetry\TelemetryF1_API\recordings\demo-interlagos-tt-20hz-laps6-8.jsonl; nada baixado.
+
+$ DB_PATH=<scratch>/sc007/compiled.db npm start
+> node dist/src/server.js
+[db] usando banco em <scratch>\sc007\compiled.db
+[wsBroadcaster] servidor WebSocket em ws://localhost:8080
+[httpServer] servidor REST em http://localhost:3001
+[udpListener] escutando pacotes UDP em 0.0.0.0:20777
+
+GET http://localhost:3001/health   → 200 {"status":"ok"}, Cache-Control: no-store
+GET http://localhost:3001/sessions → 200 []
+# a ws client on ws://localhost:8080 during `npm run replay -- … --speed=max` (into the same temporary database)
+{"lapData":{"cars":22,"playerCarIndex":0},"motion":{"cars":22,"playerCarIndex":0},"carTelemetry":{"cars":22,"playerCarIndex":0}} extensions: ""
+
+# server stopped; DB_PATH unset; only the path printed, nothing opened
+$ node -e "process.stdout.write(require('./dist/src/config/dbPath.js').dbPath)"
+C:\Telemetry\TelemetryF1_API\data\telemetry.db
+```
+
+The compiled server runs with no TypeScript runtime, names the temporary database, serves REST and the standalone WebSocket on their own ports with 22 cars per message, and answers `GET /health`; without `DB_PATH` the compiled code resolves the real database at the repository root, not under `dist/` (FR-001, FR-019).
+
+### No new dependency (T082, 2026-10-23)
+
+```text
+$ git diff main --stat -- package.json
+ package.json | 3 +++
++    "build": "tsc -p tsconfig.build.json && node dist/tools/fetchDemoRecording.js",
++    "start": "node dist/src/server.js",
++    "export-coach-seed": "ts-node-dev tools/exportCoachSeed.ts",
+```
+
+Only the three scripts; `dependencies` and `devDependencies` unchanged (FR-022).
+
 ---
 
 ## CI runs
@@ -467,3 +535,4 @@ Pull request [#12](https://github.com/AnaLauraFFerraz/TelemetryF1_API/pull/12) (
 | Fix push (`test:` commit) | `68150ac` | 39683194366 | `pull_request` | completed, success (22:00:07–22:00:18 UTC) | completed, success (22:00:07–22:00:47 UTC) | — |
 | T059, Phases 4–5 | `2c33817` | 39687290016 | `pull_request` | completed, success (22:33:01–22:33:15 UTC) | completed, success (22:33:01–22:34:09 UTC) | — |
 | Atomic save after each paid pair | `ef19bf4` | 39688868014 | `pull_request` | completed, success (22:46:14–22:46:26 UTC) | completed, success (22:46:14–22:47:23 UTC) | — |
+| T079, Phases 6–7 | `3b7385e` | 39949988647 | `pull_request` | completed, success (2026-10-23 11:59:29–11:59:39 UTC) | completed, success (11:59:29–12:00:27 UTC) | — |
