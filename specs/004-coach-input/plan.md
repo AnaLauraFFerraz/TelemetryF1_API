@@ -149,7 +149,7 @@ Decided at the plan review (2026-10-23): the maintainer approved the chosen opti
 5. **`analyze` output becomes three sections** (insights, message, version) instead of one JSON document. Anyone piping `npm run analyze` into a JSON parser breaks. Alternative: a flag (`--message`) keeping today's output by default — FR-016a says it must print both; a flag would make the default not satisfy it.
 6. **Single-flight in memory, one process** (research section 7). Enough for the local server; two processes on one database would make two calls for one pair (the upsert keeps the last). Alternative: a lock row in the table — survives crashes as a stuck lock.
 7. **Joiners of an in-flight generation get `cached: false`**, like the request that triggered it. Alternative: `cached: true` for joiners — they did not read the table; the frontend's "Análise em cache" badge would appear for a text produced right now.
-8. **The prompt grows 47%** (3,236 → 4,749 characters) and each message by the reading: higher cost per call until M2 measures it; it may cross the minimum cacheable length, which would make `cache_control` start to work (to be seen in the usage log).
+8. **The prompt grows 62%** (3,236 → 5,229 characters, after the maintainer's review of the prompt added three rules) and each message by the reading: higher cost per call until M2 measures it; it may cross the minimum cacheable length, which would make `cache_control` start to work (to be seen in the usage log).
 9. **Moving the two existing `ALTER`s into `migrations.ts`**: touches code that works, to make all migrations testable the same way. Alternative: only the new one in a function, the old ones left inline — two styles side by side.
 
 ## Out of scope, recorded

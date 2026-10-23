@@ -15,7 +15,7 @@ Nothing pointed at `data/telemetry.db`: the databases below are temporary files 
 
 | File | Today (`main`) | Change |
 |---|---|---|
-| `src/coaching/coachPrompt.ts` | Static prompt, 3,236 characters. Line 7: the comparison lap is "normalmente a melhor volta do próprio piloto". Line 9: `totalDeltaS` is "tempo total que a volta principal está mais lenta". Line 15: `peakBrakeDiff` with no sign. Line 25: the coach picks "as 3 curvas com maior deltaLossS positivo". Line 34: example title "Curva 4 - freada tardia". | Replaced by the new prompt (section 4, 4,749 characters): reads the laps and the opportunities from the message, never ranks or numbers, signs of every difference, coasting and trail braking defined as the code computes them, the arbitrary sign of the lateral deviation, no sectors, no reason for an invalidation. The comment on lines 1–4 (static prompt) stays. |
+| `src/coaching/coachPrompt.ts` | Static prompt, 3,236 characters. Line 7: the comparison lap is "normalmente a melhor volta do próprio piloto". Line 9: `totalDeltaS` is "tempo total que a volta principal está mais lenta". Line 15: `peakBrakeDiff` with no sign. Line 25: the coach picks "as 3 curvas com maior deltaLossS positivo". Line 34: example title "Curva 4 - freada tardia". | Replaced by the new prompt (section 4, 5,229 characters): reads the laps and the opportunities from the message, never ranks or numbers, signs of every difference, coasting and trail braking defined as the code computes them, the arbitrary sign of the lateral deviation, no sectors, no reason for an invalidation, no driver states the data do not measure, no sum of the losses against the official difference, proportion. The comment on lines 1–4 (static prompt) stays. |
 | `src/coaching/coachUserMessage.ts` | `buildCoachUserMessage(insights, benchmark?)` (line 20): the personal best (line 24) and the theoretical best (line 27), then `JSON.stringify(insights)` (line 32). No lap number, time or validity. | `buildCoachUserMessage(insights, primary, comparison)`: the compared laps block, the invalid-comparison warning, the opportunity reading, then the JSON (section 4). No benchmark parameter. The opportunity rule, the label and the direction phrases live in their own pure modules (plan, Project Structure). |
 | `src/coaching/coachService.ts` | `MODEL` constant (line 8), `generateCoaching(insights, benchmark?)` (line 39), imports `env` (line 2) for the key. | `generateCoaching(insights, primary, comparison)`. The model constant moves to a module without the `env` import (`coachModel.ts`) so the analysis resolver and `analyze` can read it without the ports; on `003-demo-mode` it is already exported (`export const MODEL`), the same need. |
 | `src/http/routes/analysisRouter.ts` | Serves any cached row (lines 44–52), then 503 without the key (lines 57–60), builds insights, reads the track benchmark (line 72), calls the coach (line 75), `insertAnalysis` (line 76). | Delegates to an analysis resolver (section 7): a row with the current prompt version and model is served; a stale one is regenerated and replaced with the key, 503 without it; one paid call per pair at a time. Reads the two laps (section 3) instead of the benchmark. Status codes and bodies unchanged. |
@@ -88,12 +88,12 @@ $ sha256sum recordings/demo-interlagos-tt-20hz-laps6-8.jsonl
 c41bdfaf7ff0feb40702875b15031654742de5fdb10ea3a05c0a21f1ac70b033   (the published hash, 003 research.md section 2)
 
 $ DOTENV_CONFIG_PATH=<empty .env> node -r ts-node/register <scratch>/proto/buildDemoMessages.ts recordings/demo-interlagos-tt-20hz-laps6-8.jsonl
-[db] usando banco em C:\Users\anala\AppData\Local\Temp\telemetryf1-004-y3lqEE\research.db
-banco temporário: C:\Users\anala\AppData\Local\Temp\telemetryf1-004-y3lqEE\research.db
+[db] usando banco em C:\Users\anala\AppData\Local\Temp\telemetryf1-004-z8mszT\research.db
+banco temporário: C:\Users\anala\AppData\Local\Temp\telemetryf1-004-z8mszT\research.db
 sessões: [{"id":1,"session_uid":"1026725433292396341"}]; pacotes descartados: 0
 voltas: [{"lap":6,"ms":74306,"valid":false},{"lap":7,"ms":74144,"valid":true},{"lap":8,"ms":73372,"valid":true}]
-versão do prompt (protótipo): 190dfdbdf2acab9a
-versão com o prompt em CRLF: 190dfdbdf2acab9a
+versão do prompt (protótipo): 395e27bac6daabc6
+versão com o prompt em CRLF: 395e27bac6daabc6
 par (6,7): 8242 caracteres
 par (6,8): 8256 caracteres
 par (7,6): 5832 caracteres
@@ -105,7 +105,7 @@ banco temporário removido
 
 The insights are today's `buildInsights` output, unchanged; they carry the engine artefacts recorded in `003-demo-mode:specs/003-demo-mode/research.md`, "Analysis engine observations" (for example the 179.97 m and 189.82 m braking differences, and identical braking and throttle values on neighbouring corners). This spec makes the coach read them correctly, not makes them right; that is the analysis-engine spec.
 
-**The prompt version shown (`190dfdbdf2acab9a`) is the prototype's.** The implemented version will differ: it hashes the implemented prompt and the implemented builder's reference messages (section 5). The real value is printed by `npm run analyze` after implementation.
+**The prompt version shown (`395e27bac6daabc6`) is the prototype's.** The implemented version will differ: it hashes the implemented prompt and the implemented builder's reference messages (section 5). The real value is printed by `npm run analyze` after implementation.
 
 **The texts below are the generated files, unedited**: after writing this file, a script extracted each pair's block and the new prompt's block from it and compared them with the files the prototype wrote:
 
@@ -117,7 +117,10 @@ The insights are today's `buildInsights` output, unchanged; they carry the engin
 8 6 idêntica: true
 8 7 idêntica: true
 prompt idêntico: true
+diff idêntico: true
 ```
+
+(Re-run after the maintainer's review of the prompt; the diff check was added then.)
 
 **Today's frontend reaches only (8, 6) and (8, 7)** (the primary lap is fixed to the latest, 003 research.md section 7); the other four are shown because the demo seed covers six pairs.
 
@@ -330,7 +333,7 @@ Dados completos (JSON):
 - What still looks wrong comes from the insights, not from the reading: "freou mais leve (diferença de 1)" together with "começou a frear 179.97 m depois" on `391m` of (7, 6) is the braking start stopping at the apex (observation 3 of 003's research); identical values on neighbouring corners are the shared ±80 m windows (observation 2). The coach will explain them as facts. That is why the seed waits for the analysis-engine spec.
 - `throttleOscillation*` and `lineDeviation` are not read in words (FR-008 does not list them); they stay in the JSON and the prompt explains them, including the arbitrary sign of `avgLateralDeviationM` (below).
 
-### The new prompt (full text, 4,749 characters; today's is 3,236)
+### The new prompt (full text, 5,229 characters; today's is 3,236)
 
 ```text
 Você é um engenheiro de pista experiente, especialista em telemetria de F1 24. Sua função é explicar ao piloto, em linguagem de piloto, onde a volta principal perdeu tempo para a volta de comparação e como melhorar.
@@ -358,13 +361,16 @@ Estrutura do JSON (todas as diferenças são volta principal menos volta de comp
 Sua tarefa:
 1. Abra com uma frase que resume a diferença oficial entre as duas voltas, como a mensagem a escreve. Se a diferença oficial for desconhecida, não afirme nenhuma diferença de tempo de volta.
 2. Explique as oportunidades na ordem em que vieram, cada uma identificada só pelo rótulo dado (ex: "1. 334m · +0.29s"). Não escolha, não reordene, não renumere e não dê nome nem número próprio às curvas (nada de "Curva 4"). Se não houver oportunidades, diga que nenhuma curva perdeu tempo e não invente outras.
-3. Para cada oportunidade, use as direções já escritas na mensagem; nunca as inverta nem as reinterprete a partir do JSON. Diagnostique a causa raiz (frenagem, traçado, tração na saída, ou uma combinação) e dê uma dica curta e acionável.
+3. Para cada oportunidade, use as direções já escritas na mensagem; nunca as inverta nem as reinterprete a partir do JSON. Diagnostique a causa raiz (frenagem, traçado, retomada do acelerador na saída, ou uma combinação) e dê uma dica curta e acionável.
 4. Nunca afirme algo que contradiga um campo: se trailBraking de uma volta é false, não diga que ela fez trail braking; se um campo vier null, omita aquele aspecto, sem dizer que o dado não está disponível.
-5. Não fale de setores: os dados não têm tempo por setor.
-6. Se a volta de comparação for inválida, repita o aviso da mensagem com suas palavras. Nunca afirme onde nem por que uma volta foi invalidada: não há dado sobre isso.
-7. Nunca cite nomes de campos do JSON (não diga "brakingPointDiffM", diga "você começou a frear X metros antes") e nunca invente números que não estejam na mensagem.
-8. Se houver excursões de temperatura de pneu relevantes (trechos longos), mencione brevemente ao final.
-9. Responda em português do Brasil, tom direto e técnico mas acessível, como um engenheiro de pista falando no rádio durante um treino.
+5. Não atribua ao piloto estados que os dados não medem (insegurança, hesitação, medo, falta de confiança). Descreva o que os dados mostram e dê a dica.
+6. Não some as perdas das curvas nem as compare com a diferença oficial: a volta principal pode ter ganhado tempo em outras curvas, e por isso a soma das oportunidades pode ser maior que a diferença oficial.
+7. Guarde a proporção: uma perda de poucos centésimos é ajuste fino, não o maior problema da volta.
+8. Não fale de setores: os dados não têm tempo por setor.
+9. Se a volta de comparação for inválida, repita o aviso da mensagem com suas palavras. Nunca afirme onde nem por que uma volta foi invalidada: não há dado sobre isso.
+10. Nunca cite nomes de campos do JSON (não diga "brakingPointDiffM", diga "você começou a frear X metros antes") e nunca invente números que não estejam na mensagem.
+11. Se houver excursões de temperatura de pneu relevantes (trechos longos), mencione brevemente ao final.
+12. Responda em português do Brasil, tom direto e técnico mas acessível, como um engenheiro de pista falando no rádio durante um treino.
 
 Formato da resposta:
 - A frase de abertura com a diferença oficial.
@@ -372,12 +378,21 @@ Formato da resposta:
 - Se aplicável, um parágrafo final curto sobre pneus.
 ```
 
+**Changes from the maintainer's review of the prompt (2026-10-23)**, applied to the text above:
+
+1. Task 3: "tração na saída" became "retomada do acelerador na saída". The data do not measure traction (there is no wheel slip in the insights), and the word invites the model to talk about wheelspin or losing traction, as in the rejected texts.
+2. New rule 5: no driver states the data do not measure (insecurity, hesitation, fear, lack of confidence); describe what the data show and give the tip.
+3. New rule 6: do not add up the corners' losses or compare them with the official difference; the primary lap may have gained time elsewhere, so the opportunities can add up to more than the official difference (in (7, 6): 0.38 + 0.19 + 0.18 s of loss in a lap 0.162 s faster).
+4. New rule 7: proportion; a loss of a few hundredths is fine-tuning, not the lap's biggest problem (in (7, 8), `3. 2121m · +0.02s`).
+
+The six messages do not change (the builder did not change; their SHA-256 were checked against the files written before the review).
+
 **Where each definition comes from in the code**: the signs (`brakingAnalysis.ts:33-34`, `throttleAnalysis.ts:38`); `peakBrakeDiff` on the 0–1 brake scale (`brakingAnalysis.ts:29-30, 34`); trail braking = brake above 0.1 with `|steer|` above 0.15 between the braking start and the apex (`brakingAnalysis.ts:6, 9, 40-48`); coasting = brake ≤ 0.05 and throttle ≤ 0.05 between the apex and the first sample at throttle 0.9 (`throttleAnalysis.ts:6-8, 31, 46-59`); oscillation between the apex and that point (`throttleAnalysis.ts:61-77`); `maxLateralDeviationM` is the largest absolute value and the sign of the deviation is arbitrary, "perpendicular à direita da tangente da comparação" (`lineDeviation.ts:49-57, 80-84`). The arbitrary sign of the lateral deviation was found in this research; it is the same kind of error as the rejected texts (a sign the model may read as "inside/outside"), so the prompt covers it under FR-012 (approved by the maintainer at the plan review).
 
 ### Diff against today's prompt
 
 ```diff
-@@ -1,29 +1,37 @@
+@@ -1,29 +1,40 @@
 -Você é um engenheiro de pista experiente, especialista em telemetria de F1 24. Sua função é analisar a comparação entre duas voltas de um piloto e explicar, em linguagem de piloto, onde ele está perdendo tempo e como melhorar.
 +Você é um engenheiro de pista experiente, especialista em telemetria de F1 24. Sua função é explicar ao piloto, em linguagem de piloto, onde a volta principal perdeu tempo para a volta de comparação e como melhorar.
  
@@ -422,13 +437,16 @@ Formato da resposta:
 -6. Responda em português do Brasil, tom direto e técnico mas acessível, como um engenheiro de pista falando no rádio durante um treino.
 +1. Abra com uma frase que resume a diferença oficial entre as duas voltas, como a mensagem a escreve. Se a diferença oficial for desconhecida, não afirme nenhuma diferença de tempo de volta.
 +2. Explique as oportunidades na ordem em que vieram, cada uma identificada só pelo rótulo dado (ex: "1. 334m · +0.29s"). Não escolha, não reordene, não renumere e não dê nome nem número próprio às curvas (nada de "Curva 4"). Se não houver oportunidades, diga que nenhuma curva perdeu tempo e não invente outras.
-+3. Para cada oportunidade, use as direções já escritas na mensagem; nunca as inverta nem as reinterprete a partir do JSON. Diagnostique a causa raiz (frenagem, traçado, tração na saída, ou uma combinação) e dê uma dica curta e acionável.
++3. Para cada oportunidade, use as direções já escritas na mensagem; nunca as inverta nem as reinterprete a partir do JSON. Diagnostique a causa raiz (frenagem, traçado, retomada do acelerador na saída, ou uma combinação) e dê uma dica curta e acionável.
 +4. Nunca afirme algo que contradiga um campo: se trailBraking de uma volta é false, não diga que ela fez trail braking; se um campo vier null, omita aquele aspecto, sem dizer que o dado não está disponível.
-+5. Não fale de setores: os dados não têm tempo por setor.
-+6. Se a volta de comparação for inválida, repita o aviso da mensagem com suas palavras. Nunca afirme onde nem por que uma volta foi invalidada: não há dado sobre isso.
-+7. Nunca cite nomes de campos do JSON (não diga "brakingPointDiffM", diga "você começou a frear X metros antes") e nunca invente números que não estejam na mensagem.
-+8. Se houver excursões de temperatura de pneu relevantes (trechos longos), mencione brevemente ao final.
-+9. Responda em português do Brasil, tom direto e técnico mas acessível, como um engenheiro de pista falando no rádio durante um treino.
++5. Não atribua ao piloto estados que os dados não medem (insegurança, hesitação, medo, falta de confiança). Descreva o que os dados mostram e dê a dica.
++6. Não some as perdas das curvas nem as compare com a diferença oficial: a volta principal pode ter ganhado tempo em outras curvas, e por isso a soma das oportunidades pode ser maior que a diferença oficial.
++7. Guarde a proporção: uma perda de poucos centésimos é ajuste fino, não o maior problema da volta.
++8. Não fale de setores: os dados não têm tempo por setor.
++9. Se a volta de comparação for inválida, repita o aviso da mensagem com suas palavras. Nunca afirme onde nem por que uma volta foi invalidada: não há dado sobre isso.
++10. Nunca cite nomes de campos do JSON (não diga "brakingPointDiffM", diga "você começou a frear X metros antes") e nunca invente números que não estejam na mensagem.
++11. Se houver excursões de temperatura de pneu relevantes (trechos longos), mencione brevemente ao final.
++12. Responda em português do Brasil, tom direto e técnico mas acessível, como um engenheiro de pista falando no rádio durante um treino.
  
  Formato da resposta:
 -- Uma frase de abertura resumindo o delta total.
@@ -438,7 +456,7 @@ Formato da resposta:
  - Se aplicável, um parágrafo final curto sobre pneus.
 ```
 
-**Size and tokens**: 4,749 characters against 3,236 (+47%), and each user message grows by the reading (the six messages: 5,592–8,256 characters, against 3,803–6,406 before, 003 research.md section 7). The token counts are not measured or estimated here: measuring needs the API key (manual task of the maintainer, quickstart). Until then, the documentation stops citing 1,378 tokens (FR-017).
+**Size and tokens**: 5,229 characters against 3,236 (+62%), and each user message grows by the reading (the six messages: 5,592–8,256 characters, against 3,803–6,406 before, 003 research.md section 7). The token counts are not measured or estimated here: measuring needs the API key (manual task of the maintainer, quickstart). Until then, the documentation stops citing 1,378 tokens (FR-017).
 
 ---
 
@@ -459,8 +477,8 @@ It is computed once, at module load, by a pure function `computePromptVersion(sy
 ### Evidence
 
 ```text
-versão do prompt (protótipo): 190dfdbdf2acab9a
-versão com o prompt em CRLF: 190dfdbdf2acab9a
+versão do prompt (protótipo): 395e27bac6daabc6
+versão com o prompt em CRLF: 395e27bac6daabc6
 ```
 
 And how a CRLF checkout reaches a template literal today:
@@ -569,6 +587,6 @@ The pure functions are written test-first. For each one, the test is written aga
 | `buildCoachUserMessage` | order of the blocks; no benchmark anywhere (no "Recorde", no "teórica", no "setores"); the JSON is `JSON.stringify(insights)` unchanged |
 | `computePromptVersion` | same input twice → same; one character of the prompt → different; a builder that changes a phrase → different; the prompt with CRLF and with LF → same (SC-004a); the reference messages cover every branch |
 | `isCachedAnalysisCurrent` | current version and model → current; other version, other model, `null` version → stale |
-| prompt text | contains each instruction of FR-011/FR-012 (labels and order, no "Curva", no sectors, no contradiction, coasting definition, the four signs, the invalidation rule); no "normalmente a melhor volta" |
+| prompt text | contains each instruction of FR-011/FR-012 (labels and order, no "Curva", no sectors, no contradiction, coasting definition, the four signs, the invalidation rule) and the review's rules (no unmeasured driver states, no sum of losses against the official difference, proportion, "retomada do acelerador" as a cause); no "normalmente a melhor volta", no "tração na saída" |
 
 The analysis resolver (orchestration with fakes: current row served, stale with key regenerated and saved once, stale without key → unavailable, two concurrent calls → one generation, a failure not cached), the migration (temporary database, section 6) and `analyze` (a temporary database through `testDb.ts`) are tested after, as integration tests.
