@@ -536,3 +536,4 @@ Pull request [#12](https://github.com/AnaLauraFFerraz/TelemetryF1_API/pull/12) (
 | T059, Phases 4–5 | `2c33817` | 39687290016 | `pull_request` | completed, success (22:33:01–22:33:15 UTC) | completed, success (22:33:01–22:34:09 UTC) | — |
 | Atomic save after each paid pair | `ef19bf4` | 39688868014 | `pull_request` | completed, success (22:46:14–22:46:26 UTC) | completed, success (22:46:14–22:47:23 UTC) | — |
 | T079, Phases 6–7 | `3b7385e` | 39949988647 | `pull_request` | completed, success (2026-10-23 11:59:29–11:59:39 UTC) | completed, success (11:59:29–12:00:27 UTC) | — |
+| Phase 8 evidence (`docs:`) | `f91f167` | 39956673000 | `pull_request` | completed, success (2026-10-23 12:52:47–12:53:00 UTC) | completed, success (12:52:47–12:54:09 UTC) | — |
