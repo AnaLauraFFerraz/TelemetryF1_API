@@ -545,10 +545,10 @@ removido
 Before the first start of the new version on the real database, with the API **stopped** (no writer during the copy):
 
 ```bash
-node -e "const D=require('better-sqlite3'); const db=new D('data/telemetry.db',{readonly:true}); db.exec(\"VACUUM INTO 'data/telemetry-before-004.db'\"); db.close()"
+node -e "require('fs').mkdirSync('C:/Telemetry/backups',{recursive:true}); const D=require('better-sqlite3'); const db=new D('data/telemetry.db',{readonly:true}); db.exec(\"VACUUM INTO 'C:/Telemetry/backups/telemetry-before-004.db'\"); db.close()"
 ```
 
-`VACUUM INTO` writes a consistent, compacted copy and leaves the original unchanged; it refuses to overwrite an existing file. `better-sqlite3` is already a dependency, so no `sqlite3` CLI is needed. The copy stays under `data/` (gitignored) until spec 004 merges (`CLAUDE.md`, Rules). This is a manual task: the agent never runs it against `data/telemetry.db`.
+`VACUUM INTO` writes a consistent, compacted copy and leaves the original unchanged; it refuses to overwrite an existing file. `better-sqlite3` is already a dependency, so no `sqlite3` CLI is needed. The copy goes to `C:/Telemetry/backups/`, outside the repository (changed at M1 by the maintainer; `.gitignore` already ignores the whole `data` folder, checked with `git check-ignore -v`, but a copy outside cannot be committed by accident), and stays there until spec 004 merges (`CLAUDE.md`, Rules). This is a manual task: the agent never runs it against `data/telemetry.db`.
 
 ---
 

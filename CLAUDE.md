@@ -92,7 +92,7 @@ These are also listed under "Known limitations" in the README. When a limitation
 - Switching the Node major without running `npm ci` again makes `better-sqlite3` fail to load with `ERR_DLOPEN_FAILED` (its native binary is built for one major's ABI).
 - `sessionType` 18 is Time Trial in F1 24 (the numbering differs from F1 23).
 - `.env` is read only at startup; `ts-node-dev` does not restart on `.env` changes.
-- The first start of a version with a schema change migrates `data/telemetry.db` in place (this version adds `lap_analyses.prompt_version`); back it up first, with the `VACUUM INTO` command in the README ("Upgrading an existing database").
+- The first start of a version with a schema change migrates `data/telemetry.db` in place (this version adds `lap_analyses.prompt_version`); back it up first to a folder outside the repository, with the `VACUUM INTO` command in the README ("Upgrading an existing database").
 - Without `ANTHROPIC_API_KEY`, `POST /sessions/:id/analysis` returns 503 (cached analyses are still served).
 - The current coach system prompt's token count is not measured yet and must be re-measured (the previous prompt, 1,378 tokens for `claude-opus-4-8`, was below the model's minimum cacheable length); until then it is unconfirmed whether `cache_control` has any effect. Each call logs its token `usage` (`[coachService] usage ...`). Re-measure if the prompt changes.
 
