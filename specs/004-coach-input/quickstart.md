@@ -52,10 +52,10 @@ On the same temporary database, with no key, insert a `lap_analyses` row for a p
 The migration adds `lap_analyses.prompt_version` to `data/telemetry.db` at the first start. Before it, with the API **stopped**:
 
 ```bash
-node -e "const D=require('better-sqlite3'); const db=new D('data/telemetry.db',{readonly:true}); db.exec(\"VACUUM INTO 'data/telemetry-before-004.db'\"); db.close()"
+node -e "require('fs').mkdirSync('C:/Telemetry/backups',{recursive:true}); const D=require('better-sqlite3'); const db=new D('data/telemetry.db',{readonly:true}); db.exec(\"VACUUM INTO 'C:/Telemetry/backups/telemetry-before-004.db'\"); db.close()"
 ```
 
-Keep `data/telemetry-before-004.db` until spec 004 merges. After the first start, every existing analysis is stale: with the key, it is regenerated (a paid call) the next time its pair is requested; without it, the pair answers 503.
+The copy goes outside the repository (the command creates the folder). Keep `C:/Telemetry/backups/telemetry-before-004.db` until spec 004 merges. After the first start, every existing analysis is stale: with the key, it is regenerated (a paid call) the next time its pair is requested; without it, the pair answers 503.
 
 ### M2 — Token count of the new prompt
 
