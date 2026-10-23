@@ -6,8 +6,7 @@ import path from "node:path";
 import http from "node:http";
 import type { AddressInfo } from "node:net";
 import { setupIsolatedTestDb, teardownIsolatedTestDb } from "../persistence/testDb";
-import { buildDemoRecording } from "../demo/testFixtures";
-import type { CoachSeedFile } from "../demo/coachSeed";
+import { buildSyntheticRecording } from "../replay/testFixtures";
 
 // O analysisRouter carrega config/env, que no modo local lê as três portas e
 // o .env: as portas são fictícias (nada é aberto nelas), e o .env é um vazio
@@ -25,8 +24,10 @@ process.env.HTTP_PORT = "1";
 const handle = setupIsolatedTestDb();
 /* eslint-disable @typescript-eslint/no-var-requires */
 const { db } = require("../persistence/db") as typeof import("../persistence/db");
-const { buildDemoSession } = require("../demo/buildDemoSession") as typeof import("../demo/buildDemoSession");
-const { applyCoachSeed } = require("../demo/applyCoachSeed") as typeof import("../demo/applyCoachSeed");
+const { dispatchPacket } = require("../telemetry/dispatcher") as typeof import("../telemetry/dispatcher");
+const { persistTelemetry } = require("../persistence/persistTelemetry") as typeof import("../persistence/persistTelemetry");
+const { listSessions } = require("../persistence/sessionRepository") as typeof import("../persistence/sessionRepository");
+const { insertAnalysis } = require("../persistence/analysisRepository") as typeof import("../persistence/analysisRepository");
 const { isCoachingConfigured } = require("../coaching/coachService") as typeof import("../coaching/coachService");
 const { createApp } = require("./httpServer") as typeof import("./httpServer");
 /* eslint-enable @typescript-eslint/no-var-requires */
@@ -43,16 +44,15 @@ after(async () => {
   fs.rmSync(envDir, { recursive: true, force: true });
 });
 
-const recording = buildDemoRecording({ sessionUID: 4242n, laps: 2 });
-const build = buildDemoSession(recording.packets);
+// Sessão e par em cache montados só com a ingestão e os repositórios: nada
+// em src/http/ importa de src/demo/, nem os testes.
+for (const packet of buildSyntheticRecording().packets) {
+  const result = dispatchPacket(packet.data);
+  if (result) persistTelemetry(result.header, result.packetId, result.data);
+}
+const build = { sessionId: listSessions()[0].id };
 const seededInsights = { totalDeltaS: 0.12, corners: [], tyreWindowExcursions: [] };
-const seed: CoachSeedFile = {
-  formatVersion: 1,
-  recordingSha256: "a".repeat(64),
-  sessionUid: build.sessionUid,
-  entries: [{ lapA: 2, lapB: 1, model: "modelo-falso", analysisText: "análise 2-1", insights: seededInsights }],
-};
-applyCoachSeed(build.sessionId, seed);
+insertAnalysis(build.sessionId, 2, 1, JSON.stringify(seededInsights), "análise 2-1", "modelo-falso");
 
 async function listen(app: ReturnType<typeof createApp>): Promise<string> {
   const server = http.createServer(app);

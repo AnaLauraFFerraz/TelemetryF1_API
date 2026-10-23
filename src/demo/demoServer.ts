@@ -6,7 +6,7 @@ import type { LapInsights } from "../analysis/types";
 import type { PacketMotionData } from "../telemetry/motion/types";
 import type { PacketLapData } from "../telemetry/lapData/types";
 import type { PacketCarTelemetryData } from "../telemetry/carTelemetry/types";
-import { parseRecording, sha256Hex, verifyRecording } from "./recording";
+import { parseRecording, sha256Hex } from "./recording";
 import { buildCaptureTimes } from "./captureTimes";
 import { validateCoachSeed } from "./coachSeed";
 import { toPlayerOnlyMessage } from "./playerOnly";
@@ -22,6 +22,10 @@ function readOrRefuse(filePath: string, missing: string): Buffer {
     if ((err as NodeJS.ErrnoException).code === "ENOENT") throw new Error(missing);
     throw err;
   }
+}
+
+function abbreviate(sha256: string): string {
+  return sha256.length > 12 ? `${sha256.slice(0, 8)}…${sha256.slice(-4)}` : sha256;
 }
 
 function describeEvent(event: DemoWsEvent): string {
@@ -63,8 +67,16 @@ export async function startDemoServer(config: DemoConfig): Promise<void> {
     `[demo] gravação não encontrada em ${config.recordingPath}: o npm run build baixa e confere a gravação.`
   );
   const hashStart = Date.now();
-  verifyRecording(recordingData, expectedSha256);
+  const recordingSha256 = sha256Hex(recordingData);
   const hashMs = Date.now() - hashStart;
+  // Os dois valores no log: comparando com o SHA-256 publicado no README,
+  // quem lê o deploy sabe se a errada é a gravação ou o cache.
+  if (recordingSha256 !== expectedSha256) {
+    throw new Error(
+      `[demo] a gravação não confere com o cache do coach: SHA-256 da gravação lida ${abbreviate(recordingSha256)}, ` +
+        `recordingSha256 esperado pelo cache ${abbreviate(expectedSha256)} (compare com o SHA-256 publicado no README).`
+    );
+  }
   const packets = parseRecording(recordingData.toString("utf8"));
 
   // A persistência abre o banco (:memory: no modo demo) no import: só é
@@ -100,7 +112,7 @@ export async function startDemoServer(config: DemoConfig): Promise<void> {
       comparisonMotion: listMotionSamplesForLap(build.sessionId, lapB),
     });
   const seed = validateCoachSeed(rawSeed, {
-    recordingSha256: sha256Hex(recordingData),
+    recordingSha256,
     sessionUid: build.sessionUid,
     completedLaps: listLapsForSession(build.sessionId).map((lap) => lap.lapNumber),
     computeInsights,

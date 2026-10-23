@@ -232,7 +232,9 @@ test("modo demo de ponta a ponta: sessão, datas, cache, CORS, WebSocket compact
   }
 });
 
-async function assertRefused(vars: Record<string, string>, message: string): Promise<void> {
+const short = (sha256: string) => `${sha256.slice(0, 8)}…${sha256.slice(-4)}`;
+
+async function assertRefused(vars: Record<string, string>, ...messages: string[]): Promise<void> {
   const port = await freePort();
   const result = spawnSync(process.execPath, SERVER_ARGS, {
     cwd: workDir,
@@ -242,7 +244,7 @@ async function assertRefused(vars: Record<string, string>, message: string): Pro
   });
   assert.notEqual(result.status, null, `o servidor subiu em vez de falhar (timeout); stdout: ${result.stdout}`);
   assert.notEqual(result.status, 0);
-  assert.ok(result.stderr.includes(message), `stderr: ${result.stderr}`);
+  for (const message of messages) assert.ok(result.stderr.includes(message), `falta "${message}"; stderr: ${result.stderr}`);
   assert.equal(await portIsFree(port), true, "a porta ficou ocupada");
 }
 
@@ -255,12 +257,23 @@ test("modo demo com a gravação alterada em um byte para na inicialização", a
   altered[altered.length - 2] ^= 1;
   const alteredPath = path.join(workDir, "alterada.jsonl");
   fs.writeFileSync(alteredPath, altered);
-  await assertRefused({ DEMO_RECORDING_PATH: alteredPath }, "[demo] gravação não confere com o SHA-256 esperado");
+  await assertRefused(
+    { DEMO_RECORDING_PATH: alteredPath },
+    "[demo] a gravação não confere com o cache do coach",
+    `SHA-256 da gravação lida ${short(sha256Hex(altered))}`,
+    `recordingSha256 esperado pelo cache ${short(recordingSha256)}`,
+  );
 });
 
 test("modo demo com cache do coach de outra gravação para na inicialização", async () => {
-  const other = writeSeed("outra.json", { ...seed, recordingSha256: "b".repeat(64) });
-  await assertRefused({ DEMO_SEED_PATH: other }, "[demo] gravação não confere com o SHA-256 esperado");
+  const otherSha256 = "b".repeat(64);
+  const other = writeSeed("outra.json", { ...seed, recordingSha256: otherSha256 });
+  await assertRefused(
+    { DEMO_SEED_PATH: other },
+    "[demo] a gravação não confere com o cache do coach",
+    `SHA-256 da gravação lida ${short(recordingSha256)}`,
+    `recordingSha256 esperado pelo cache ${short(otherSha256)}`,
+  );
 });
 
 test("modo demo com insights do cache fora da tolerância para na inicialização", async () => {

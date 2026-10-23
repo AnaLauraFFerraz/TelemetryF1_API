@@ -3,7 +3,12 @@ import cors from "cors";
 import { sessionsRouter } from "./routes/sessionsRouter";
 import { analysisRouter } from "./routes/analysisRouter";
 import { createHealthRouter } from "./routes/healthRouter";
-import type { RestCounter } from "../demo/demoLog";
+
+// Declarado aqui, por quem consome: src/http/ nunca importa de src/demo/.
+export interface RestCounter {
+  middleware: express.RequestHandler;
+  stats(): { restBytes: number; coach503: number };
+}
 
 export interface CreateAppOptions {
   demo?: { allowedOrigin: string; restCounter?: RestCounter };

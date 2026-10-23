@@ -1,5 +1,6 @@
 import type { Socket } from "node:net";
 import type { RequestHandler } from "express";
+import type { RestCounter } from "../http/httpServer";
 
 export interface DemoCounters {
   openConnections: number;
@@ -21,11 +22,6 @@ export function formatSummary(c: DemoCounters): string {
     `CPU ${c.cpuUserMs + c.cpuSystemMs} ms (usuário ${c.cpuUserMs}, sistema ${c.cpuSystemMs}); ` +
     "bytes escritos nos sockets pela aplicação; não é o número cobrado pela hospedagem"
   );
-}
-
-export interface RestCounter {
-  middleware: RequestHandler;
-  stats(): { restBytes: number; coach503: number };
 }
 
 const COACH_ROUTE = /^\/sessions\/[^/]+\/analysis$/;
