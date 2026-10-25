@@ -127,7 +127,7 @@ The analysis of (7, 6) and of (6, 7) describe the same corners, with opposite di
 - A corner where only one lap braked: braking-point difference `null`; the peak-brake difference is still a measured fact (one lap at some peak, the other at 0) and is kept.
 - A lap that brakes twice before one apex (a dab, then the main braking): the investigation records which one the engine uses; the rule chosen is recorded in the plan.
 - A corner near the start/finish line, where one lap's samples begin after the other's: values that would need samples outside the lap are `null`.
-- A comparison lap missing samples in a corner (gap larger than the stated tolerance): the values that depend on them are `null`.
+- A lap with no sample at all in a corner's stretch: that lap's values for the corner are `null`. Gaps between samples inside the stretch are tolerated, not turned into `null`: the largest interval in the recording is 10 m (research.md, section 1.1), normal for the 4 m decimation. (Aligned with the design on 2026-10-25; a lap-level quality check for large gaps is recorded as future work in research.md, section 15.)
 - The out-lap of a Time Trial sharing its `lap_number` with the first flying lap, and a flashback inside a lap (known limitation): out of scope; the investigation found neither in the published recording (research.md, section 6.1).
 - A lap that lifts where the other brakes (common in the recording: near 2,050 m, near 2,496 m, at T2): the corner exists for both laps (it is a place); the lap that did not brake has no braking point, which is a fact, not an unknown (representation decided in the plan).
 - Two laps with equal official times: the total delta's expected value is zero.
