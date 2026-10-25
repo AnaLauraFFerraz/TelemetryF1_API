@@ -40,7 +40,7 @@ flowchart LR
 | `src/http/` | Express REST API |
 | `src/replay/` | Pure replay pacing (`computeDelayMs`) and the orchestration loop (`runReplay`): speed, loop, absolute-deadline scheduling so error does not accumulate over a long recording |
 | `src/tooling/` | Tests of the project's own tooling: the test of the empty-discovery guard |
-| `tools/` | Recorder, an offline `analyze` CLI (insights, coach message, prompt version), a thin replayer CLI over `src/replay/`, and `assertTestFiles.ts`, the guard that runs as the `pretest` of `npm test` |
+| `tools/` | Recorder, an offline `analyze` CLI (insights, coach message, prompt version), `exportRecordingCut.ts` (regenerates `src/analysis/recordingCut.json` from the published recording), a thin replayer CLI over `src/replay/`, and `assertTestFiles.ts`, the guard that runs as the `pretest` of `npm test` |
 
 ## Features
 
@@ -84,7 +84,7 @@ node -e "require('fs').mkdirSync('C:/Telemetry/backups',{recursive:true}); const
 
 ### Running without the game
 
-A sample recording is published as a release asset (not committed to git): [sample-recording-v1](https://github.com/AnaLauraFFerraz/TelemetryF1_API/releases/tag/sample-recording-v1).
+A sample recording is published as a release asset (not committed to git): [sample-recording-v1](https://github.com/AnaLauraFFerraz/TelemetryF1_API/releases/tag/sample-recording-v1). The one exception is `src/analysis/recordingCut.json`, a cut of laps 6–8 of this recording with only the fields the analysis engine reads (under 660,000 bytes, checked by a test), versioned so the CI can test the engine on real laps. It holds none of the other packets and comes from data already public here; `tools/exportRecordingCut.ts` regenerates it.
 
 | | |
 |---|---|
