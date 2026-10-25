@@ -22,9 +22,12 @@ function row(overrides: Partial<CachedAnalysis> = {}): CachedAnalysis {
   };
 }
 
+const CHANGED_INSIGHTS: LapInsights = { ...INSIGHTS, totalDeltaS: 0.9 };
+
 interface Harness {
   deps: AnalysisResolverDeps;
   generateCalls: number;
+  buildInputsCalls: number;
   saved: { sessionId: number; lapA: number; lapB: number; text: string; model: string; promptVersion: string }[];
   release(): void;
 }
@@ -33,6 +36,7 @@ function harness(options: {
   cached?: CachedAnalysis;
   configured?: boolean;
   inputs?: boolean;
+  insights?: LapInsights;
   generate?: () => Promise<{ text: string; model: string }>;
   gated?: boolean;
 }): Harness {
@@ -42,12 +46,16 @@ function harness(options: {
   });
   const h: Harness = {
     generateCalls: 0,
+    buildInputsCalls: 0,
     saved: [],
     release: () => releaseGate(),
     deps: {
       getCached: () => options.cached,
       isConfigured: () => options.configured ?? true,
-      buildInputs: () => (options.inputs === false ? null : { insights: INSIGHTS, primary: PRIMARY, comparison: COMPARISON }),
+      buildInputs: () => {
+        h.buildInputsCalls++;
+        return options.inputs === false ? null : { insights: options.insights ?? INSIGHTS, primary: PRIMARY, comparison: COMPARISON };
+      },
       generate: async () => {
         h.generateCalls++;
         if (options.gated) await gate;
@@ -70,6 +78,44 @@ test("linha em dia: devolve o texto em cache e os insights, sem gerar, com ou se
     const outcome = await createAnalysisResolver(h.deps).resolve(1, 8, 7);
 
     assert.deepEqual(outcome, { kind: "cached", analysis: "texto em cache", insights: INSIGHTS });
+    assert.equal(h.generateCalls, 0);
+  }
+});
+
+test("os insights guardados diferem dos recalculados além da tolerância: gera de novo com chave e substitui a linha", async () => {
+  const h = harness({ cached: row(), insights: CHANGED_INSIGHTS });
+  const outcome = await createAnalysisResolver(h.deps).resolve(1, 8, 7);
+
+  assert.deepEqual(outcome, { kind: "generated", analysis: "texto novo", insights: CHANGED_INSIGHTS });
+  assert.equal(h.generateCalls, 1);
+  assert.deepEqual(h.saved, [{ sessionId: 1, lapA: 8, lapB: 7, text: "texto novo", model: MODEL, promptVersion: VERSION }]);
+
+  // dentro da tolerância (virada do round2) o texto em cache é servido, sem gerar e sem chave
+  const within = harness({ cached: row({ insightsJson: JSON.stringify({ ...INSIGHTS, totalDeltaS: 0.51 }) }), configured: false });
+  assert.equal((await createAnalysisResolver(within.deps).resolve(1, 8, 7)).kind, "cached");
+  assert.equal(within.generateCalls, 0);
+});
+
+test("os insights guardados diferem dos recalculados e não há chave: indisponível, e o texto velho não é servido", async () => {
+  const h = harness({ cached: row(), insights: CHANGED_INSIGHTS, configured: false });
+
+  assert.deepEqual(await createAnalysisResolver(h.deps).resolve(1, 8, 7), { kind: "unavailable" });
+  assert.equal(h.generateCalls, 0);
+  assert.equal(h.saved.length, 0);
+});
+
+test("o resolvedor monta as entradas do par antes de decidir, uma vez", async () => {
+  const h = harness({ cached: row() });
+  await createAnalysisResolver(h.deps).resolve(1, 8, 7);
+
+  assert.equal(h.buildInputsCalls, 1);
+});
+
+test("par sem amostras: no-samples, seja qual for o conteúdo do cache e com ou sem chave", async () => {
+  for (const configured of [true, false]) {
+    const h = harness({ cached: row(), inputs: false, configured });
+
+    assert.deepEqual(await createAnalysisResolver(h.deps).resolve(1, 8, 7), { kind: "no-samples" });
     assert.equal(h.generateCalls, 0);
   }
 });
