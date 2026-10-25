@@ -601,6 +601,91 @@ Confirmed through the jobs API (`status` completed and `conclusion` success on e
 |---|---|---|---|---|
 | First push (commits 1–4) | `a48ba2c` | [40013161554](https://github.com/AnaLauraFFerraz/TelemetryF1_API/actions/runs/40013161554) | success | success |
 | Second push (commits 5–7 and the backup docs) | `38ac1e9` | [40030469003](https://github.com/AnaLauraFFerraz/TelemetryF1_API/actions/runs/40030469003) | success | success |
+| Third push (commit 8 and the validation docs) | pending | pending | pending | pending |
+
+---
+
+## Implementation evidence
+
+Nothing here pointed at `data/telemetry.db`: the database of V2 and V3 is a temporary file in the agent's scratch folder (`DB_PATH`), its use confirmed by the `[db] usando banco em …/v2.db` line of each server log. No paid call: every command ran after the key check printed `false`, with the keyless `.env` files outside the repository.
+
+### T056 — contract check
+
+`git diff main --stat -- src/ws/messageFormat.ts src/http/routes/sessionsRouter.ts src/persistence/sessionRepository.ts src/persistence/carTelemetrySampleRepository.ts src/persistence/motionSampleRepository.ts` is empty. `src/http/routes/analysisRouter.ts` keeps every status code and error string of `main`: 400 (two messages), 404 `session not found`, 503 `coaching indisponível: configure ANTHROPIC_API_KEY`, 400 `uma das voltas não tem amostras de telemetria`, and the `Coaching*` errors 503/429/502 and 500 `erro inesperado ao gerar análise`; the response body stays `{ analysis, insights, cached }`. `LapRow` is unchanged (the diff of `lapRepository.ts` only adds `LapDbRow`, `mapLapRow` and `getLapForSession`). The one behaviour change is the stale-row 503 (contracts/analysis-endpoint.md).
+
+### T057 — V2, and the six messages
+
+Server with the ports `.env`, then the replay to completion (`13960 pacotes reenviados, 1 passada(s)`), then the server stopped (its process ended by PID, after checking its command line, since stopping the task left the node child listening); `analyze` for the six ordered pairs with the portless `.env`:
+
+```text
+$ DOTENV_CONFIG_PATH=<keyless-ports.env> DB_PATH=<scratch>/v2.db npm run dev
+$ DOTENV_CONFIG_PATH=<keyless-ports.env> DB_PATH=<scratch>/v2.db npm run replay -- recordings/demo-interlagos-tt-20hz-laps6-8.jsonl --speed=2x
+$ DOTENV_CONFIG_PATH=<keyless.env> DB_PATH=<scratch>/v2.db npm run -s analyze -- 1 <a> <b>     # six pairs → <scratch>/m3/analyze-<a>-<b>.txt
+voltas: [{"lap_number":6,"lap_time_ms":74306,"is_valid":0},{"lap_number":7,"lap_time_ms":74144,"is_valid":1},{"lap_number":8,"lap_time_ms":73372,"is_valid":1}]
+par (6,7): idêntica true (8242 caracteres, bloco 8242); versão 8c4d40e60f323e80
+par (6,8): idêntica true (8256 caracteres, bloco 8256); versão 8c4d40e60f323e80
+par (7,6): idêntica true (5832 caracteres, bloco 5832); versão 8c4d40e60f323e80
+par (7,8): idêntica true (5664 caracteres, bloco 5664); versão 8c4d40e60f323e80
+par (8,6): idêntica true (5857 caracteres, bloco 5857); versão 8c4d40e60f323e80
+par (8,7): idêntica true (5592 caracteres, bloco 5592); versão 8c4d40e60f323e80
+todas idênticas: true
+prompt idêntico: true   (T024: 5229 characters on both sides)
+```
+
+The message of each saved output equals, character for character, the block of section 4 for that pair, and the lap times are the expected 74.306 / 74.144 / 73.372 s. The implemented `PROMPT_VERSION` is **`8c4d40e60f323e80`** (it changes with any later edit of the prompt or of the message).
+
+### T058 — V3, the stale-row policy
+
+Same temporary database, server with the ports `.env`, no key; a row for (8, 7) inserted with `prompt_version` NULL by a one-off `better-sqlite3` script:
+
+```text
+POST /sessions/1/analysis {"lapA":8,"lapB":7}   prompt_version NULL
+{"error":"coaching indisponível: configure ANTHROPIC_API_KEY"} [HTTP 503]
+(row updated: prompt_version 8c4d40e60f323e80, model claude-opus-4-8)
+{"analysis":"texto antigo guardado","insights":{"totalDeltaS":0,"corners":[],"tyreWindowExcursions":[]},"cached":true} [HTTP 200]
+```
+
+### T060 — M2, the token count of the new prompt (run by the maintainer)
+
+Run by the maintainer in her own PowerShell, with the key read from the repository's `.env` by `dotenv`, after a check that only the token-counting endpoint is called. The script (`countPromptTokens.js`, in the agent's scratch folder) reads `COACH_SYSTEM_PROMPT` and `COACH_MODEL` from the source through `ts-node` (no copy of the text) and makes two counts with the same one-character user message `.`, because the endpoint requires at least one message: one without the prompt, one with the prompt in the coach's `system` block format (with `cache_control`). The prompt's own count is the difference; count 2 alone would include the minimal message.
+
+```text
+modelo: claude-opus-4-8
+caracteres do prompt: 5229
+1) so a mensagem minima ("."): 7 tokens
+2) prompt + mensagem minima: 2179 tokens
+prompt isolado (2 - 1): 2172 tokens
+```
+
+The 5,229 characters equal the implemented prompt's length checked at T024. Notes from the documentation of the endpoint ([Token counting](https://platform.claude.com/docs/en/build-with-claude/token-counting)):
+
+- It is **free to use**, subject only to requests-per-minute limits, which are separate from the limits of creating messages.
+- The count is an **estimate**: the real number of input tokens may differ by a small amount, and it may include tokens added by Anthropic for system optimizations, which are not billed.
+- It counts under the tokenizer of the `model` passed; models from Claude Opus 4.7 on use a newer tokenizer (about 30% more tokens for the same text), so the count must be taken with `claude-opus-4-8` and a figure measured on another model is not reusable.
+- It uses no caching logic, even when the request carries `cache_control`.
+
+### T061 — the minimum cacheable length, and a wrong sentence corrected
+
+The [prompt caching page](https://platform.claude.com/docs/en/build-with-claude/prompt-caching), "Cache limitations", gives **1,024 tokens** as the minimum for Claude Opus 4.8 (2,048 for Opus 4.7, 4,096 for Opus 4.6 and 4.5). The current prompt (2,172 tokens, an estimate) is above it.
+
+The maintainer supplied the execution evidence the agent did not have: when the demo's cache file was exported, on 2026-10-23, still with the previous prompt, the usage log showed `cache_write=1380` on the first call and `cache_read=1380` on the five that followed. Prompt caching of the system block therefore already worked with `claude-opus-4-8`, and the sentence that the prompt "is below the model's minimum cacheable length, so `cache_control` has no effect" was already wrong in `README.md`, `CLAUDE.md` and the comment of `coachService.ts` (the figure of 1,378 tokens it rested on was a count of the previous prompt; the observed 1,380 cached tokens agree with it within the estimate's tolerance, so the figure was right and the conclusion drawn from it was not). The three places now say the prompt is cacheable, with the 1,024-token minimum, the 2,172-token estimate and the observation; the current prompt's own cache behaviour is stated as expected, not observed, since it has not been sent to the API.
+
+### T063 — FR coverage rechecked against the code
+
+| Requirement | Where it is in the code, and what covers it |
+|---|---|
+| FR-001, FR-001a, FR-002, FR-003 | `comparedLapsBlock`, `invalidComparisonWarning` in `coachReading.ts`; `coachReading.test.ts`, `coachUserMessage.test.ts`; the six messages of V2 equal section 4 |
+| FR-004, FR-015 | `buildCoachUserMessage` takes only the insights and the two laps; no `getTrackBenchmark` or sector text in `src/coaching/` (grep); `GET /sessions/:id/benchmark` untouched (T056) |
+| FR-005, FR-011, FR-012 | `COACH_SYSTEM_PROMPT` equals section 4 (T024); `coachPrompt.test.ts` |
+| FR-006, FR-007 | `opportunities.ts`; `opportunities.test.ts` (rule, label, ties, cap) |
+| FR-008, FR-009 | `PHRASE_TEMPLATES` and the phrase functions in `coachReading.ts`; every magnitude is the absolute value of a field; `coachReading.test.ts` |
+| FR-010 | T056: no change in the response shape or in any status code or string |
+| FR-013 | `promptVersion.ts`; `promptVersion.test.ts` (including CRLF/LF and the coverage of every phrase template) |
+| FR-014, FR-014a | `analysisStaleness.ts`, `singleFlight.ts`, `analysisResolver.ts`, `migrations.ts`, `analysisRepository.ts` and their tests; V3 (T058); README and CLAUDE.md updated; M1 answered (T037) |
+| FR-016, FR-016a | the test files above; the README sentence on human reading; `analyzeOutput.ts` and `tools/analyze.ts` (V2) |
+| FR-017, FR-018 | no paid call by the agent (every command ran after the key check printed `false`); M2 run by the maintainer; nothing pointed at `data/telemetry.db` |
+| SC-001 to SC-005 | V2 (six messages), `opportunities.test.ts`, `coachReading.test.ts`, `promptVersion.test.ts`, `analysisResolver.test.ts`, V3 |
+| SC-006 | pending: M3 approved the six messages; the reading of generated texts belongs to spec 003 |
 
 ---
 
