@@ -13,7 +13,7 @@
 
 ## Requirement Completeness
 
-- [ ] No [NEEDS CLARIFICATION] markers remain
+- [x] No [NEEDS CLARIFICATION] markers remain
 - [x] Requirements are testable and unambiguous
 - [x] Success criteria are measurable
 - [x] Success criteria are technology-agnostic (no implementation details)
@@ -31,6 +31,6 @@
 
 ## Notes
 
-- Three [NEEDS CLARIFICATION] markers remain (FR-009 corner bounds nullable, FR-012 `totalDeltaS` corrected or removed, FR-018 local cache rows with old insights); resolve with `/speckit-clarify` before `/speckit-plan`.
+- The three [NEEDS CLARIFICATION] markers (FR-009, FR-012, FR-018) were resolved at the clarify session of 2026-10-24, together with four more questions (spec, Clarifications).
 - As in specs 001–004, the Background section and some requirements name files and fields (`LapInsights`, `segmentDelta.ts`, `PROMPT_VERSION`): the feature is a correction of an existing engine and its contract, and the reader is the maintainer, so the "non-technical stakeholders" item is consciously not met. The requirements say what must hold, not how to implement it; the algorithms are left to the plan.
 - Tolerances are deliberately not given as numbers: FR-014 requires them to be fixed in the plan from the data's resolution before any correction, and never widened afterwards.
