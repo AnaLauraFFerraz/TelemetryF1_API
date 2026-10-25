@@ -154,7 +154,7 @@ test("o bloco da oportunidade 334m do par (6, 7) tem as seis linhas aprovadas", 
   );
 });
 
-test("as frases de quem não freou e de quem não voltou ao acelerador pleno vêm antes das diferenças", () => {
+test("o bloco lê na ordem da curva: frenagem, pressão, trail braking, acelerador, coasting", () => {
   const block = opportunityBlock(1, {
     ...CORNER_334,
     braking: { ...CORNER_334.braking, brakingPointDiffM: null, brakedPrimary: true, brakedComparison: false },
@@ -163,9 +163,9 @@ test("as frases de quem não freou e de quem não voltou ao acelerador pleno vê
   assert.deepEqual(block.split("\n"), [
     "1. 334m · +0.29s",
     "   - Frenagem: só a volta principal freou nesta curva; a volta de comparação não freou (só tirou o pé ou passou direto).",
-    "   - Acelerador pleno: a volta de comparação voltou ao acelerador pleno antes da próxima curva; a volta principal não.",
     "   - Pressão máxima de freio: a volta principal freou mais forte (diferença de 1 numa escala de 0 a 1).",
     "   - Trail braking: só a volta principal fez.",
+    "   - Acelerador pleno: a volta de comparação voltou ao acelerador pleno antes da próxima curva; a volta principal não.",
     "   - Coasting (sem freio e sem acelerador, entre o ápice e a retomada do acelerador): 0.34 s na volta principal, 0 s na volta de comparação.",
   ]);
 });

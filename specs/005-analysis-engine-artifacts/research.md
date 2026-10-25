@@ -706,4 +706,10 @@ Against the prototype's preview (section 10.2) and the research values (sections
 | FR-021, SC-008 | every dotenv-loading command ran with the keyless file after a `false` check; `git grep telemetry.db -- src tools` finds only the path resolution, comments and the refusals of the export tool and `testDb.ts`; no test calls the coach (fakes only) |
 | FR-022 | README and CLAUDE.md changed in the commit of each behaviour (commits 3–9); re-read in commit 10 |
 
+### Implementation evidence — the six pairs after (reading order)
+
+At the M1 review (2026-10-25) the maintainer asked that the "Acelerador pleno" phrase be read in the throttle slot of the opportunity, after the trail braking phrase, so that each opportunity follows the order of the corner (T066–T067). The change is in `opportunityBlock` only; `REFERENCE_INPUTS` needed no adjustment (the template-coverage test passes), and `PROMPT_VERSION` changed through the builder: `47c613f401ab8f43` → `0cb0df9eaefa147e`.
+
+The six messages were generated again (same temporary database, same commands as above, keyless check `false`; outputs in `<scratch>/after2/`) and compared with `<scratch>/after/` by a script that drops the ts-node-dev start line and the version value, then requires: the same number of lines, the same lines (as multisets), the lines other than "Acelerador pleno" in the same order, and counts the pairs where the phrase moved. Result for all six pairs: the same lines, the rest in the same order; the phrase appears in (6,7), (7,6) and (8,7) and moved in each of them (it is absent from the top three opportunities of (6,8), (7,8) and (8,6)). Nothing else differs: the insights, the opportunities and their numbers are those of the table above.
+
 Open until later tasks: SC-007a (T051–T053), the readings of the six messages (T055) and the token count (T056).
