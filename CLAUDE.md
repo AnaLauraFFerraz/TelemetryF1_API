@@ -43,7 +43,7 @@ Flow: `network/udpListener` → `telemetry/dispatcher` (parse) → `persistence/
 | `src/http/` | Express app and routers (`sessionsRouter`, `analysisRouter`) |
 | `src/replay/` | Pure replay pacing (`computeDelayMs`) and orchestration (`runReplay`): speed, loop, absolute-deadline scheduling |
 | `src/tooling/` | Tests of the project's own tooling: the test of the empty-discovery guard |
-| `tools/` | CLI scripts: recorder, analyze (insights, coach message, prompt version), a thin replayer CLI over `src/replay/`, and `assertTestFiles.ts`, the guard that runs as the `pretest` of `npm test` |
+| `tools/` | CLI scripts: recorder, analyze (insights, coach message, prompt version), `exportRecordingCut.ts` (regenerates `src/analysis/recordingCut.json` from the published recording, in a temporary database), a thin replayer CLI over `src/replay/`, and `assertTestFiles.ts`, the guard that runs as the `pretest` of `npm test` |
 
 The REST and WebSocket payloads are a contract consumed by the frontend, which mirrors the types by hand. This repo owns that contract: any change to `src/ws/messageFormat.ts`, the routers or the repository row types must be flagged so the frontend's `src/types/` can be updated.
 
@@ -55,14 +55,14 @@ The REST and WebSocket payloads are a contract consumed by the frontend, which m
 - `analysis/` stays pure and deterministic. The AI coach only ever receives the derived `LapInsights` JSON, never raw samples, plus the compared laps' official number, time and validity and the code's reading of the opportunities.
 - Repositories use prepared statements created at module load and map snake_case rows to camelCase objects.
 - Unknown values are stored as `NULL`, never invented (see `lapCompletionDetector`).
-- Tests: flat `test()` calls, synthetic data from a `testFixtures.ts` per folder (`src/analysis/`, `src/replay/`), mostly pure functions. The handful of tests that need a real SQLite connection (sample repositories, the replay integration test) use `src/persistence/testDb.ts` to open an isolated, disposable database via `DB_PATH` — never `data/telemetry.db`. A new test file under `src/` is picked up by the `test` script with no edit.
+- Tests: flat `test()` calls, synthetic data from a `testFixtures.ts` per folder (`src/analysis/`, `src/replay/`), mostly pure functions; `src/analysis/` also checks properties on real laps from the versioned cut `recordingCut.json`, with no database. The handful of tests that need a real SQLite connection (sample repositories, the replay integration test) use `src/persistence/testDb.ts` to open an isolated, disposable database via `DB_PATH` — never `data/telemetry.db`. A new test file under `src/` is picked up by the `test` script with no edit.
 - Commits: small, Conventional Commits (`feat:`, `fix:`, `docs:`, `test:`, `chore:`, `ci:`), English subject, **no `Co-Authored-By` trailer**.
 - **Check names are a contract:** renaming a CI job (`typecheck`, `test`) requires updating the required checks of the ruleset on `main` in the same piece of work, and renaming `ci.yml` requires updating the README badge in the same piece of work.
 - **Actions:** first-party `actions/*` by major tag; any third-party action by full commit SHA with a trailing version comment.
 
 ## Rules
 
-- Never commit secrets: `.env`, API keys, tokens. `.env`, `data/` and `recordings/` are gitignored.
+- Never commit secrets: `.env`, API keys, tokens. `.env`, `data/` and `recordings/` are gitignored. One exception, on purpose: `src/analysis/recordingCut.json` is versioned. It is a cut of the published sample recording (laps 6–8, only the fields the engine reads), so it holds none of the packets the engine does not use, it is small (ceiling 660,000 bytes, enforced by a test) and it comes from data already public as a release asset. Regenerate it with `tools/exportRecordingCut.ts`, never by hand.
 - Run `npm test` and `npm run typecheck` (the same scripts the CI calls) before every commit; report any failure instead of committing around it.
 - Do not change packet layouts, field order or sizes in `src/telemetry/` without checking the official spec, *Data Output from F1 24* (v27.2x).
 - Documentation must describe only what exists in the code. Partial features are described as partial; no invented metrics or results.
