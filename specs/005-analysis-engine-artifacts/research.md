@@ -565,6 +565,8 @@ por domínio: dist e posição 3 casas, tempo 4, pedais e volante 4: JSON 548948
 
 Nine significant digits are the shortest decimal form that gives back every float32 exactly (checked over the whole telemetry), so the real precision of the data costs **600,523 bytes** (101 KB gzipped, which is roughly what git stores). Rounding by domain saves another 52 KB but changes values the engine reads (for example `sessionTime` to 0.1 ms, coarser than its float32 step of 61 µs at 512–1,024 s).
 
+*Implementation note (2026-10-25):* the committed cut measures **643,689 bytes**, not 600,523, because the motion samples keep `worldPosition` nested (`x`, `z`) as the engine reads them; the margin to the 660,000-byte ceiling is 2.5% (T009).
+
 ---
 
 ## 14. Tolerances (FR-014), fixed before the correction
@@ -611,6 +613,22 @@ The workflow runs only on `pull_request` to `main` and on push to `main`, so a b
 |---|---|---|---|---|---|
 | first push, commits 3–7 | `914369b` | 40199241345 | pull_request | completed / success | completed / success |
 | second push, commits 8–9 | `b731024` | 40205712400 | pull_request | completed / success | completed / success |
+| third push, commit 10 | `6fa5d58` | 40208324618 | pull_request | completed / success | completed / success |
+
+### Token count of the new prompt (M2, T056)
+
+Measured by the maintainer on 2026-10-25, in her own shell, with a script outside the repository that reads the key from `.env` and makes two calls to the free token-counting endpoint (`messages.countTokens`), nothing else; the system block is built with the same `COACH_SYSTEM_PROMPT` and `COACH_MODEL` that `coachService.ts` passes (the block's shape is repeated in the script: the request is assembled inline in `generateCoaching`). Only the system block is counted; the reference messages are not part of it.
+
+```text
+PROMPT_VERSION: 0cb0df9eaefa147e
+modelo: claude-opus-4-8
+1) prompt + mensagem de 1 caractere: 2607 tokens
+2) a mensagem sozinha: 7 tokens
+diferença (1 - 2): 2600 tokens
+diferença >= 1024: true
+```
+
+2,600 tokens, an estimate (the endpoint does not use the cache logic), above the 1,024-token minimum for `claude-opus-4-8`. README:177 and CLAUDE.md:98–99 state it with the `PROMPT_VERSION`; the 2,172 of spec 004 (the previous prompt) is no longer cited. Cache behaviour of this prompt is still not observed.
 
 ### Pick-up search (T023)
 
