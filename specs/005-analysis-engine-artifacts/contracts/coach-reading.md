@@ -20,11 +20,12 @@ Task rules 4 and 10 already forbid contradicting a field and citing field names;
 
 ## Reading (`coachReading.ts`)
 
-New phrases in each opportunity, from the booleans, before the difference phrases:
+New phrases in each opportunity, from the booleans:
 
-- one lap braked and the other did not: which lap only lifted (or went flat) and which braked;
-- neither braked: both lifted or went flat;
-- one lap did not reach full throttle before the next corner: which one.
+- one lap braked and the other did not: which lap only lifted (or went flat) and which braked; neither braked: both lifted or went flat. Placed first, at the top of the braking lines;
+- one lap did not reach full throttle before the next corner: which one. Placed in the throttle slot, after the trail braking phrase and where the throttle pick-up phrase goes (the two never appear together: this phrase exists only when the pick-up difference is `null`).
+
+Each opportunity therefore reads in the order of the corner: braking (who braked, point, pressure, trail braking), then throttle (full throttle or pick-up), then coasting. Order set by the maintainer at M1 (2026-10-25).
 
 The braking-point and throttle phrases keep their rules and are omitted when the difference is `null`, as today. The opportunity rule and labels do not change.
 

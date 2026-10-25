@@ -145,10 +145,10 @@ export function coastingPhrase(primaryS: number, comparisonS: number): string {
 export function opportunityBlock(rank: number, c: CornerInsight): string {
   const phrases = [
     brakedPhrase(c.braking.brakedPrimary, c.braking.brakedComparison),
-    fullThrottlePhrase(c.throttle.fullThrottlePrimary, c.throttle.fullThrottleComparison),
     brakingPointPhrase(c.braking.brakingPointDiffM),
     peakBrakePhrase(c.braking.peakBrakeDiff),
     trailBrakingPhrase(c.braking.trailBrakingPrimary, c.braking.trailBrakingComparison),
+    fullThrottlePhrase(c.throttle.fullThrottlePrimary, c.throttle.fullThrottleComparison),
     throttleOnPhrase(c.throttle.throttleOnDiffM),
     coastingPhrase(c.throttle.coastingTimePrimaryS, c.throttle.coastingTimeComparisonS),
   ].filter((phrase): phrase is string => phrase !== null);
