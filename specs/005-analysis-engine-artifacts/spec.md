@@ -4,7 +4,7 @@
 
 **Created**: 2026-10-24
 
-**Status**: Draft
+**Status**: Implemented; pull request #14
 
 **Input**: User description (verbatim, as given to `/speckit-specify`):
 

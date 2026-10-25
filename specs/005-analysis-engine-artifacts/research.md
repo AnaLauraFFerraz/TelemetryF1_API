@@ -614,6 +614,7 @@ The workflow runs only on `pull_request` to `main` and on push to `main`, so a b
 | first push, commits 3–7 | `914369b` | 40199241345 | pull_request | completed / success | completed / success |
 | second push, commits 8–9 | `b731024` | 40205712400 | pull_request | completed / success | completed / success |
 | third push, commit 10 | `6fa5d58` | 40208324618 | pull_request | completed / success | completed / success |
+| fourth push, commits 11–13 | `c293300` | 40220290341 | pull_request | completed / success | completed / success |
 
 ### Token count of the new prompt (M2, T056)
 
@@ -629,6 +630,8 @@ diferença >= 1024: true
 ```
 
 2,600 tokens, an estimate (the endpoint does not use the cache logic), above the 1,024-token minimum for `claude-opus-4-8`. README:177 and CLAUDE.md:98–99 state it with the `PROMPT_VERSION`; the 2,172 of spec 004 (the previous prompt) is no longer cited. Cache behaviour of this prompt is still not observed.
+
+The one observation of caching with `claude-opus-4-8` (the demo seed export of 2026-10-23: `cache_write=1380` on the first call, `cache_read=1380` on the next five; source: spec 004's research.md, T061) belongs to the prompt that existed **before** `PROMPT_VERSION` was introduced by spec 004, so it has no version (about 1,378 tokens by the count that spec 004 recorded); it is not an observation of `8c4d40e60f323e80` (spec 004's prompt) nor of `0cb0df9eaefa147e`. It was removed from README.md for that reason and stays in CLAUDE.md with this qualification.
 
 ### Pick-up search (T023)
 
