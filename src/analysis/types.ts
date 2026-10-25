@@ -20,6 +20,16 @@ export interface Corner {
   severity: CornerSeverity;
 }
 
+// O que uma volta fez dentro do trecho de uma curva, em índices das amostras
+// dela. brakingStartIndex e fullThrottleIndex são null quando a volta não
+// freou ou não chegou ao acelerador pleno dentro do trecho.
+export interface LapCornerBehaviour {
+  slowestIndex: number;
+  brakingStartIndex: number | null;
+  brakingPeak: number;
+  fullThrottleIndex: number | null;
+}
+
 export interface BrakingInsight {
   // primaryDistance - comparisonDistance: negativo = principal freou antes
   // (mais longe da curva) que a comparação.
@@ -27,12 +37,20 @@ export interface BrakingInsight {
   peakBrakeDiff: number | null;
   trailBrakingPrimary: boolean;
   trailBrakingComparison: boolean;
+  // A volta freou nesta curva? false = só tirou o pé (ou foi de pé embaixo);
+  // null = sem amostras da volta no trecho.
+  brakedPrimary: boolean | null;
+  brakedComparison: boolean | null;
 }
 
 export interface ThrottleInsight {
   // primaryDistance - comparisonDistance: positivo = principal voltou ao
   // acelerador depois (mais longe da curva) que a comparação.
   throttleOnDiffM: number | null;
+  // A volta voltou ao acelerador pleno dentro do trecho? false = não antes da
+  // próxima curva; null = sem amostras da volta no trecho.
+  fullThrottlePrimary: boolean | null;
+  fullThrottleComparison: boolean | null;
   coastingTimePrimaryS: number;
   coastingTimeComparisonS: number;
   throttleOscillationPrimary: number;

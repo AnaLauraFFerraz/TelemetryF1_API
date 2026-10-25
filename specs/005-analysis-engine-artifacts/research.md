@@ -592,3 +592,15 @@ These numbers are fixed now, before the implementation, and are not widened afte
 - **A gap rule per measurement** (a value `null` when the sample next to the measured point is more than some distance away): rejected on 2026-10-25 by the maintainer. A lap's values for a corner are `null` only when the lap has no sample in the stretch; gaps inside the stretch are tolerated, since the largest interval in the recording is 10 m (section 1.1), normal for the 4 m decimation.
 
 **Future work, outside this spec**: a quality check at the level of the whole lap — mark a lap as incomplete when it has gaps between stored samples above a limit (for example from UDP packet loss, as in a `--speed=max` replay), so that no measurement is interpolated across a large gap. The limit, where the flag is stored and how the analysis and the coach treat an incomplete lap are that work's decisions.
+
+---
+
+## Implementation evidence
+
+### Vacuous universal properties (T019)
+
+Against the zero-corner stub of T018, three cut properties (same corners both ways, contiguous stretches, antisymmetry corner by corner) passed, because "for every corner" over an empty set is true. They were first seen failing by running them against the commit-5 engine. The fix, decided on 2026-10-25: each of them first requires 8 corners in every pair (`requireCorners`), and a test shows the precondition refuses an empty set. Checked without `git stash`: with `detectCorners` replaced in memory by `() => []`, the cut tests for the three properties and the precondition test all fail on their assertions (`esperava 8 curvas, veio 0`); with the real engine, 237/237 pass. The rule is in the header of tasks.md.
+
+### Pick-up search (T023)
+
+The full-throttle pick-up is searched from the slowest sample on, the slowest sample included, as the research prototype did (section 10.2); data-model.md was corrected to say so.

@@ -7,8 +7,8 @@ function corner(apexDistance: number, deltaLossS: number): CornerInsight {
   return {
     corner: { index: 0, apexDistance, apexSpeed: 100, brakingStartDistance: apexDistance - 50, exitDistance: apexDistance + 50, severity: "medium" },
     deltaLossS,
-    braking: { brakingPointDiffM: null, peakBrakeDiff: null, trailBrakingPrimary: false, trailBrakingComparison: false },
-    throttle: { throttleOnDiffM: null, coastingTimePrimaryS: 0, coastingTimeComparisonS: 0, throttleOscillationPrimary: 0, throttleOscillationComparison: 0 },
+    braking: { brakingPointDiffM: null, peakBrakeDiff: null, trailBrakingPrimary: false, trailBrakingComparison: false, brakedPrimary: true, brakedComparison: true },
+    throttle: { throttleOnDiffM: null, fullThrottlePrimary: true, fullThrottleComparison: true,coastingTimePrimaryS: 0, coastingTimeComparisonS: 0, throttleOscillationPrimary: 0, throttleOscillationComparison: 0 },
     lineDeviation: null,
   };
 }
