@@ -80,8 +80,9 @@ src/analysis/
 ├── throttleAnalysis.ts     # stretch-based; fullThrottlePrimary/fullThrottleComparison; coasting from the slowest point
 ├── buildInsights.ts        # orchestration; totalDeltaS at the last common distance
 ├── types.ts                # new fields, documented meanings
+├── recordingCutFormat.ts   # NEW (pure): writes and reads the cut (only the fields the engine reads, 9 significant digits)
 ├── recordingCut.json       # NEW: the versioned cut (laps 6–8), generated
-└── recordingCut.test.ts    # NEW: property tests on the cut, size ceiling
+└── recordingCut.test.ts    # NEW: the cut's identity and size ceiling, then the property tests each engine phase adds
 src/coaching/
 ├── insightsMatch.ts        # NEW: from 003-demo-mode:src/demo/insightsMatch.ts, unchanged, with its tests
 ├── analysisStaleness.ts    # current = same prompt version, same model, insights match
@@ -170,6 +171,8 @@ Details in [contracts/coach-reading.md](contracts/coach-reading.md): the `totalD
 All six entries become stale (prompt version and insights). After this spec merges, spec 003, when updated with `main`, imports `src/coaching/insightsMatch.ts` instead of its copy, regenerates the seed from the corrected insights (its existing export, `--dry-run` first), and the maintainer reads the new texts. The seed's format does not change. The publishing dependency on the frontend spec (FR-020) is written into spec 003 in this feature's last step (SC-007a; see "Steps on another branch").
 
 ## Commit sequence (proposed; tasks.md will refine)
+
+tasks.md refines it in one point, approved by the maintainer: the recording cut (item 7 below) comes right after `insightsMatch`, before the engine changes, so every property checked on the cut is seen failing against the previous phase's engine before the change that makes it true.
 
 1. `docs:` spec update, research, plan, data model, contracts, quickstart, evidence scripts.
 2. `docs:` tasks.
