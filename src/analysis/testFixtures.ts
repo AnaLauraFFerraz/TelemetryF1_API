@@ -21,6 +21,23 @@ export function makeSample(overrides: Partial<TelemetrySample> = {}): TelemetryS
   };
 }
 
+// Volta a velocidade constante: o sessionTime de cada amostra é o do início
+// da volta mais lapDistance / speedMs, e as amostras vão de firstDistance a
+// lastDistance de stepM em stepM (a última sempre incluída).
+export function makeConstantSpeedLap(options: {
+  speedMs: number;
+  startSessionTime: number;
+  firstDistance: number;
+  lastDistance: number;
+  stepM?: number;
+}): TelemetrySample[] {
+  const { speedMs, startSessionTime, firstDistance, lastDistance, stepM = 5 } = options;
+  const distances: number[] = [];
+  for (let d = firstDistance; d < lastDistance; d += stepM) distances.push(d);
+  distances.push(lastDistance);
+  return distances.map((d) => makeSample({ lapDistance: d, sessionTime: startSessionTime + d / speedMs, speed: speedMs * 3.6 }));
+}
+
 export function makeMotionSample(overrides: Partial<MotionSample> = {}): MotionSample {
   return {
     lapDistance: 0,

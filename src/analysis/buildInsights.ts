@@ -2,7 +2,7 @@ import { TelemetrySample, MotionSample, LapInsights, CornerInsight } from "./typ
 import { detectCorners } from "./cornerDetection";
 import { analyzeBraking } from "./brakingAnalysis";
 import { analyzeThrottle } from "./throttleAnalysis";
-import { computeDelta, cornerLoss } from "./segmentDelta";
+import { cornerLoss, totalDelta } from "./segmentDelta";
 import { computeLineDeviation, summarizeLineDeviation } from "./lineDeviation";
 import { findTyreWindowExcursions } from "./tyreAnalysis";
 import { round2 } from "./numberUtils";
@@ -22,22 +22,20 @@ export function buildInsights(input: BuildInsightsInput): LapInsights {
   const { primaryTelemetry, comparisonTelemetry, primaryMotion, comparisonMotion } = input;
 
   const corners = detectCorners(primaryTelemetry);
-  const deltaSeries = computeDelta(primaryTelemetry, comparisonTelemetry);
-  const totalDeltaS = deltaSeries.length > 0 ? deltaSeries[deltaSeries.length - 1][1] : 0;
 
   const lineDeviations =
     primaryMotion.length > 0 && comparisonMotion.length > 0 ? computeLineDeviation(primaryMotion, comparisonMotion) : [];
 
   const cornerInsights: CornerInsight[] = corners.map((corner) => ({
     corner,
-    deltaLossS: cornerLoss(deltaSeries, corner.brakingStartDistance, corner.exitDistance),
+    deltaLossS: cornerLoss(primaryTelemetry, comparisonTelemetry, corner.brakingStartDistance, corner.exitDistance),
     braking: analyzeBraking(corner, primaryTelemetry, comparisonTelemetry),
     throttle: analyzeThrottle(corner, primaryTelemetry, comparisonTelemetry),
     lineDeviation: summarizeLineDeviation(lineDeviations, corner.brakingStartDistance, corner.exitDistance),
   }));
 
   return {
-    totalDeltaS: round2(totalDeltaS),
+    totalDeltaS: round2(totalDelta(primaryTelemetry, comparisonTelemetry)),
     corners: cornerInsights,
     tyreWindowExcursions: findTyreWindowExcursions(primaryTelemetry),
   };
