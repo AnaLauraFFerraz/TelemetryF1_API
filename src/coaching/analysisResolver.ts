@@ -39,18 +39,20 @@ export function createAnalysisResolver(deps: AnalysisResolverDeps): {
 
   return {
     async resolve(sessionId: number, lapA: number, lapB: number): Promise<AnalysisOutcome> {
+      // Sem amostras os insights não podem ser recalculados nem conferidos: o
+      // par não é servido do cache.
+      const inputs = deps.buildInputs(sessionId, lapA, lapB);
+      if (!inputs) return { kind: "no-samples" };
+
       const cached = deps.getCached(sessionId, lapA, lapB);
-      if (cached && isCachedAnalysisCurrent(cached, current)) {
+      if (cached && isCachedAnalysisCurrent(cached, { ...current, insights: inputs.insights })) {
         return { kind: "cached", analysis: cached.analysisText, insights: JSON.parse(cached.insightsJson) as LapInsights };
       }
 
-      // Texto de prompt ou modelo velho nunca é servido: sem chave o par fica indisponível.
+      // Texto de prompt, modelo ou insights velhos nunca é servido: sem chave o par fica indisponível.
       if (!deps.isConfigured()) return { kind: "unavailable" };
 
       return flight.run(`${sessionId}:${lapA}:${lapB}`, async () => {
-        const inputs = deps.buildInputs(sessionId, lapA, lapB);
-        if (!inputs) return { kind: "no-samples" };
-
         const { text, model } = await deps.generate(inputs.insights, inputs.primary, inputs.comparison);
         deps.save(sessionId, lapA, lapB, JSON.stringify(inputs.insights), text, model, current.promptVersion);
         return { kind: "generated", analysis: text, insights: inputs.insights };
