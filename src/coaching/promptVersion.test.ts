@@ -28,6 +28,18 @@ test("as mesmas entradas dão o mesmo valor", () => {
   assert.equal(PROMPT_VERSION, computePromptVersion(COACH_SYSTEM_PROMPT, buildCoachUserMessage));
 });
 
+test("mudar só os valores do motor não muda a versão (SC-007)", () => {
+  const before = PROMPT_VERSION;
+  const real = REFERENCE_INPUTS[0];
+  const otherInsights = {
+    ...real.insights,
+    totalDeltaS: 9.99,
+    corners: real.insights.corners.map((c) => ({ ...c, deltaLossS: c.deltaLossS + 1, corner: { ...c.corner, apexDistance: c.corner.apexDistance + 7 } })),
+  };
+  assert.notEqual(buildCoachUserMessage(otherInsights, real.primary, real.comparison), referenceMessages[0]);
+  assert.equal(computePromptVersion(COACH_SYSTEM_PROMPT, buildCoachUserMessage), before);
+});
+
 test("um caractere a mais no prompt muda a versão", () => {
   assert.notEqual(
     computePromptVersion(COACH_SYSTEM_PROMPT + "x", buildCoachUserMessage),

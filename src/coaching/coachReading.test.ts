@@ -1,7 +1,9 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
+  brakedPhrase,
   brakingPointPhrase,
+  fullThrottlePhrase,
   ComparedLap,
   comparedLapsBlock,
   coastingPhrase,
@@ -81,6 +83,54 @@ test("coasting: os dois valores como vieram", () => {
   );
 });
 
+test("frenagem: uma volta freou e a outra só tirou o pé, ou nenhuma freou", () => {
+  assert.equal(
+    brakedPhrase(true, false),
+    "Frenagem: só a volta principal freou nesta curva; a volta de comparação não freou (só tirou o pé ou passou direto).",
+  );
+  assert.equal(
+    brakedPhrase(false, true),
+    "Frenagem: só a volta de comparação freou nesta curva; a volta principal não freou (só tirou o pé ou passou direto).",
+  );
+  assert.equal(
+    brakedPhrase(false, false),
+    "Frenagem: nenhuma das duas voltas freou nesta curva (as duas só tiraram o pé ou passaram direto).",
+  );
+});
+
+test("frenagem: as duas freando, ou qualquer valor null, não gera frase", () => {
+  assert.equal(brakedPhrase(true, false) === null, false);
+  assert.equal(brakedPhrase(true, true), null);
+  assert.equal(brakedPhrase(null, false), null);
+  assert.equal(brakedPhrase(false, null), null);
+  assert.equal(brakedPhrase(null, null), null);
+  // insights de antes destes campos
+  assert.equal(brakedPhrase(undefined as unknown as null, undefined as unknown as null), null);
+});
+
+test("acelerador pleno: qual volta não voltou antes da próxima curva", () => {
+  assert.equal(
+    fullThrottlePhrase(false, true),
+    "Acelerador pleno: a volta de comparação voltou ao acelerador pleno antes da próxima curva; a volta principal não.",
+  );
+  assert.equal(
+    fullThrottlePhrase(true, false),
+    "Acelerador pleno: a volta principal voltou ao acelerador pleno antes da próxima curva; a volta de comparação não.",
+  );
+  assert.equal(
+    fullThrottlePhrase(false, false),
+    "Acelerador pleno: nenhuma das duas voltas voltou ao acelerador pleno antes da próxima curva.",
+  );
+});
+
+test("acelerador pleno: as duas voltando, ou qualquer valor null, não gera frase", () => {
+  assert.equal(fullThrottlePhrase(false, true) === null, false);
+  assert.equal(fullThrottlePhrase(true, true), null);
+  assert.equal(fullThrottlePhrase(null, true), null);
+  assert.equal(fullThrottlePhrase(true, null), null);
+  assert.equal(fullThrottlePhrase(null, null), null);
+});
+
 // Curva de 334 m do par (6, 7), segundo lugar entre as oportunidades.
 const CORNER_334: CornerInsight = {
   corner: { index: 0, apexDistance: 333.693359375, apexSpeed: 114, brakingStartDistance: 211.248046875, exitDistance: 497.76953125, severity: "medium" },
@@ -102,6 +152,22 @@ test("o bloco da oportunidade 334m do par (6, 7) tem as seis linhas aprovadas", 
       "   - Coasting (sem freio e sem acelerador, entre o ápice e a retomada do acelerador): 0.34 s na volta principal, 0 s na volta de comparação.",
     ].join("\n"),
   );
+});
+
+test("as frases de quem não freou e de quem não voltou ao acelerador pleno vêm antes das diferenças", () => {
+  const block = opportunityBlock(1, {
+    ...CORNER_334,
+    braking: { ...CORNER_334.braking, brakingPointDiffM: null, brakedPrimary: true, brakedComparison: false },
+    throttle: { ...CORNER_334.throttle, throttleOnDiffM: null, fullThrottlePrimary: false, fullThrottleComparison: true },
+  });
+  assert.deepEqual(block.split("\n"), [
+    "1. 334m · +0.29s",
+    "   - Frenagem: só a volta principal freou nesta curva; a volta de comparação não freou (só tirou o pé ou passou direto).",
+    "   - Acelerador pleno: a volta de comparação voltou ao acelerador pleno antes da próxima curva; a volta principal não.",
+    "   - Pressão máxima de freio: a volta principal freou mais forte (diferença de 1 numa escala de 0 a 1).",
+    "   - Trail braking: só a volta principal fez.",
+    "   - Coasting (sem freio e sem acelerador, entre o ápice e a retomada do acelerador): 0.34 s na volta principal, 0 s na volta de comparação.",
+  ]);
 });
 
 test("com throttleOnDiffM null a linha da retomada some do bloco", () => {

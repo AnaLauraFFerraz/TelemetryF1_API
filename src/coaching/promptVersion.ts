@@ -14,13 +14,14 @@ function corner(
   apexDistance: number,
   deltaLossS: number,
   braking: CornerInsight["braking"],
-  throttleOnDiffM: number | null
+  throttleOnDiffM: number | null,
+  fullThrottle: [boolean | null, boolean | null] = [true, true]
 ): CornerInsight {
   return {
     corner: { index: 0, apexDistance, apexSpeed: 120, brakingStartDistance: apexDistance - 60, exitDistance: apexDistance + 60, severity: "medium" },
     deltaLossS,
     braking,
-    throttle: { throttleOnDiffM, fullThrottlePrimary: true, fullThrottleComparison: true, coastingTimePrimaryS: 0.2, coastingTimeComparisonS: 0.1, throttleOscillationPrimary: 1, throttleOscillationComparison: 1 },
+    throttle: { throttleOnDiffM, fullThrottlePrimary: fullThrottle[0], fullThrottleComparison: fullThrottle[1], coastingTimePrimaryS: 0.2, coastingTimeComparisonS: 0.1, throttleOscillationPrimary: 1, throttleOscillationComparison: 1 },
     lineDeviation: null,
   };
 }
@@ -35,9 +36,9 @@ export const REFERENCE_INPUTS: readonly ReferenceInput[] = [
     insights: {
       totalDeltaS: 0.6,
       corners: [
-        corner(334, 0.3, { brakingPointDiffM: -20, peakBrakeDiff: 0.2, trailBrakingPrimary: true, trailBrakingComparison: false, brakedPrimary: true, brakedComparison: true }, -5),
-        corner(812, 0.2, { brakingPointDiffM: 10, peakBrakeDiff: -0.1, trailBrakingPrimary: false, trailBrakingComparison: true, brakedPrimary: true, brakedComparison: true }, 8),
-        corner(1500, 0.1, { brakingPointDiffM: 0, peakBrakeDiff: 0, trailBrakingPrimary: true, trailBrakingComparison: true, brakedPrimary: true, brakedComparison: true }, 0),
+        corner(334, 0.3, { brakingPointDiffM: null, peakBrakeDiff: 0.8, trailBrakingPrimary: true, trailBrakingComparison: false, brakedPrimary: true, brakedComparison: false }, -5),
+        corner(812, 0.2, { brakingPointDiffM: null, peakBrakeDiff: -0.1, trailBrakingPrimary: false, trailBrakingComparison: true, brakedPrimary: false, brakedComparison: true }, null, [false, true]),
+        corner(1500, 0.1, { brakingPointDiffM: 0, peakBrakeDiff: 0, trailBrakingPrimary: true, trailBrakingComparison: true, brakedPrimary: true, brakedComparison: true }, null, [true, false]),
         corner(9999, -0.05, { brakingPointDiffM: 3, peakBrakeDiff: 0.1, trailBrakingPrimary: false, trailBrakingComparison: false, brakedPrimary: true, brakedComparison: true }, 2),
       ],
       tyreWindowExcursions: [],
@@ -48,7 +49,11 @@ export const REFERENCE_INPUTS: readonly ReferenceInput[] = [
     comparison: { lapNumber: 8, lapTimeMs: 73372, isValid: true },
     insights: {
       totalDeltaS: 0.7,
-      corners: [corner(2121, 0.15, { brakingPointDiffM: null, peakBrakeDiff: null, trailBrakingPrimary: false, trailBrakingComparison: false, brakedPrimary: true, brakedComparison: true }, null)],
+      corners: [
+        corner(2121, 0.15, { brakingPointDiffM: null, peakBrakeDiff: 0, trailBrakingPrimary: false, trailBrakingComparison: false, brakedPrimary: false, brakedComparison: false }, null, [false, false]),
+        corner(2300, 0.12, { brakingPointDiffM: 4, peakBrakeDiff: 0.1, trailBrakingPrimary: false, trailBrakingComparison: false, brakedPrimary: true, brakedComparison: true }, 8),
+        corner(2600, 0.11, { brakingPointDiffM: -4, peakBrakeDiff: -0.2, trailBrakingPrimary: false, trailBrakingComparison: false, brakedPrimary: true, brakedComparison: true }, 0),
+      ],
       tyreWindowExcursions: [],
     },
   },

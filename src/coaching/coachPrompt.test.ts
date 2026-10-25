@@ -50,8 +50,42 @@ test("volta inválida: repete o aviso e não afirma onde nem por que", () => {
   assertContains("Nunca afirme onde nem por que uma volta foi invalidada");
 });
 
-test("totalDeltaS não é a diferença oficial e não é citado", () => {
-  assertContains("Não é a diferença oficial de tempo de volta; não o cite");
+test("totalDeltaS é uma medida pelas amostras, próxima da diferença oficial, e continua sem ser citado", () => {
+  assertContains("medido pelas amostras, próximo da diferença oficial de tempo de volta");
+  assertContains("use a diferença oficial da mensagem e não o cite");
+  assertLacks("Não é a diferença oficial de tempo de volta");
+});
+
+test("as curvas são as da pista, as mesmas qualquer que seja a volta principal", () => {
+  assertContains("as curvas da pista, as mesmas qualquer que seja a volta principal");
+  assertLacks("curvas detectadas na volta principal");
+});
+
+test("os limites da curva são o trecho dela, não um ponto de frenagem", () => {
+  assertContains("corner.brakingStartDistance / corner.exitDistance: início e fim do trecho da curva");
+  assertContains("do ponto mais rápido antes da curva ao ponto mais rápido depois dela");
+  assertContains("não são um ponto de frenagem nem de retomada");
+});
+
+test("deltaLossS inclui a saída para a reta seguinte", () => {
+  assertContains("incluindo a saída para a reta seguinte");
+});
+
+test("os quatro booleanos de quem freou e de quem voltou ao acelerador pleno, e os null das diferenças", () => {
+  assertContains("braking.brakedPrimary / brakedComparison: true se a volta freou nesta curva; false se só tirou o pé ou passou direto");
+  assertContains("throttle.fullThrottlePrimary / fullThrottleComparison: true se a volta voltou ao acelerador pleno dentro do trecho");
+  assertContains("false se não voltou antes da próxima curva");
+  assertContains("null quando uma das voltas não freou nessa curva");
+  assertContains("null quando uma das voltas não voltou ao acelerador pleno antes da próxima curva");
+});
+
+test("o coasting vai do ponto mais lento da volta até a retomada", () => {
+  assertContains("do ponto mais lento da volta até a retomada do acelerador (ou o fim do trecho)");
+});
+
+test("não diz que uma volta freou ou voltou ao acelerador pleno quando o campo é false", () => {
+  assertContains("se brakedPrimary ou brakedComparison de uma volta é false, não diga que ela freou");
+  assertContains("se fullThrottlePrimary ou fullThrottleComparison de uma volta é false, não diga que ela voltou ao acelerador pleno");
 });
 
 test("regras da revisão: retomada do acelerador, estados não medidos, soma das perdas, proporção", () => {

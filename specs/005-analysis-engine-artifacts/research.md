@@ -601,6 +601,14 @@ These numbers are fixed now, before the implementation, and are not widened afte
 
 Against the zero-corner stub of T018, three cut properties (same corners both ways, contiguous stretches, antisymmetry corner by corner) passed, because "for every corner" over an empty set is true. They were first seen failing by running them against the commit-5 engine. The fix, decided on 2026-10-25: each of them first requires 8 corners in every pair (`requireCorners`), and a test shows the precondition refuses an empty set. Checked without `git stash`: with `detectCorners` replaced in memory by `() => []`, the cut tests for the three properties and the precondition test all fail on their assertions (`esperava 8 curvas, veio 0`); with the real engine, 237/237 pass. The rule is in the header of tasks.md.
 
+### CI runs
+
+The workflow runs only on `pull_request` to `main` and on push to `main`, so a branch push alone starts nothing; the first run began when the draft pull request (#14) was opened.
+
+| Push | Head SHA | Run id | Event | `typecheck` | `test` |
+|---|---|---|---|---|---|
+| first push, commits 3–7 | `914369b` | 40199241345 | pull_request | completed / success | completed / success |
+
 ### Pick-up search (T023)
 
 The full-throttle pick-up is searched from the slowest sample on, the slowest sample included, as the research prototype did (section 10.2); data-model.md was corrected to say so.

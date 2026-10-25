@@ -26,6 +26,14 @@ export const PHRASE_TEMPLATES = {
   trailPrimaryOnly: "Trail braking: só a volta principal fez.",
   trailComparisonOnly: "Trail braking: só a volta de comparação fez.",
   trailNone: "Trail braking: nenhuma das duas voltas fez.",
+  brakedPrimaryOnly: "Frenagem: só a volta principal freou nesta curva; a volta de comparação não freou (só tirou o pé ou passou direto).",
+  brakedComparisonOnly: "Frenagem: só a volta de comparação freou nesta curva; a volta principal não freou (só tirou o pé ou passou direto).",
+  brakedNeither: "Frenagem: nenhuma das duas voltas freou nesta curva (as duas só tiraram o pé ou passaram direto).",
+  noFullThrottlePrimary:
+    "Acelerador pleno: a volta de comparação voltou ao acelerador pleno antes da próxima curva; a volta principal não.",
+  noFullThrottleComparison:
+    "Acelerador pleno: a volta principal voltou ao acelerador pleno antes da próxima curva; a volta de comparação não.",
+  noFullThrottleBoth: "Acelerador pleno: nenhuma das duas voltas voltou ao acelerador pleno antes da próxima curva.",
   invalidComparisonWarning:
     "Aviso: a volta de comparação é inválida. O tempo que ela ganha da volta principal não serve de meta: pode vir de um trecho em que a pista foi cortada.",
   lapTimeUnknown: "tempo oficial desconhecido",
@@ -111,12 +119,33 @@ export function trailBrakingPhrase(primary: boolean, comparison: boolean): strin
   return PHRASE_TEMPLATES.trailNone;
 }
 
+// Só diz algo quando as duas voltas têm amostras no trecho e pelo menos uma
+// delas não freou: o que não é booleano (null, sem amostras, ou um insights
+// anterior a estes campos) é omitido, como nos demais campos.
+export function brakedPhrase(primary: boolean | null, comparison: boolean | null): string | null {
+  if (typeof primary !== "boolean" || typeof comparison !== "boolean") return null;
+  if (primary && comparison) return null;
+  if (primary) return PHRASE_TEMPLATES.brakedPrimaryOnly;
+  if (comparison) return PHRASE_TEMPLATES.brakedComparisonOnly;
+  return PHRASE_TEMPLATES.brakedNeither;
+}
+
+export function fullThrottlePhrase(primary: boolean | null, comparison: boolean | null): string | null {
+  if (typeof primary !== "boolean" || typeof comparison !== "boolean") return null;
+  if (primary && comparison) return null;
+  if (primary) return PHRASE_TEMPLATES.noFullThrottleComparison;
+  if (comparison) return PHRASE_TEMPLATES.noFullThrottlePrimary;
+  return PHRASE_TEMPLATES.noFullThrottleBoth;
+}
+
 export function coastingPhrase(primaryS: number, comparisonS: number): string {
   return `Coasting (sem freio e sem acelerador, entre o ápice e a retomada do acelerador): ${primaryS} s na volta principal, ${comparisonS} s na volta de comparação.`;
 }
 
 export function opportunityBlock(rank: number, c: CornerInsight): string {
   const phrases = [
+    brakedPhrase(c.braking.brakedPrimary, c.braking.brakedComparison),
+    fullThrottlePhrase(c.throttle.fullThrottlePrimary, c.throttle.fullThrottleComparison),
     brakingPointPhrase(c.braking.brakingPointDiffM),
     peakBrakePhrase(c.braking.peakBrakeDiff),
     trailBrakingPhrase(c.braking.trailBrakingPrimary, c.braking.trailBrakingComparison),
