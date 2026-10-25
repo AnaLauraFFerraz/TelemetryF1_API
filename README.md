@@ -34,7 +34,7 @@ flowchart LR
 | `src/network/` | UDP socket; WebSocket server with a ping/pong heartbeat every 15 s |
 | `src/ws/` | WebSocket message envelope |
 | `src/telemetry/` | Binary parsers for packet ids 0 (motion), 1 (session, partial), 2 (lap data) and 6 (car telemetry), over a little-endian `BufferCursor`; each full parser asserts the exact byte count |
-| `src/persistence/` | SQLite schema, per-session in-memory state, decimation, lap completion detection, one repository per table; samples are deduplicated by `(session_id, overall_frame_identifier)`, since a packet's frame identifier survives a flashback and a looped or repeated replay unscathed, unlike session time or lap distance |
+| `src/persistence/` | SQLite schema and its migrations (`migrations.ts`), per-session in-memory state, decimation, lap completion detection, one repository per table; samples are deduplicated by `(session_id, overall_frame_identifier)`, since a packet's frame identifier survives a flashback and a looped or repeated replay unscathed, unlike session time or lap distance |
 | `src/analysis/` | Pure, deterministic lap analysis producing a compact `LapInsights` JSON |
 | `src/coaching/` | Static system prompt, user-message builder, the code's reading of the compared laps and the opportunities (opportunity rule and labels, direction phrases), prompt version, analysis resolver (staleness rule, one call per pair), Anthropic call with typed errors |
 | `src/http/` | Express REST API |
