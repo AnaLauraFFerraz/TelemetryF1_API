@@ -608,7 +608,102 @@ The workflow runs only on `pull_request` to `main` and on push to `main`, so a b
 | Push | Head SHA | Run id | Event | `typecheck` | `test` |
 |---|---|---|---|---|---|
 | first push, commits 3–7 | `914369b` | 40199241345 | pull_request | completed / success | completed / success |
+| second push, commits 8–9 | `b731024` | 40205712400 | pull_request | completed / success | completed / success |
 
 ### Pick-up search (T023)
 
 The full-throttle pick-up is searched from the slowest sample on, the slowest sample included, as the research prototype did (section 10.2); data-model.md was corrected to say so.
+
+### Implementation evidence — the six pairs after
+
+Recorded on 2026-10-25 at `b731024`, no paid call (`npm run analyze` makes none).
+
+```text
+$ node -r dotenv/config -e "console.log(Boolean(process.env.ANTHROPIC_API_KEY))"      # DOTENV_CONFIG_PATH = scratch keyless.env
+false
+$ DB_PATH=<scratch>/after2.db node -r ts-node/register evidence/buildResearchDb.ts recordings/demo-interlagos-tt-20hz-laps6-8.jsonl <scratch>/raw-after2.json
+sha256 da gravação: c41bdfaf7ff0feb40702875b15031654742de5fdb10ea3a05c0a21f1ac70b033
+pacotes lidos: 13960; descartados: 0
+car_telemetry_samples: lap 6 797, lap 7 801, lap 8 793, lap 9 20  (the counts of section 0)
+$ DB_PATH=<scratch>/after2.db npm run analyze -- 1 <a> <b> > <scratch>/after/analyze-<a>-<b>.txt      # the six ordered pairs of 6, 7, 8
+$ PROMPT_VERSION printed by every run: 47c613f401ab8f43
+```
+
+`totalDeltaS` against the official difference (tolerance 0.045 s, FR-014; unchanged):
+
+| Pair | `totalDeltaS` | Official | Error | Sum of the corners' `deltaLossS` |
+|---|---|---|---|---|
+| (6,7) | 0.17 | 0.162 | 0.008 | 0.17 |
+| (7,6) | −0.17 | −0.162 | 0.008 | −0.17 |
+| (6,8) | 0.92 | 0.934 | 0.014 | 0.93 |
+| (8,6) | −0.92 | −0.934 | 0.014 | −0.93 |
+| (7,8) | 0.75 | 0.772 | 0.022 | 0.75 |
+| (8,7) | −0.75 | −0.772 | 0.022 | −0.75 |
+
+The largest |sum| of opposite pairs (every `deltaLossS`, braking, peak and throttle difference, and `totalDeltaS`) over the six outputs is 0.0000: the reverse pairs are exact negatives, and the same 8 corners (same apexes) appear in all six. The losses add up to `totalDeltaS` within one `round2` step (0.01), the rounding of eight terms.
+
+Corners (apex; stretch), the booleans (A braked / B braked; A full throttle / B full throttle), the differences and the loss, for the three unordered pairs in the direction (6,7), (6,8), (8,7) (the others are their negatives):
+
+```text
+(6,7)  apex   stretch     brk  Δbrake  Δpeak   thr  Δthrottle  loss
+        370     5–455     T/T  −16.63   0.00   F/F      null    0.24
+        495   455–1275    T/F    null   0.44   T/T     19.43    0.76
+       1405  1275–1930    T/T    1.71   0.01   T/T     10.60   −0.12
+       2120  1930–2270    T/F    null   0.80   T/T    112.93    0.68
+       2360  2270–2430    T/T    2.88  −0.09   F/F      null   −0.09
+       2490  2430–2695    F/T    null  −0.58   T/T     10.81   −0.02
+       2785  2695–3160    T/T   −6.05   0.02   T/T     54.60    0.07
+       3275  3160–4285    T/T   20.27   0.09   T/T    −13.48   −1.35
+(6,8)   390     5–455     T/T   −9.97   0.00   F/F      null    0.00
+        490   455–1285    T/F    null   0.44   T/T     17.38    0.81
+       1430  1285–1950    T/T  −18.68  −0.07   T/T    −47.49   −0.31
+       2130  1950–2270    T/F    null   0.80   T/T     76.80    0.93
+       2365  2270–2435    T/T    6.05  −0.23   F/F      null   −0.04
+       2490  2435–2690    F/T    null  −0.87   T/T     35.27    0.22
+       2785  2690–3170    T/T    4.53  −0.12   T/T     62.40   −0.18
+       3275  3170–4290    T/T    8.47   0.01   T/T    −27.03   −0.50
+(8,7)   385     5–475     T/T   −6.66   0.00   F/F      null    0.25
+        480   475–1285    F/F    null   0.00   T/T      2.05   −0.07
+       1440  1285–1930    T/T   20.39   0.08   T/T     58.09    0.20
+       2110  1930–2270    F/F    null   0.00   T/T     36.13   −0.25
+       2360  2270–2435    T/T   −3.17   0.14   F/F      null   −0.04
+       2490  2435–2690    T/T  −12.83   0.28   T/T    −24.46   −0.24
+       2780  2690–3160    T/T  −10.58   0.14   T/T     −7.80    0.25
+       3290  3160–4285    T/T   11.80   0.09   T/T     13.54   −0.85
+```
+
+The three opportunities the coach is shown, per pair: (6,7) 495 m (+0.76 s), 2,120 m (+0.68 s), 370 m (+0.24 s); (7,6) 3,275 m (+1.35 s), 1,405 m (+0.12 s), 2,360 m (+0.09 s); (6,8) 2,130 m (+0.93 s), 490 m (+0.81 s), 2,490 m (+0.22 s); (8,6) 3,275 m (+0.50 s), 1,430 m (+0.31 s), 2,785 m (+0.18 s); (7,8) 3,290 m (+0.85 s), 2,110 m (+0.25 s), 2,490 m (+0.24 s); (8,7) 385 m (+0.25 s), 2,780 m (+0.25 s), 1,440 m (+0.20 s).
+
+Against the prototype's preview (section 10.2) and the research values (sections 4 and 5):
+
+- Corners, stretches and apexes: the same 8 in the same places, to the printed digit (the prototype's (8,6) and (8,7) tables).
+- Braking differences: T1 −16.6 / −10.0 / −6.7 m and last corner −8.5 / +11.8 / +20.3 m as in section 4; the 100–190 m values are gone; "did not brake" shows as `false` with a `null` difference (the 495 m and 2,120 m corners of (6,7), where lap 7 did not brake; the 2,490 m corner). Throttle: the 2,490 m corner's 10.81 m, and no full throttle for lap 6 at the 2,360 m hairpin, as in section 5.
+- Losses: the prototype's, to the second decimal, except two rounding cases. (8,6) 3,275 m is 0.50 here against 0.505 in the preview (the preview printed three decimals; the implementation rounds to two, and 0.505 falls on a `round2` boundary, within the 0.01 tolerance). (8,7): 385 m and 2,780 m both read +0.25 s here, against 0.246 and 0.251 in the preview, so the opportunity rule, which orders the rounded `deltaLossS` and breaks ties by corner order (spec 004, unchanged), lists 385 m first; the preview listed 2,780 m first because it ordered the unrounded values. Neither case is a defect of the engine or a widened tolerance; both are explained by the printed precision.
+- `totalDeltaS`: 0.008–0.022 s from the official difference, inside the 0.045 s tolerance; the prototype's alternative 2 was within 0.021 s (section 12). The 0.022 s of (7,8) and (8,7) is 0.001 s above the prototype's bound, from the `round2` of the total (0.75 against 0.772), still far inside the tolerance.
+
+### Implementation evidence — coverage
+
+| Requirement | Met by |
+|---|---|
+| FR-001–FR-005, SC-001 | research.md sections 1–6 and "Summary of verdicts": verdict per observation; FR-005: the temporary database holds 2,411 car telemetry and 2,411 motion samples (laps 6–8 plus the 20 of lap 9; section 0), never `data/telemetry.db` |
+| FR-006, SC-002 | `src/analysis/cornerBehaviour.ts` (points measured inside `[from, to)`), `brakingAnalysis.test.ts` ("duas curvas vizinhas medem cada uma a sua própria freada"), `recordingCut.test.ts` ("nenhuma curva divide a mesma amostra…") |
+| FR-007, SC-003 | `cornerBehaviour.ts`, `brakingAnalysis.ts`; `cornerBehaviour.test.ts` (braking start, two phases, still braking at the slowest point, no braking), `brakingAnalysis.test.ts` ("com o freio solto 30 m antes…", "uma volta que só tirou o pé não freou…"), `recordingCut.test.ts` ("a freada de cada volta em cada curva bate com as amostras…", "os casos da pesquisa (seção 4)") |
+| FR-008 | `cornerBehaviour.ts`, `throttleAnalysis.ts`; `cornerBehaviour.test.ts` (pick-up inside the stretch), `throttleAnalysis.test.ts` ("a retomada de outra curva, depois do fim do trecho, não vira a desta"), `recordingCut.test.ts` ("os casos da pesquisa (seção 5)") |
+| FR-009, SC-004a | `cornerDetection.ts` (`cornerStretches`: stretch bounds), `types.ts`; `cornerDetection.test.ts` ("os trechos são contíguos…"), `recordingCut.test.ts` ("os trechos das curvas têm limites numéricos, contíguos…"); the names `brakingStartDistance`/`exitDistance` kept (O5), documented in contracts/insights.md, README and CLAUDE.md |
+| FR-010 | `null` in `cornerBehaviour.ts`/`brakingAnalysis.ts`/`throttleAnalysis.ts`; tests "sem amostras no trecho…", "uma volta sem amostra no trecho devolve null…" |
+| FR-011, FR-011a, SC-004 | `segmentDelta.ts` (`cornerLoss`, `totalDelta`); `segmentDelta.test.ts`, `recordingCut.test.ts` ("curva a curva, toda diferença e deltaLossS…", "totalDeltaS de (A,B) mais o de (B,A)…"), `brakingAnalysis.test.ts`/`throttleAnalysis.test.ts` ("trocar as voltas inverte…"); `deltaLossS` findings in research.md section 2.4 |
+| FR-012, SC-005 | `segmentDelta.ts` (`totalDelta`), `buildInsights.ts`; `recordingCut.test.ts` ("totalDeltaS fica a 0,045 s da diferença oficial nos seis pares"); table above |
+| FR-013, SC-006 | `trackGeometry.ts`, `cornerDetection.ts`; `trackGeometry.test.ts`, `cornerDetection.test.ts`, `recordingCut.test.ts` ("(A,B) e (B,A) têm as mesmas curvas…"); the prominence-based detection is removed |
+| FR-013a | research.md section 6.2, verdict paragraph ("Demo impact (FR-013a)") |
+| FR-014 | tolerances in section 14, not widened (every cut property uses them; `recordingCut.test.ts`) |
+| FR-015, SC-007 | synthetic tests in `src/analysis/*.test.ts` with `testFixtures.ts` (`makeLapOnPath`, `makePath`); `promptVersion.test.ts` ("mudar só os valores do motor não muda a versão (SC-007)") |
+| FR-015a–c, SC-006a | `src/analysis/recordingCut.json`, `recordingCutFormat.ts`, `tools/exportRecordingCut.ts`; `recordingCut.test.ts` (hash, laps, ceiling 660,000 bytes: 643,689), regenerated twice into two databases, byte-identical (tasks T009); the exception written in CLAUDE.md (Rules) and README |
+| FR-016 | contracts/insights.md (four added fields, the changed meanings, the HTTP status change); no field removed or renamed |
+| FR-017 | `promptVersion.ts`, `promptVersion.test.ts`; `PROMPT_VERSION` changed only by the prompt text, the new reading phrases and the reference inputs (`47c613f401ab8f43`) |
+| FR-018, SC-004b | `insightsMatch.ts`, `analysisStaleness.ts`, `analysisResolver.ts`; `analysisStaleness.test.ts`, `analysisResolver.test.ts`; the demo's seed side is spec 003's (it imports `insightsMatch` from `main` when updated) |
+| FR-019 | the before (sections 2.4, 4, 10) and this section; the seed file is spec 003's |
+| FR-020, FR-020a, SC-007a | research.md section 7; the dependency note in spec 003's tasks is T051 (pending) |
+| FR-021, SC-008 | every dotenv-loading command ran with the keyless file after a `false` check; `git grep telemetry.db -- src tools` finds only the path resolution, comments and the refusals of the export tool and `testDb.ts`; no test calls the coach (fakes only) |
+| FR-022 | README and CLAUDE.md changed in the commit of each behaviour (commits 3–9); re-read in commit 10 |
+
+Open until later tasks: SC-007a (T051–T053), the readings of the six messages (T055) and the token count (T056).

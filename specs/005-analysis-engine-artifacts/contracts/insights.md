@@ -39,6 +39,10 @@ No field is removed or renamed (plan, O5, decided 2026-10-25). **Debt for the fr
 | `throttleOnDiffM` | could reuse the next corner's pick-up | `null` unless both laps reached full throttle in the stretch |
 | `coasting*`, `throttleOscillation*` | from the "apex" found within ±80 m | from the lap's slowest point in the stretch |
 
+## HTTP status change: a pair without samples
+
+`POST /sessions/:id/analysis` checks the pair's samples first (FR-018: the stored insights cannot be compared without them). A pair without samples answers **400** (no samples), whatever the cache holds and whatever the key configuration. Before this feature an uncached pair without samples and without the key answered **503**. The message already exists and the frontend already handles it; the response shape and the error strings do not change.
+
 ## What the visitor sees change
 
 - Coach chips `<rank>. <apexDistance>m · +<deltaLossS>s`: other distances and losses (same rule).

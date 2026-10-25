@@ -74,7 +74,7 @@ npm run dev
 
 In the game, enable UDP telemetry under *Settings → Telemetry*: IP `127.0.0.1`, port `20777`, UDP format `2024`.
 
-Without `ANTHROPIC_API_KEY` everything works except new coach analyses, which return HTTP 503. Analyses cached with the current prompt version, model and insights are still served; older ones answer 503. A cached analysis counts as current only while its stored insights match the ones computed now from the pair's samples (same tolerance rule as the demo seed); a pair whose samples are gone is not served from the cache.
+Without `ANTHROPIC_API_KEY` everything works except new coach analyses, which return HTTP 503. Analyses cached with the current prompt version, model and insights are still served; older ones answer 503. A cached analysis counts as current only while its stored insights match the ones computed now from the pair's samples (same tolerance rule as the demo seed); a pair whose samples are gone is not served from the cache and answers 400 (no samples), with or without the key.
 
 **Upgrading an existing database.** The first start of this version adds the column `lap_analyses.prompt_version` to `data/telemetry.db` in place. Before it, with the API stopped, back the database up to a folder outside the repository (the command creates it) and keep the copy until the change is merged:
 
