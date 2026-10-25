@@ -58,7 +58,7 @@ flowchart LR
   | GET | `/sessions/:id/laps/:lapNumber/telemetry` | Decimated car telemetry and motion samples for a lap |
   | POST | `/sessions/:id/analysis` | Body `{ lapA, lapB }`; returns `{ analysis, insights, cached }` |
 
-- **Lap analysis engine** (`npm run analyze`, also used by the coach): corner detection from the speed trace, braking point and trail braking, throttle pick-up, coasting and throttle oscillation, per-corner time loss, lateral line deviation between laps, and tyre surface temperature excursions.
+- **Lap analysis engine** (`npm run analyze`, also used by the coach): corner detection from the geometry of the two laps' mean path (the same corners whichever lap is the primary, each with its own stretch of track), braking point and trail braking, throttle pick-up, coasting and throttle oscillation, per-corner time loss, lateral line deviation between laps, and tyre surface temperature excursions.
 - **AI coach**: turns the insights of two laps into pit-engineer style advice in Portuguese (the code picks the opportunities), with results cached per lap pair.
 - **Recorder and replayer** to capture a real session once and work without the game afterwards, replaying at the original pace by default, with `1x`/`2x`/`max` speed options and an optional loop for a continuous demo.
 
@@ -186,6 +186,9 @@ The game's send rate sets the other limit. The recording used for validation was
 - **The `max` replay speed loses most samples by design** — it exists to reach the end of a long recording quickly when fidelity does not matter. `1x` and `2x` do not lose samples.
 - **`--speed=max` combined with `--loop` delivers practically no samples**: with no gap between an already-fast pass and the next, the flood is continuous rather than a one-off burst, and measured delivery dropped to effectively zero. For a continuous public demo, use `1x` or `2x`.
 - **A looped replay of a very short recording** does not reset its in-memory lap/decimation state at the loop boundary: if a recording's own `overallFrameIdentifier` span is 100 frames or less (roughly 5 seconds), the next pass carries over stale state instead of starting fresh. Recordings of a lap or more are unaffected — the published Interlagos recording spans about 4,500 frames.
+- **The corner geometry thresholds were validated only on Interlagos.** A corner is a stretch of the two laps' mean path with a radius up to 100 m and at least 20° of turning; on a track whose fast corners have a larger radius those corners may not appear. They must be revalidated when a recording of another track exists.
+- **A lap without motion samples gets no corners** (`corners: []`); the total delta and the tyre windows are still computed.
+- **`corner.brakingStartDistance` and `corner.exitDistance` are the start and end of the corner's stretch**, not a braking point and a throttle pick-up. The names are kept for the frontend's contract; renaming them is left to the frontend's spec.
 - **Error responses** are plain strings in mixed languages, and the frontend matches some of them literally.
 - **Switching the Node major without running `npm ci` again** makes `better-sqlite3` fail to load with `ERR_DLOPEN_FAILED`: its native binary is built for one major's ABI.
 - No build or lint scripts yet.

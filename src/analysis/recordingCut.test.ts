@@ -98,3 +98,63 @@ test("totalDeltaS de (A,B) mais o de (B,A) soma zero (SC-004)", () => {
     assert.ok(Math.abs(sum) <= SYMMETRY_TOLERANCE, `(${pair.primaryLap},${pair.comparisonLap}): soma ${sum}`);
   }
 });
+
+// Cada par não ordenado uma vez, com o seu inverso.
+function pairsWithReverse(pairs: CutPair[]): [CutPair, CutPair][] {
+  return pairs.filter((pair) => pair.primaryLap < pair.comparisonLap).map((pair) => [pair, reversePair(pairs, pair)]);
+}
+
+test("(A,B) e (B,A) têm as mesmas curvas: mesma contagem e mesmos ápices (SC-006)", () => {
+  const pairs = cutPairs();
+  for (const [forward, backward] of pairsWithReverse(pairs)) {
+    const label = `(${forward.primaryLap},${forward.comparisonLap})`;
+    const forwardApexes = forward.insights.corners.map((c) => c.corner.apexDistance);
+    const backwardApexes = backward.insights.corners.map((c) => c.corner.apexDistance);
+    assert.equal(forwardApexes.length, backwardApexes.length, `${label}: ${forwardApexes.length} curvas contra ${backwardApexes.length}`);
+    assert.deepEqual(forwardApexes, backwardApexes, label);
+  }
+});
+
+test("os trechos das curvas têm limites numéricos, contíguos e sem sobreposição (SC-004a)", () => {
+  for (const pair of cutPairs()) {
+    const label = `(${pair.primaryLap},${pair.comparisonLap})`;
+    const corners = pair.insights.corners.map((c) => c.corner);
+    corners.forEach((corner, i) => {
+      assert.ok(Number.isFinite(corner.brakingStartDistance) && Number.isFinite(corner.exitDistance), `${label} curva ${i}`);
+      assert.ok(corner.brakingStartDistance < corner.exitDistance, `${label} curva ${i}`);
+      if (i > 0) {
+        assert.equal(
+          corner.brakingStartDistance,
+          corners[i - 1].exitDistance,
+          `${label}: o trecho da curva ${i} (${corner.brakingStartDistance}–${corner.exitDistance}) não começa onde o da anterior termina (${corners[i - 1].exitDistance})`
+        );
+      }
+    });
+  }
+});
+
+function assertOpposite(forward: number | null, backward: number | null, label: string): void {
+  if (forward === null || backward === null) {
+    assert.equal(forward, backward, `${label}: nulo só em um dos sentidos (${forward} e ${backward})`);
+    return;
+  }
+  assert.ok(Math.abs(forward + backward) <= SYMMETRY_TOLERANCE, `${label}: ${forward} e ${backward}`);
+}
+
+test("curva a curva, toda diferença e deltaLossS de (A,B) mais as de (B,A) somam zero (SC-004)", () => {
+  const pairs = cutPairs();
+  for (const [forward, backward] of pairsWithReverse(pairs)) {
+    const pairLabel = `(${forward.primaryLap},${forward.comparisonLap})`;
+    assert.equal(forward.insights.corners.length, backward.insights.corners.length, `${pairLabel}: número de curvas`);
+    forward.insights.corners.forEach((f, i) => {
+      const b = backward.insights.corners[i];
+      const label = `${pairLabel} curva ${i} (${f.corner.apexDistance} m)`;
+      assertOpposite(f.deltaLossS, b.deltaLossS, `${label} deltaLossS`);
+      assertOpposite(f.braking.brakingPointDiffM, b.braking.brakingPointDiffM, `${label} brakingPointDiffM`);
+      assertOpposite(f.braking.peakBrakeDiff, b.braking.peakBrakeDiff, `${label} peakBrakeDiff`);
+      assertOpposite(f.throttle.throttleOnDiffM, b.throttle.throttleOnDiffM, `${label} throttleOnDiffM`);
+      assert.equal(f.braking.trailBrakingPrimary, b.braking.trailBrakingComparison, `${label} trailBraking`);
+      assert.equal(f.braking.trailBrakingComparison, b.braking.trailBrakingPrimary, `${label} trailBraking`);
+    });
+  }
+});

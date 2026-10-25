@@ -1,37 +1,38 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { buildInsights } from "./buildInsights";
-import { makeSample, makeMotionSample } from "./testFixtures";
-import { TelemetrySample, MotionSample } from "./types";
+import { makeLapOnPath, makePath } from "./testFixtures";
 
-function buildTelemetry(sessionTimeAt: (d: number) => number): TelemetrySample[] {
-  const samples: TelemetrySample[] = [];
-  for (let d = 0; d <= 300; d += 10) {
-    const speed = d < 100 ? 300 : d <= 150 ? 300 - (d - 100) * 4.4 : d <= 200 ? 80 + (d - 150) * 4.4 : 300;
-    const brake = d >= 100 && d < 150 ? 1 : 0;
-    const throttle = d < 100 ? 1 : d <= 150 ? 0 : d <= 200 ? (d - 150) / 50 : 1;
-    samples.push(makeSample({ lapDistance: d, sessionTime: sessionTimeAt(d), speed, brake, throttle }));
-  }
-  return samples;
-}
+// Reta de 100 m, um arco de 100 m de raio 60 m (a curva, ápice em 150 m) e
+// reta de 100 m.
+const PATH = makePath([
+  { kind: "straight", lengthM: 100 },
+  { kind: "arc", lengthM: 100, radiusM: 60, side: 1 },
+  { kind: "straight", lengthM: 100 },
+]);
 
-function buildMotion(zOffset: number): MotionSample[] {
-  const samples: MotionSample[] = [];
-  for (let d = 0; d <= 300; d += 10) {
-    samples.push(makeMotionSample({ lapDistance: d, worldPosition: { x: d, y: 0, z: zOffset } }));
-  }
-  return samples;
+function buildLap(sessionTimeAt: (d: number) => number, lateralOffsetM: number) {
+  return makeLapOnPath(PATH, {
+    sessionTimeAt,
+    lateralOffsetM,
+    speedAt: (d) => (d < 100 ? 300 : d <= 150 ? 300 - (d - 100) * 4.4 : d <= 200 ? 80 + (d - 150) * 4.4 : 300),
+    brakeAt: (d) => (d >= 100 && d < 150 ? 1 : 0),
+    throttleAt: (d) => (d < 100 ? 1 : d <= 150 ? 0 : d <= 200 ? (d - 150) / 50 : 1),
+  });
 }
 
 test("orquestra as camadas puras num LapInsights coerente", () => {
   // principal perde 1s a partir do apex (d=150) - uma frenagem mal
   // aproveitada ou saída ruim, o suficiente pra virar delta acumulado.
-  const primaryTelemetry = buildTelemetry((d) => d / 50 + (d >= 150 ? 1.0 : 0));
-  const comparisonTelemetry = buildTelemetry((d) => d / 50);
-  const primaryMotion = buildMotion(1);
-  const comparisonMotion = buildMotion(0);
+  const primary = buildLap((d) => d / 50 + (d >= 150 ? 1.0 : 0), 1);
+  const comparison = buildLap((d) => d / 50, 0);
 
-  const insights = buildInsights({ primaryTelemetry, comparisonTelemetry, primaryMotion, comparisonMotion });
+  const insights = buildInsights({
+    primaryTelemetry: primary.telemetry,
+    comparisonTelemetry: comparison.telemetry,
+    primaryMotion: primary.motion,
+    comparisonMotion: comparison.motion,
+  });
 
   assert.ok(Math.abs(insights.totalDeltaS - 1.0) < 0.1, `totalDeltaS foi ${insights.totalDeltaS}`);
   assert.equal(insights.corners.length, 1);
@@ -46,33 +47,42 @@ test("orquestra as camadas puras num LapInsights coerente", () => {
 });
 
 test("voltas idênticas geram delta zero e nenhuma perda por curva", () => {
-  const telemetry = buildTelemetry((d) => d / 50);
-  const motion = buildMotion(0);
+  const lap = buildLap((d) => d / 50, 0);
 
   const insights = buildInsights({
-    primaryTelemetry: telemetry,
-    comparisonTelemetry: telemetry,
-    primaryMotion: motion,
-    comparisonMotion: motion,
+    primaryTelemetry: lap.telemetry,
+    comparisonTelemetry: lap.telemetry,
+    primaryMotion: lap.motion,
+    comparisonMotion: lap.motion,
   });
 
+  assert.equal(insights.corners.length, 1);
   assert.ok(Math.abs(insights.totalDeltaS) < 1e-6);
   for (const corner of insights.corners) {
     assert.ok(Math.abs(corner.deltaLossS) < 1e-6);
   }
 });
 
-test("sem dados de motion, lineDeviation vem null mas o resto da análise segue", () => {
-  const primaryTelemetry = buildTelemetry((d) => d / 50 + (d >= 150 ? 0.5 : 0));
-  const comparisonTelemetry = buildTelemetry((d) => d / 50);
+test("sem dados de motion não há curvas, mas o delta total e os pneus seguem", () => {
+  const primary = buildLap((d) => d / 50 + (d >= 150 ? 0.5 : 0), 0);
+  const comparison = buildLap((d) => d / 50, 0);
+
+  const withMotion = buildInsights({
+    primaryTelemetry: primary.telemetry,
+    comparisonTelemetry: comparison.telemetry,
+    primaryMotion: primary.motion,
+    comparisonMotion: comparison.motion,
+  });
+  assert.equal(withMotion.corners.length, 1);
 
   const insights = buildInsights({
-    primaryTelemetry,
-    comparisonTelemetry,
+    primaryTelemetry: primary.telemetry,
+    comparisonTelemetry: comparison.telemetry,
     primaryMotion: [],
     comparisonMotion: [],
   });
 
-  assert.equal(insights.corners.length, 1);
-  assert.equal(insights.corners[0].lineDeviation, null);
+  assert.deepEqual(insights.corners, []);
+  assert.ok(Math.abs(insights.totalDeltaS - 0.5) < 0.1, `totalDeltaS foi ${insights.totalDeltaS}`);
+  assert.deepEqual(insights.tyreWindowExcursions, []);
 });

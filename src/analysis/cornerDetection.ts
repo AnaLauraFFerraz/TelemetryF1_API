@@ -1,113 +1,104 @@
-import { TelemetrySample, Corner, CornerSeverity } from "./types";
-import { movingAverage } from "./smoothing";
-import { findBrakingStartIndex, findThrottleOnIndex } from "./sampleSearch";
-
-const SMOOTHING_WINDOW = 5;
-// Diferença mínima de velocidade (km/h) entre um mínimo local e os pontos
-// mais altos ao redor, dos dois lados, pra contar como curva de verdade e
-// não ruído de amostragem numa reta.
-const MIN_PROMINENCE_KMH = 15;
-// Mínimos a menos de 50m um do outro são tratados como uma curva composta
-// (chicane) em vez de duas curvas separadas.
-const MERGE_DISTANCE_M = 50;
-
-const BRAKE_THRESHOLD = 0.1;
-const THROTTLE_THRESHOLD = 0.9;
+import { TelemetrySample, MotionSample, Corner, CornerSeverity } from "./types";
+import { commonGrid, curvature, geometricCorners, GRID_STEP_M, meanPath } from "./trackGeometry";
 
 const SLOW_CORNER_MAX_KMH = 110;
 const MEDIUM_CORNER_MAX_KMH = 180;
 
 /**
- * Detecta curvas a partir da série de velocidade x distância: suaviza,
- * acha mínimos locais com proeminência mínima (filtra ruído), funde
- * mínimos próximos (chicanes) e delimita cada curva do início da frenagem
- * até a retomada de acelerador pleno.
+ * Detecta as curvas como lugares da pista, pela geometria do traçado médio
+ * das duas voltas: o mesmo conjunto em (A,B) e (B,A). Cada curva recebe o
+ * trecho entre o ponto mais rápido antes e depois dela; brakingStartDistance
+ * e exitDistance guardam os limites desse trecho. Sem movimento em uma das
+ * voltas não há curvas.
  */
-export function detectCorners(samples: TelemetrySample[]): Corner[] {
-  if (samples.length < 3) return [];
+export function detectCorners(
+  primaryTelemetry: TelemetrySample[],
+  comparisonTelemetry: TelemetrySample[],
+  primaryMotion: MotionSample[],
+  comparisonMotion: MotionSample[]
+): Corner[] {
+  if (primaryTelemetry.length === 0 || comparisonTelemetry.length === 0) return [];
+  if (primaryMotion.length === 0 || comparisonMotion.length === 0) return [];
 
-  const speedSeries: [number, number][] = samples.map((s) => [s.lapDistance, s.speed]);
-  const smoothed = movingAverage(speedSeries, SMOOTHING_WINDOW);
+  const grid = commonGrid(
+    primaryMotion.map((sample) => sample.lapDistance),
+    comparisonMotion.map((sample) => sample.lapDistance)
+  );
+  const geometric = geometricCorners(grid, curvature(meanPath(primaryMotion, comparisonMotion, grid), GRID_STEP_M));
+  if (geometric.length === 0) return [];
 
-  const minimaIndices = findLocalMinima(smoothed, MIN_PROMINENCE_KMH);
-  const mergedIndices = mergeCloseMinima(smoothed, minimaIndices, MERGE_DISTANCE_M);
+  const meanSpeed = grid.map((distance) => (speedAt(primaryTelemetry, distance) + speedAt(comparisonTelemetry, distance)) / 2);
+  const stretches = cornerStretches(
+    grid,
+    meanSpeed,
+    geometric.map((corner) => grid.indexOf(corner.apexDistance))
+  );
 
-  return mergedIndices.map((apexIndex, i) => buildCorner(samples, apexIndex, i));
+  return geometric.map((corner, i) => {
+    const { from, to } = stretches[i];
+    const isLast = i === geometric.length - 1;
+    const primaryMin = minSpeedInStretch(primaryTelemetry, from, to, isLast) ?? speedAt(primaryTelemetry, corner.apexDistance);
+    const comparisonMin = minSpeedInStretch(comparisonTelemetry, from, to, isLast);
+    const meanMin = comparisonMin === null ? primaryMin : (primaryMin + comparisonMin) / 2;
+
+    return {
+      index: i,
+      apexDistance: corner.apexDistance,
+      apexSpeed: primaryMin,
+      brakingStartDistance: from,
+      exitDistance: to,
+      severity: classifySeverity(meanMin),
+    };
+  });
 }
 
-function findLocalMinima(series: [number, number][], minProminence: number): number[] {
-  const minima: number[] = [];
+// Fronteira entre duas curvas vizinhas: o ponto de maior velocidade média
+// estritamente entre os dois ápices (primeiro em empate). Sem ponto entre
+// eles, a fronteira cai no ápice da primeira.
+export function cornerStretches(grid: number[], meanSpeed: number[], apexIndexes: number[]): { from: number; to: number }[] {
+  if (apexIndexes.length === 0) return [];
 
-  for (let i = 1; i < series.length - 1; i++) {
-    const value = series[i][1];
-    const isLocalMin = value < series[i - 1][1] && value <= series[i + 1][1];
-    if (isLocalMin && hasProminence(series, i, minProminence)) {
-      minima.push(i);
+  const bounds = [grid[0]];
+  for (let i = 0; i < apexIndexes.length - 1; i++) {
+    let fastest = -1;
+    for (let j = apexIndexes[i] + 1; j < apexIndexes[i + 1]; j++) {
+      if (fastest < 0 || meanSpeed[j] > meanSpeed[fastest]) fastest = j;
+    }
+    bounds.push(grid[fastest >= 0 ? fastest : apexIndexes[i]]);
+  }
+  bounds.push(grid[grid.length - 1]);
+
+  return apexIndexes.map((_, i) => ({ from: bounds[i], to: bounds[i + 1] }));
+}
+
+// Trechos são [from, to); só o último inclui o fim da malha.
+function minSpeedInStretch(samples: TelemetrySample[], from: number, to: number, includeEnd: boolean): number | null {
+  let min: number | null = null;
+  for (const sample of samples) {
+    if (sample.lapDistance < from || sample.lapDistance > to) continue;
+    if (!includeEnd && sample.lapDistance === to) continue;
+    if (min === null || sample.speed < min) min = sample.speed;
+  }
+  return min;
+}
+
+function speedAt(samples: TelemetrySample[], distance: number): number {
+  const last = samples.length - 1;
+  if (distance <= samples[0].lapDistance) return samples[0].speed;
+  if (distance >= samples[last].lapDistance) return samples[last].speed;
+  for (let i = 0; i < last; i++) {
+    const a = samples[i];
+    const b = samples[i + 1];
+    if (distance >= a.lapDistance && distance <= b.lapDistance) {
+      const span = b.lapDistance - a.lapDistance;
+      return span === 0 ? a.speed : a.speed + ((b.speed - a.speed) * (distance - a.lapDistance)) / span;
     }
   }
-
-  return minima;
+  return samples[last].speed;
 }
 
-function hasProminence(series: [number, number][], index: number, minProminence: number): boolean {
-  const value = series[index][1];
-
-  let leftRise = 0;
-  for (let i = index - 1; i >= 0; i--) {
-    leftRise = Math.max(leftRise, series[i][1] - value);
-    if (leftRise >= minProminence) break;
-  }
-
-  let rightRise = 0;
-  for (let i = index + 1; i < series.length; i++) {
-    rightRise = Math.max(rightRise, series[i][1] - value);
-    if (rightRise >= minProminence) break;
-  }
-
-  return leftRise >= minProminence && rightRise >= minProminence;
-}
-
-// Mantém, de cada grupo de mínimos a menos de mergeDistanceM entre si, só o
-// de menor velocidade (o apex "de verdade" da curva composta).
-function mergeCloseMinima(series: [number, number][], indices: number[], mergeDistanceM: number): number[] {
-  if (indices.length === 0) return [];
-
-  const merged: number[] = [indices[0]];
-
-  for (let i = 1; i < indices.length; i++) {
-    const current = indices[i];
-    const lastMerged = merged[merged.length - 1];
-    const distanceApart = series[current][0] - series[lastMerged][0];
-
-    if (distanceApart < mergeDistanceM) {
-      if (series[current][1] < series[lastMerged][1]) {
-        merged[merged.length - 1] = current;
-      }
-    } else {
-      merged.push(current);
-    }
-  }
-
-  return merged;
-}
-
-function buildCorner(samples: TelemetrySample[], apexIndex: number, cornerNumber: number): Corner {
-  const apex = samples[apexIndex];
-  const brakingStartIndex = findBrakingStartIndex(samples, apexIndex, BRAKE_THRESHOLD);
-  const exitIndex = findThrottleOnIndex(samples, apexIndex, THROTTLE_THRESHOLD);
-
-  return {
-    index: cornerNumber,
-    apexDistance: apex.lapDistance,
-    apexSpeed: apex.speed,
-    brakingStartDistance: samples[brakingStartIndex].lapDistance,
-    exitDistance: samples[exitIndex].lapDistance,
-    severity: classifySeverity(apex.speed),
-  };
-}
-
-function classifySeverity(apexSpeedKmh: number): CornerSeverity {
-  if (apexSpeedKmh <= SLOW_CORNER_MAX_KMH) return "slow";
-  if (apexSpeedKmh <= MEDIUM_CORNER_MAX_KMH) return "medium";
+function classifySeverity(speedKmh: number): CornerSeverity {
+  if (speedKmh <= SLOW_CORNER_MAX_KMH) return "slow";
+  if (speedKmh <= MEDIUM_CORNER_MAX_KMH) return "medium";
   return "fast";
 }
