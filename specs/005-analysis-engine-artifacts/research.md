@@ -593,6 +593,8 @@ These numbers are fixed now, before the implementation, and are not widened afte
 
 **Future work, outside this spec**: a quality check at the level of the whole lap — mark a lap as incomplete when it has gaps between stored samples above a limit (for example from UDP packet loss, as in a `--speed=max` replay), so that no measurement is interpolated across a large gap. The limit, where the flag is stored and how the analysis and the coach treat an incomplete lap are that work's decisions.
 
+**Future work, outside this spec** (recorded at M1, 2026-10-25): a fixed corner map per track, instead of corners found from the two laps compared. The geometric apex comes from the mean path of the pair, so the same corner reads a few metres differently from pair to pair (in (8,6) and (8,7): 390/385, 1430/1440, 2130/2110, 2785/2780 and 3275/3290 m). The map would also be the place to revalidate the geometry thresholds (radius, turning angle) on other tracks.
+
 ---
 
 ## Implementation evidence
