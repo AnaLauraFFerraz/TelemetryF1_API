@@ -96,7 +96,7 @@ These are also listed under "Known limitations" in the README. When a limitation
 - `.env` is read only at startup; `ts-node-dev` does not restart on `.env` changes.
 - The first start of a version with a schema change migrates `data/telemetry.db` in place (this version adds `lap_analyses.prompt_version`); back it up first to a folder outside the repository, with the `VACUUM INTO` command in the README ("Upgrading an existing database").
 - Without `ANTHROPIC_API_KEY`, `POST /sessions/:id/analysis` returns 503; analyses cached with the current prompt version and model are still served, older ones answer 503.
-- The coach's system prompt is cacheable for `claude-opus-4-8`: the documented minimum is 1,024 tokens and the current prompt measures 2,172 (an estimate from the free token-counting endpoint). `cache_control` works with this model: the previous prompt showed `cache_write=1380` and then `cache_read=1380` on 2026-10-23; the current prompt has not been sent yet. Each call logs its token `usage` (`[coachService] usage ...`). Re-measure if the prompt changes.
+- The coach's system prompt is cacheable for `claude-opus-4-8`: the documented minimum is 1,024 tokens and the size of the current prompt has not been measured yet (the previous prompt measured 2,172, an estimate from the free token-counting endpoint). `cache_control` works with this model: the previous prompt showed `cache_write=1380` and then `cache_read=1380` on 2026-10-23; the current prompt has not been sent yet. Each call logs its token `usage` (`[coachService] usage ...`). Re-measure if the prompt changes.
 
 ## How to work in this repo
 
