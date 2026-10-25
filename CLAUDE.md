@@ -38,7 +38,7 @@ Flow: `network/udpListener` → `telemetry/dispatcher` (parse) → `persistence/
 | `src/telemetry/` | Binary parsing of the F1 24 protocol, one folder per packet type (`header`, `motion`, `lapData`, `carTelemetry`, `session`), shared `BufferCursor`, sizes and `assertBytesRead` in `shared/` |
 | `src/ws/` | WebSocket message envelope |
 | `src/persistence/` | SQLite schema and its migrations (`migrations.ts`), per-session in-memory context, decimation, lap completion detection, repositories (one per table); sample tables deduplicate on `(session_id, overall_frame_identifier)` — that field never resets or regresses within a session, including across a flashback, unlike session time or lap distance |
-| `src/analysis/` | Pure functions, no I/O: corner detection, braking/throttle, delta, line deviation, tyre windows → `buildInsights` |
+| `src/analysis/` | Pure functions, no I/O: track geometry and corner detection, braking/throttle, delta, line deviation, tyre windows → `buildInsights` |
 | `src/coaching/` | Static system prompt, user-message builder, the code's reading of the compared laps and the opportunities (opportunity rule and labels, direction phrases), prompt version, analysis resolver (staleness rule, one call per pair), Anthropic call with typed errors |
 | `src/http/` | Express app and routers (`sessionsRouter`, `analysisRouter`) |
 | `src/replay/` | Pure replay pacing (`computeDelayMs`) and orchestration (`runReplay`): speed, loop, absolute-deadline scheduling |
@@ -88,6 +88,9 @@ These are also listed under "Known limitations" in the README. When a limitation
 - The `max` replay speed overflows the UDP receive buffer by design: laps, times and sectors arrive intact, but a large share of the per-distance samples is lost. `1x` and `2x` do not lose samples.
 - `--speed=max` combined with `--loop` delivers practically no samples (measured: effectively zero) — the flood never lets up between passes. Use `1x` or `2x` for a continuous demo.
 - A looped replay of a recording whose own `overallFrameIdentifier` span is at or below `PASS_RESTART_THRESHOLD_FRAMES` (100, in `sessionContext.ts`) does not reset the in-memory lap/decimation state at the loop boundary — the next pass carries over stale state instead of starting fresh. Not expected to matter for any realistic recording (the published Interlagos example spans about 4,500 frames).
+- The corner geometry thresholds (`src/analysis/trackGeometry.ts`: radius up to 100 m, at least 20° of turning) were validated only on Interlagos; on a track whose fast corners have a larger radius those corners may not appear. Revalidate them when a recording of another track exists.
+- A lap without motion samples gets no corners (`corners: []`); the total delta and the tyre windows are still computed.
+- `corner.brakingStartDistance` and `corner.exitDistance` hold the start and end of the corner's stretch, not a braking point and a throttle pick-up. The names are kept for the frontend's contract; renaming them is debt for the frontend's spec.
 - Switching the Node major without running `npm ci` again makes `better-sqlite3` fail to load with `ERR_DLOPEN_FAILED` (its native binary is built for one major's ABI).
 - `sessionType` 18 is Time Trial in F1 24 (the numbering differs from F1 23).
 - `.env` is read only at startup; `ts-node-dev` does not restart on `.env` changes.

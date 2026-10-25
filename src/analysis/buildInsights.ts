@@ -21,7 +21,7 @@ export interface BuildInsightsInput {
 export function buildInsights(input: BuildInsightsInput): LapInsights {
   const { primaryTelemetry, comparisonTelemetry, primaryMotion, comparisonMotion } = input;
 
-  const corners = detectCorners(primaryTelemetry);
+  const corners = detectCorners(primaryTelemetry, comparisonTelemetry, primaryMotion, comparisonMotion);
 
   const lineDeviations =
     primaryMotion.length > 0 && comparisonMotion.length > 0 ? computeLineDeviation(primaryMotion, comparisonMotion) : [];
