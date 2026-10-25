@@ -66,7 +66,8 @@ export function totalDelta(primary: TelemetrySample[], comparison: TelemetrySamp
  * Porta de src/components/chart/computeDelta.ts do frontend - duplicação
  * intencional (repositórios separados, mesma regra dos tipos WS/REST). A
  * cópia do frontend ainda usa a definição antiga e agora difere desta
- * (specs/005-analysis-engine-artifacts, FR-020).
+ * (specs/005-analysis-engine-artifacts, FR-020). Esta é a referência da série
+ * nova para a spec do frontend; o motor não a usa.
  */
 export function computeDelta(primary: TelemetrySample[], comparison: TelemetrySample[]): [number, number][] {
   const range = commonRange(primary, comparison);
