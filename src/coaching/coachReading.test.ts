@@ -85,8 +85,8 @@ test("coasting: os dois valores como vieram", () => {
 const CORNER_334: CornerInsight = {
   corner: { index: 0, apexDistance: 333.693359375, apexSpeed: 114, brakingStartDistance: 211.248046875, exitDistance: 497.76953125, severity: "medium" },
   deltaLossS: 0.29,
-  braking: { brakingPointDiffM: -179.97, peakBrakeDiff: 1, trailBrakingPrimary: true, trailBrakingComparison: false },
-  throttle: { throttleOnDiffM: 19.43, coastingTimePrimaryS: 0.34, coastingTimeComparisonS: 0, throttleOscillationPrimary: 6, throttleOscillationComparison: 6 },
+  braking: { brakingPointDiffM: -179.97, peakBrakeDiff: 1, trailBrakingPrimary: true, trailBrakingComparison: false, brakedPrimary: true, brakedComparison: true },
+  throttle: { throttleOnDiffM: 19.43, fullThrottlePrimary: true, fullThrottleComparison: true,coastingTimePrimaryS: 0.34, coastingTimeComparisonS: 0, throttleOscillationPrimary: 6, throttleOscillationComparison: 6 },
   lineDeviation: { maxLateralDeviationM: 5.3, avgLateralDeviationM: 1.7 },
 };
 

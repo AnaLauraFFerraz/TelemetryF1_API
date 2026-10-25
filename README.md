@@ -58,7 +58,7 @@ flowchart LR
   | GET | `/sessions/:id/laps/:lapNumber/telemetry` | Decimated car telemetry and motion samples for a lap |
   | POST | `/sessions/:id/analysis` | Body `{ lapA, lapB }`; returns `{ analysis, insights, cached }` |
 
-- **Lap analysis engine** (`npm run analyze`, also used by the coach): corner detection from the geometry of the two laps' mean path (the same corners whichever lap is the primary, each with its own stretch of track), braking point and trail braking, throttle pick-up, coasting and throttle oscillation, per-corner time loss, lateral line deviation between laps, and tyre surface temperature excursions.
+- **Lap analysis engine** (`npm run analyze`, also used by the coach): corner detection from the geometry of the two laps' mean path (the same corners whichever lap is the primary, each with its own stretch of track), braking point and peak, trail braking, throttle pick-up, coasting and throttle oscillation (each measured per lap inside the corner's own stretch; a lap that did not brake, or did not reach full throttle before the next corner, is reported as such rather than as a difference), per-corner time loss, lateral line deviation between laps, and tyre surface temperature excursions.
 - **AI coach**: turns the insights of two laps into pit-engineer style advice in Portuguese (the code picks the opportunities), with results cached per lap pair.
 - **Recorder and replayer** to capture a real session once and work without the game afterwards, replaying at the original pace by default, with `1x`/`2x`/`max` speed options and an optional loop for a continuous demo.
 

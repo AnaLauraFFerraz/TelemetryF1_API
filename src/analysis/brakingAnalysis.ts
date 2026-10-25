@@ -1,9 +1,7 @@
-import { TelemetrySample, Corner, BrakingInsight } from "./types";
-import { findApexIndexNear, findBrakingStartIndex, peakInRange } from "./sampleSearch";
+import { TelemetrySample, Corner, BrakingInsight, LapCornerBehaviour } from "./types";
+import { BRAKE_THRESHOLD, lapBehaviourInStretch } from "./cornerBehaviour";
 import { round2 } from "./numberUtils";
 
-const CORNER_SEARCH_WINDOW_M = 80;
-const BRAKE_THRESHOLD = 0.1;
 // Freio ainda ativo com o volante virado além disso conta como trail
 // braking (freada liberada gradualmente já dentro da curva).
 const TRAIL_BRAKING_STEER_THRESHOLD = 0.15;
@@ -13,36 +11,30 @@ export function analyzeBraking(
   primarySamples: TelemetrySample[],
   comparisonSamples: TelemetrySample[]
 ): BrakingInsight {
-  const primaryApexIndex = findApexIndexNear(primarySamples, corner.apexDistance, CORNER_SEARCH_WINDOW_M);
-  const comparisonApexIndex = findApexIndexNear(comparisonSamples, corner.apexDistance, CORNER_SEARCH_WINDOW_M);
+  const { brakingStartDistance: from, exitDistance: to } = corner;
+  const primary = lapBehaviourInStretch(primarySamples, from, to);
+  const comparison = lapBehaviourInStretch(comparisonSamples, from, to);
 
-  if (primaryApexIndex === null || comparisonApexIndex === null) {
-    return { brakingPointDiffM: null, peakBrakeDiff: null, trailBrakingPrimary: false, trailBrakingComparison: false };
-  }
-
-  const primaryStart = primarySamples[findBrakingStartIndex(primarySamples, primaryApexIndex, BRAKE_THRESHOLD)];
-  const comparisonStart = comparisonSamples[findBrakingStartIndex(comparisonSamples, comparisonApexIndex, BRAKE_THRESHOLD)];
-
-  const primaryApexDistance = primarySamples[primaryApexIndex].lapDistance;
-  const comparisonApexDistance = comparisonSamples[comparisonApexIndex].lapDistance;
-
-  const primaryPeak = peakInRange(primarySamples, "brake", primaryStart.lapDistance, primaryApexDistance);
-  const comparisonPeak = peakInRange(comparisonSamples, "brake", comparisonStart.lapDistance, comparisonApexDistance);
+  const primaryStart = primary?.brakingStartIndex ?? null;
+  const comparisonStart = comparison?.brakingStartIndex ?? null;
 
   return {
-    brakingPointDiffM: round2(primaryStart.lapDistance - comparisonStart.lapDistance),
-    peakBrakeDiff: round2(primaryPeak - comparisonPeak),
-    trailBrakingPrimary: hasTrailBraking(primarySamples, primaryStart.lapDistance, primaryApexDistance),
-    trailBrakingComparison: hasTrailBraking(comparisonSamples, comparisonStart.lapDistance, comparisonApexDistance),
+    brakingPointDiffM:
+      primaryStart !== null && comparisonStart !== null
+        ? round2(primarySamples[primaryStart].lapDistance - comparisonSamples[comparisonStart].lapDistance)
+        : null,
+    peakBrakeDiff: primary && comparison ? round2(primary.brakingPeak - comparison.brakingPeak) : null,
+    trailBrakingPrimary: primary ? hasTrailBraking(primarySamples, primary) : false,
+    trailBrakingComparison: comparison ? hasTrailBraking(comparisonSamples, comparison) : false,
+    brakedPrimary: primary ? primaryStart !== null : null,
+    brakedComparison: comparison ? comparisonStart !== null : null,
   };
 }
 
-function hasTrailBraking(samples: TelemetrySample[], startDistance: number, apexDistance: number): boolean {
-  return samples.some(
-    (s) =>
-      s.lapDistance >= startDistance &&
-      s.lapDistance <= apexDistance &&
-      s.brake > BRAKE_THRESHOLD &&
-      Math.abs(s.steer) > TRAIL_BRAKING_STEER_THRESHOLD
-  );
+function hasTrailBraking(samples: TelemetrySample[], behaviour: LapCornerBehaviour): boolean {
+  if (behaviour.brakingStartIndex === null) return false;
+  for (let i = behaviour.brakingStartIndex; i <= behaviour.slowestIndex; i++) {
+    if (samples[i].brake > BRAKE_THRESHOLD && Math.abs(samples[i].steer) > TRAIL_BRAKING_STEER_THRESHOLD) return true;
+  }
+  return false;
 }

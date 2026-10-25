@@ -38,6 +38,13 @@ export function makeConstantSpeedLap(options: {
   return distances.map((d) => makeSample({ lapDistance: d, sessionTime: startSessionTime + d / speedMs, speed: speedMs * 3.6 }));
 }
 
+// Volta escrita à mão: cada linha é [distância, velocidade, freio, acelerador].
+export function makeLapFromRows(rows: [number, number, number, number][]): TelemetrySample[] {
+  return rows.map(([lapDistance, speed, brake, throttle], i) =>
+    makeSample({ lapDistance, sessionTime: i * 0.1, speed, brake, throttle })
+  );
+}
+
 export type PathSegment =
   | { kind: "straight"; lengthM: number }
   // side: 1 = curva no sentido em que o rumo (atan2(z, x)) cresce, -1 = o contrário

@@ -1,9 +1,7 @@
-import { TelemetrySample, Corner, ThrottleInsight } from "./types";
-import { findApexIndexNear, findThrottleOnIndex } from "./sampleSearch";
+import { TelemetrySample, Corner, ThrottleInsight, LapCornerBehaviour } from "./types";
+import { lapBehaviourInStretch, lastIndexInStretch } from "./cornerBehaviour";
 import { round2 } from "./numberUtils";
 
-const CORNER_SEARCH_WINDOW_M = 80;
-const THROTTLE_THRESHOLD = 0.9;
 const COASTING_BRAKE_THRESHOLD = 0.05;
 const COASTING_THROTTLE_THRESHOLD = 0.05;
 // Variação de acelerador abaixo disso entre amostras consecutivas é ruído,
@@ -15,31 +13,31 @@ export function analyzeThrottle(
   primarySamples: TelemetrySample[],
   comparisonSamples: TelemetrySample[]
 ): ThrottleInsight {
-  const primaryApexIndex = findApexIndexNear(primarySamples, corner.apexDistance, CORNER_SEARCH_WINDOW_M);
-  const comparisonApexIndex = findApexIndexNear(comparisonSamples, corner.apexDistance, CORNER_SEARCH_WINDOW_M);
+  const { brakingStartDistance: from, exitDistance: to } = corner;
+  const primary = lapBehaviourInStretch(primarySamples, from, to);
+  const comparison = lapBehaviourInStretch(comparisonSamples, from, to);
 
-  if (primaryApexIndex === null || comparisonApexIndex === null) {
-    return {
-      throttleOnDiffM: null,
-      coastingTimePrimaryS: 0,
-      coastingTimeComparisonS: 0,
-      throttleOscillationPrimary: 0,
-      throttleOscillationComparison: 0,
-    };
-  }
+  const primaryOn = primary?.fullThrottleIndex ?? null;
+  const comparisonOn = comparison?.fullThrottleIndex ?? null;
 
-  const primaryExitIndex = findThrottleOnIndex(primarySamples, primaryApexIndex, THROTTLE_THRESHOLD);
-  const comparisonExitIndex = findThrottleOnIndex(comparisonSamples, comparisonApexIndex, THROTTLE_THRESHOLD);
-
-  const primaryExitDistance = primarySamples[primaryExitIndex].lapDistance;
-  const comparisonExitDistance = comparisonSamples[comparisonExitIndex].lapDistance;
+  // Do ponto mais lento até a retomada, ou até o fim do trecho se a volta
+  // não voltou ao acelerador pleno nele.
+  const range = (samples: TelemetrySample[], behaviour: LapCornerBehaviour | null): [number, number] | null =>
+    behaviour ? [behaviour.slowestIndex, behaviour.fullThrottleIndex ?? lastIndexInStretch(samples, from, to)] : null;
+  const primaryRange = range(primarySamples, primary);
+  const comparisonRange = range(comparisonSamples, comparison);
 
   return {
-    throttleOnDiffM: round2(primaryExitDistance - comparisonExitDistance),
-    coastingTimePrimaryS: coastingTime(primarySamples, primaryApexIndex, primaryExitIndex),
-    coastingTimeComparisonS: coastingTime(comparisonSamples, comparisonApexIndex, comparisonExitIndex),
-    throttleOscillationPrimary: throttleOscillation(primarySamples, primaryApexIndex, primaryExitIndex),
-    throttleOscillationComparison: throttleOscillation(comparisonSamples, comparisonApexIndex, comparisonExitIndex),
+    throttleOnDiffM:
+      primaryOn !== null && comparisonOn !== null
+        ? round2(primarySamples[primaryOn].lapDistance - comparisonSamples[comparisonOn].lapDistance)
+        : null,
+    fullThrottlePrimary: primary ? primaryOn !== null : null,
+    fullThrottleComparison: comparison ? comparisonOn !== null : null,
+    coastingTimePrimaryS: primaryRange ? coastingTime(primarySamples, ...primaryRange) : 0,
+    coastingTimeComparisonS: comparisonRange ? coastingTime(comparisonSamples, ...comparisonRange) : 0,
+    throttleOscillationPrimary: primaryRange ? throttleOscillation(primarySamples, ...primaryRange) : 0,
+    throttleOscillationComparison: comparisonRange ? throttleOscillation(comparisonSamples, ...comparisonRange) : 0,
   };
 }
 

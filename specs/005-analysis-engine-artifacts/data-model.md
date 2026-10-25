@@ -34,7 +34,7 @@ Measured on the lap's own stored samples with `lapDistance` inside the stretch.
 | braking start | walking back from the slowest point, the last braking phase (consecutive samples with brake > 0.1) that ends at or before it; its first sample | no such phase in the stretch → **did not brake** (`braked = false`) |
 | braking peak | the highest brake over that phase | 0 when the lap did not brake |
 | trail braking | brake > 0.1 with \|steer\| > 0.15 between the braking start and the slowest point | `false` when it did not brake |
-| full-throttle pick-up | the first sample at throttle ≥ 0.9 after the slowest point, inside the stretch | none before the stretch ends → **no full throttle** (`fullThrottle = false`) |
+| full-throttle pick-up | the first sample at throttle ≥ 0.9 from the slowest point on (the slowest sample itself included), inside the stretch | none before the stretch ends → **no full throttle** (`fullThrottle = false`) |
 | coasting time | time with brake ≤ 0.05 and throttle ≤ 0.05 from the slowest point to the pick-up, or to the stretch's end | — |
 | throttle oscillation | direction changes of the throttle (steps ≥ 0.02) over the same range | — |
 
